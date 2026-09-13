@@ -234,6 +234,7 @@ This measures them live through `DISCORD_PROBE_WEBHOOK_URL`, a webhook in a chan
 ```bash
 npm run accounts      # once: admin, salesperson, management, finance, dispatch (.test@getmeds.ph) and SESSION_SECRET
 npm run test:orders   # the whole flow against the stand-in Discord, about 10 seconds
+npm run test:accounts # accounts from ACCOUNTS instead of data/users.json, a few seconds
 ```
 
 | Role | Steps |
@@ -247,6 +248,7 @@ npm run test:orders   # the whole flow against the stand-in Discord, about 10 se
 The steps are one table, `ACTIONS` in `src/orders.js`: who may take each, from which statuses, what it moves the order to, and which fields it asks for. The server checks every step against it, and the page draws its forms from it.
 
 - **Accounts** live in `data/users.json`, passwords hashed with scrypt (`src/passwords.js`). A sign-in is an HMAC-signed cookie (`SESSION_SECRET`) that lasts 8 hours. Deactivating someone or resetting their password signs them out at once.
+- **Or in `ACCOUNTS`**, for hosts without a disk such as Vercel, until there's a database: one account per line, `id | email | password | role | name`, the password in plain text or as a `scrypt$...` hash (`.env.example` has the details). With it set, `data/users.json` isn't read and the People screen is read-only: add, change or remove someone by editing `ACCOUNTS` and restarting, or redeploying on Vercel. Changing someone's password there signs them out everywhere. Never change or reuse an id: orders point at their salesperson by id.
 - **Orders** live in `#order-audit` (`src/orderAudit.js`), not on disk. Each order has a starter message titled with its id and a thread on it. Every step is two posts in the thread: an embed for people (step, status change, `Name · Role`, time), and a reply from the bot holding the order's data as JSON (`src/orderCodec.js`): `{ "format": "order/1", "order", "step", "x" }`, the whole order after that step plus the step. On startup the server reads the channel and every thread and rebuilds each order from its newest reply. Customer name, contact number, address, notes, reasons, payment reference and received-by are in `x`, encrypted with `RECORD_SECRET` (AES-256-GCM, bound to the order id and step). Data too long for one message goes as a `.json` file.
 - **Posting** happens after the step is taken. The step post goes through the webhook's queue; the reply goes through the bot (`sendAsBot`, which needs Send Messages in Threads), or as the webhook's next message if the bot may not. A failed post is kept on its step and sent again, in order, and the API answers 202 until a step is stored. It follows `DISCORD_MODE` and `DISCORD_ENABLED` like the records; without `DISCORD_BOT_TOKEN`, orders are in memory only.
 - **Old orders** from `data/orders.json` are copied into their threads on the first start, then the file is renamed `orders.imported.json`.

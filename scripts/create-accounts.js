@@ -34,6 +34,10 @@ function ensureSessionSecret() {
 
 (async () => {
   if (ensureSessionSecret()) console.log('added SESSION_SECRET to .env');
+  if (process.env.ACCOUNTS?.trim()) {
+    console.log('ACCOUNTS is set in .env, so accounts are kept there and none were created. Add a line to ACCOUNTS instead.');
+    return;
+  }
   const { createAccount } = require('../src/accounts');
 
   const created = [];
