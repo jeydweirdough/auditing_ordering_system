@@ -1,0 +1,33 @@
+# Dependencies. package-lock.json stays: the deploy workflow runs `npm ci`.
+node_modules/
+
+# Secrets: webhook URLs, the bot token, RECORD_SECRET and SESSION_SECRET. Only the template is committed.
+.env
+.env.*
+!.env.example
+
+# Accounts (hashed passwords) and orders (customer details), with the store's .tmp files.
+data/
+
+# Vercel CLI project link
+.vercel/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage (node --test --experimental-test-coverage)
+coverage/
+
+# Editors and personal Claude Code settings
+.vscode/
+.idea/
+*.swp
+.claude/settings.local.json
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+SETUP-GUIDE.html

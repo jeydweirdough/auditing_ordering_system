@@ -1,0 +1,1441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discord sync · record_database</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: #E7EBF0;
+    --surface: #FFFFFF;
+    --ink: #152033;
+    --ink-2: #536076;
+    --ink-3: #98A3B3;
+    --line: #CFD7E1;
+    --line-soft: #E9EDF2;
+    --field: #C4CDD9;
+
+    --navy: #1F3864;          /* the embed colour in server.js */
+    --navy-deep: #152848;
+    --navy-tint: #E2E8F3;
+    --held: #A8520A;
+    --held-tint: #FCEFD9;
+    --ok: #16753A;
+    --ok-tint: #DFF2E5;
+    --bad: #B42318;
+    --bad-tint: #FCE5E2;
+    --mock: #4A55C9;
+    --mock-tint: #E8EAFC;
+
+    --dc-bg: #313338;
+    --dc-embed: #2B2D31;
+    --dc-text: #DBDEE1;
+    --dc-bright: #F2F3F5;
+    --dc-muted: #949BA4;
+    --dc-link: #00A8FC;
+    --blurple: #5865F2;
+
+    --sans: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --dc-font: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+    --seam: 48px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { color-scheme: light; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 400 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding-inline: clamp(16px, 3vw, 36px);
+    padding-block: 28px 72px;
+  }
+
+  .label {
+    margin: 0;
+    font: 700 12px/1.2 var(--sans);
+    font-stretch: 72%;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .label.quiet { color: var(--ink-2); font-weight: 600; }
+  .mono { font-family: var(--mono); }
+  code {
+    font: 500 .86em var(--mono);
+    background: var(--navy-tint);
+    color: var(--navy-deep);
+    padding: .1em .35em;
+    border-radius: 4px;
+  }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+  /* ---------- header ---------- */
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px 40px;
+    padding-bottom: 18px;
+    border-bottom: 3px solid var(--navy);
+  }
+  .eyebrow { margin: 0 0 6px; font: 500 12.5px var(--mono); color: var(--ink-2); }
+  .to-app {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 12px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: var(--navy);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .to-app:hover { background: var(--navy-deep); }
+  h1 {
+    margin: 0;
+    font: 800 clamp(2.2rem, 5vw, 3.2rem)/.92 var(--sans);
+    font-stretch: 62%;
+    text-transform: uppercase;
+    color: var(--navy);
+  }
+  .switches { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+  .switches > div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px 9px;
+    min-width: 108px;
+  }
+  .switches dt {
+    margin-bottom: 7px;
+    font: 600 11px/1 var(--sans);
+    font-stretch: 72%;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .switches dd { margin: 0; }
+  .explain { margin: 16px 0 0; max-width: 80ch; color: var(--ink-2); }
+  .explain + .explain { margin-top: 6px; }
+  .explain b { color: var(--ink); }
+  .explain.bad, .explain.bad b { color: var(--bad); }
+
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px 5px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    font: 700 11px/1 var(--sans);
+    font-stretch: 72%;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: var(--line-soft);
+    color: var(--ink-2);
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.sent, .chip.on, .chip.set { color: var(--ok); background: var(--ok-tint); }
+  .chip.failed { color: var(--bad); background: var(--bad-tint); }
+  .chip.unset { color: var(--held); background: var(--held-tint); }
+  .chip.mocked, .chip.mock { color: var(--mock); background: var(--mock-tint); }
+  .chip.live { color: #fff; background: var(--navy); }
+  .chip.queued, .chip.sending { color: var(--navy); background: var(--navy-tint); }
+  .chip.sending::before { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .2; } }
+
+  /* ---------- layout ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 24px;
+    align-items: start;
+  }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .inspect { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ---------- compose ---------- */
+  .compose { padding: 20px; }
+  form { display: grid; gap: 14px; margin-top: 16px; }
+  .fld { display: grid; gap: 5px; min-width: 0; }
+  .fld > span, .extras legend { font-size: 13px; font-weight: 600; color: var(--ink); }
+  input, textarea, select {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 11px;
+    font: 400 14.5px/1.4 var(--sans);
+    color: var(--ink);
+    background: #FBFCFD;
+    border: 1px solid var(--field);
+    border-radius: 6px;
+  }
+  textarea { resize: vertical; }
+  input[type="file"] { padding: 7px 9px; font-size: 13.5px; }
+  .hint { font-size: 12.5px; font-weight: 400; color: var(--ink-2); }
+  input::placeholder, textarea::placeholder { color: var(--ink-3); }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; border-color: var(--navy); }
+  .extras { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+  .extras legend { padding: 0; margin-bottom: 5px; }
+  #extras { display: grid; gap: 6px; }
+  .extra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 6px; }
+  .extra input { font: 400 13px/1.4 var(--mono); }
+  .remove {
+    background: var(--surface);
+    border: 1px solid var(--field);
+    border-radius: 6px;
+    color: var(--ink-2);
+    font-size: 18px;
+    line-height: 1;
+  }
+  .remove:hover { color: var(--bad); border-color: currentColor; }
+  .link {
+    justify-self: start;
+    padding: 2px 0;
+    background: none;
+    border: 0;
+    color: var(--navy);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .link:hover { text-decoration: underline; }
+  .primary {
+    margin-top: 4px;
+    padding: 13px 16px;
+    background: var(--navy);
+    color: #fff;
+    border: 0;
+    border-radius: 7px;
+    font: 700 15px/1 var(--sans);
+    font-stretch: 80%;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+  .primary:hover { background: var(--navy-deep); }
+  .primary:disabled, .exercises button:disabled { opacity: .55; cursor: progress; }
+
+  .ex-h { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+  .exercises { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+  .exercises button {
+    width: 100%;
+    padding: 9px 12px;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--field);
+    border-radius: 7px;
+    color: var(--navy);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .exercises button:hover { border-color: var(--navy); background: #F5F7FB; }
+  .exercises p { margin: 4px 2px 0; font-size: 13px; color: var(--ink-2); }
+  .sample-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .sample-actions .primary { margin-top: 0; }
+  .sample-progress { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+  .sample-progress b { color: var(--ink); }
+  .sample-progress.bad { color: var(--bad); }
+
+  /* ---------- response ---------- */
+  .response { display: grid; gap: 10px; padding: 16px 18px; }
+  .response .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .response .note, .empty-state { margin: 0; font-size: 14px; color: var(--ink-2); }
+  .code { padding: 5px 8px; border-radius: 5px; font: 600 13px/1 var(--mono); white-space: nowrap; }
+  .code.ok { background: var(--ok-tint); color: var(--ok); }
+  .code.bad { background: var(--bad-tint); color: var(--bad); }
+  .io { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .io > div { display: grid; gap: 5px; align-content: start; min-width: 0; }
+  .io pre {
+    margin: 0;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font: 400 12.5px/1.5 var(--mono);
+    background: #F4F6F9;
+    border-radius: 6px;
+  }
+
+  /* ---------- the split: record vs. Discord ---------- */
+  .record { container-type: inline-size; }
+  .record-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+  .record-pick {
+    width: auto;
+    max-width: 100%;
+    padding: 7px 10px;
+    font: 600 13px/1.3 var(--mono);
+    color: var(--navy);
+    background: var(--surface);
+    border: 1px solid var(--field);
+    border-radius: 6px;
+  }
+  .record-pick:focus-visible { outline-offset: 0; border-color: var(--navy); }
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--seam) minmax(0, 1fr);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .pane { min-width: 0; padding: 16px 0 18px 18px; }
+  .pane-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .by { padding-right: 10px; font-size: 12px; color: var(--ink-2); }
+  .by .mono { font-size: 11.5px; }
+  .seam { background: linear-gradient(var(--line) 50%, transparent 0) center / 2px 10px repeat-y; }
+
+  .fields { margin: 0; padding: 0; list-style: none; }
+  .field {
+    display: grid;
+    grid-template-columns: minmax(84px, max-content) minmax(0, 1fr) auto;
+    column-gap: 14px;
+    align-items: center;
+    padding: 7px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .field .k { font: 500 12.5px/1.4 var(--mono); color: var(--ink-2); }
+  .field .v { font: 400 13px/1.4 var(--mono); overflow-wrap: anywhere; }
+  .field .v.null { color: var(--ink-3); }
+  .field .v a { color: var(--navy); }
+  .field .v .size { color: var(--ink-3); }
+  .fate {
+    position: relative;
+    padding: 6px 10px 6px 9px;
+    border-radius: 4px 0 0 4px;
+    font: 700 11px/1 var(--sans);
+    font-stretch: 72%;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  /* allowed fields and shared files cross the seam into Discord */
+  .fate-sent .fate, .fate-file .fate { background: var(--navy); color: #fff; }
+  .fate-sent .fate::after, .fate-file .fate::after {
+    content: "";
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    width: var(--seam);
+    height: 2px;
+    margin-top: -1px;
+    background: var(--navy);
+  }
+  .fate-sent .fate::before, .fate-file .fate::before {
+    content: "";
+    position: absolute;
+    left: calc(100% + var(--seam) - 8px);
+    top: 50%;
+    margin-top: -5px;
+    border: 5px solid transparent;
+    border-right: 0;
+    border-left: 8px solid var(--navy);
+  }
+  /* everything else stops at the seam */
+  .fate-held .fate { background: var(--held-tint); color: var(--held); box-shadow: inset -3px 0 0 var(--held); }
+  .fate-ignored .fate { background: var(--line-soft); color: var(--ink-2); }
+  .fate-ignored .k, .fate-ignored .v { text-decoration: line-through; text-decoration-color: var(--ink-3); }
+
+  .pane.discord { padding: 16px 18px 20px; background: var(--dc-bg); color: var(--dc-text); }
+  .pane.discord .label { color: var(--dc-muted); }
+  .delivery { display: grid; justify-items: start; gap: 7px; margin: 12px 0 16px; }
+  .delivery p, .dc-note { margin: 0; font-size: 13.5px; color: var(--dc-text); }
+  .pane.discord .chip { background: rgba(255, 255, 255, .07); color: var(--dc-text); }
+  .pane.discord .chip.sent { color: #4BD58A; background: rgba(35, 165, 90, .18); }
+  .pane.discord .chip.failed { color: #FF7A7D; background: rgba(242, 63, 67, .18); }
+  .pane.discord .chip.mocked { color: #A5ACFA; background: rgba(88, 101, 242, .22); }
+  .pane.discord .chip.queued, .pane.discord .chip.sending { color: var(--dc-bright); }
+
+  .dc { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 14px; font: 400 15px/1.375 var(--dc-font); }
+  .dc.unsent { opacity: .6; }
+  .dc-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--blurple); }
+  .dc-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+  .dc-name { color: var(--dc-bright); font-weight: 600; }
+  .dc-tag { padding: 1px 4px; border-radius: 3px; background: var(--blurple); color: #fff; font-size: 10px; font-weight: 600; line-height: 1.3; }
+  .dc-time { color: var(--dc-muted); font-size: 12px; }
+  .dc-content { margin-top: 2px; }
+  .dc-embed {
+    max-width: 432px;
+    margin-top: 6px;
+    padding: 10px 16px 14px 12px;
+    background: var(--dc-embed);
+    border-left: 4px solid var(--bar);
+    border-radius: 4px;
+  }
+  .dc-title { color: var(--dc-bright); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+  .dc-desc { margin-top: 6px; font-size: 14px; }
+  .dc-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+  .dc-field:not(.inline) { grid-column: 1 / -1; }
+  .dc-field .n { margin-bottom: 2px; color: var(--dc-bright); font-size: 14px; font-weight: 600; }
+  .dc-field .v { font-size: 14px; overflow-wrap: anywhere; }
+  .dc-image { display: block; max-width: 100%; max-height: 240px; margin-top: 12px; border-radius: 4px; }
+  .dc-footer { margin-top: 8px; color: var(--dc-muted); font-size: 12px; }
+  .dc-footer-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    margin-bottom: 2px;
+  }
+  .dc-file {
+    display: grid;
+    gap: 1px;
+    max-width: 432px;
+    margin-top: 6px;
+    padding: 10px 12px;
+    background: var(--dc-embed);
+    border: 1px solid #1E1F22;
+    border-radius: 6px;
+    text-decoration: none;
+  }
+  .dc-file-name { color: var(--dc-link); font-size: 14px; overflow-wrap: anywhere; }
+  .dc-file:hover .dc-file-name { text-decoration: underline; }
+  .dc-file-size { color: var(--dc-muted); font-size: 12px; }
+  .dc-thread { margin-top: 8px; color: var(--dc-link); font-size: 13px; font-weight: 600; }
+
+  /* ---------- thread ---------- */
+  .thread { margin-top: 16px; padding: 16px 18px 18px; }
+  .thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .thread-head .mono { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--navy); }
+  .thread-head .spacer { flex: 1; }
+  .thread-note { margin: 10px 0 0; max-width: 80ch; font-size: 14px; color: var(--ink-2); }
+  .thread-note.bad { color: var(--bad); }
+  .posts { list-style: none; margin: 12px 0 0; padding: 0; display: grid; }
+  .post { padding: 10px 0 10px 14px; border-top: 1px solid var(--line-soft); border-left: 3px solid var(--line); }
+  .post-copy { border-left-color: var(--navy); }
+  .post-reply { border-left-color: var(--blurple); }
+  .post-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+  .post-kind { font-weight: 700; }
+  .post-time { color: var(--ink-3); }
+  .post-text { margin-top: 4px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .post-files { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font: 400 13px/1.5 var(--mono); }
+  .post-files a { color: var(--navy); }
+  .post-files .size { color: var(--ink-3); }
+  .post-error { margin: 4px 0 0; font-size: 13px; color: var(--bad); }
+  .thread-form { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .thread-form .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .thread-form .primary { justify-self: start; margin-top: 0; padding: 11px 16px; font-size: 14px; }
+  .thread-msg { margin: 0; font-size: 13.5px; color: var(--bad); }
+
+  @container (max-width: 620px) {
+    .split { grid-template-columns: minmax(0, 1fr); }
+    .pane.stored { padding-right: 18px; }
+    .by { padding-right: 0; }
+    .seam { height: 20px; background: linear-gradient(90deg, var(--line) 50%, transparent 0) center / 10px 2px repeat-x; }
+    .field { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "k fate" "v v"; row-gap: 3px; }
+    .field .k { grid-area: k; }
+    .field .v { grid-area: v; }
+    .field .fate { grid-area: fate; }
+    .fate { border-radius: 4px; }
+    .fate-held .fate { box-shadow: none; }
+    .fate-sent .fate::before, .fate-sent .fate::after,
+    .fate-file .fate::before, .fate-file .fate::after { display: none; }
+    .thread-form .row { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ---------- send queue ---------- */
+  .queue { padding: 16px 18px 18px; }
+  .queue-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px 16px;
+  }
+  .totals { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: 13px; color: var(--ink-2); }
+  .totals b { font: 600 13px var(--mono); color: var(--ink); }
+  .totals .zero-429 b { color: var(--ok); }
+  .totals .some-429 b { color: var(--bad); }
+  .meter { display: flex; gap: 3px; margin: 14px 0 10px; }
+  .meter span { flex: 1; height: 12px; border-radius: 2px; background: var(--line-soft); }
+  .meter span.used { background: var(--navy); }
+  .meter.full span.used { background: var(--held); }
+  .queue-line { margin: 0; font-size: 14px; color: var(--ink-2); }
+  .queue-line b { color: var(--ink); }
+  .queue-line.bad { color: var(--bad); }
+
+  /* ---------- history ---------- */
+  .history { padding: 16px 0 6px; }
+  .history-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px 16px;
+    padding: 0 18px 10px;
+  }
+  .tally { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    padding: 8px 12px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+    font: 600 11px/1 var(--sans);
+    font-stretch: 72%;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  th:first-child, td:first-child { padding-left: 18px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #F6F8FB; }
+  tbody tr.selected { background: var(--navy-tint); box-shadow: inset 3px 0 0 var(--navy); }
+  .rid { padding: 0; background: none; border: 0; color: var(--navy); font: 600 13px var(--mono); white-space: nowrap; }
+  td.num { font-family: var(--mono); }
+  td.muted { color: var(--ink-3); }
+  .empty { margin: 0; padding: 4px 18px 16px; font-size: 14px; color: var(--ink-2); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chip.sending::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">record_database</p>
+      <h1>Discord sync</h1>
+      <a class="to-app" href="/app">Orders app: sign in →</a>
+    </div>
+    <dl class="switches" aria-label="Settings from .env">
+      <div><dt>Mode</dt><dd id="sw-mode"></dd></div>
+      <div><dt>Sending</dt><dd id="sw-enabled"></dd></div>
+      <div><dt>Webhook URL</dt><dd id="sw-webhook"></dd></div>
+      <div><dt>Storage</dt><dd id="sw-storage"></dd></div>
+    </dl>
+  </header>
+  <p class="explain" id="explain">Connecting to the API…</p>
+  <p class="explain" id="storage-note" hidden></p>
+
+  <main class="layout">
+    <section class="card compose" aria-labelledby="compose-h">
+      <h2 class="label" id="compose-h">New record</h2>
+      <form id="form" novalidate>
+        <label class="fld"><span>Division</span>
+          <input name="division" id="division" list="divisions" autocomplete="off" placeholder="HOS | MARIKINA">
+        </label>
+        <datalist id="divisions"><option value="HOS | MARIKINA"><option value="HOS"></datalist>
+        <label class="fld"><span>Item count</span>
+          <input name="itemCount" id="itemCount" type="number" step="1" inputmode="numeric" placeholder="3">
+        </label>
+        <label class="fld"><span>Customer name</span>
+          <input name="customerName" id="customerName" autocomplete="off" placeholder="Juan Dela Cruz">
+        </label>
+        <label class="fld"><span>Notes</span>
+          <textarea name="notes" id="notes" rows="2"></textarea>
+        </label>
+        <label class="fld"><span>Attachments</span>
+          <input type="file" name="files" id="files" multiple>
+          <small class="hint" id="files-hint">Posted to the channel as they are, so anyone who can read it can open them.</small>
+        </label>
+        <fieldset class="extras">
+          <legend>Extra fields</legend>
+          <div id="extras"></div>
+          <button type="button" class="link" id="add-extra">+ Add field</button>
+        </fieldset>
+        <button type="submit" class="primary" id="send">Send record</button>
+      </form>
+
+      <h2 class="label ex-h">README exercises</h2>
+      <ul class="exercises">
+        <li>
+          <button type="button" data-preset="sample" id="preset-sample">Send sample order</button>
+          <p>customerName is saved but must not reach Discord as readable text.</p>
+        </li>
+        <li>
+          <button type="button" data-preset="invalid" id="preset-invalid">Send without item count</button>
+          <p>Expect 400. Nothing is saved, nothing is sent.</p>
+        </li>
+        <li>
+          <button type="button" data-preset="invented" id="preset-invented">Send with an invented field</button>
+          <p>glNumber has no allowlist entry, so it must stay out of Discord.</p>
+        </li>
+        <li>
+          <button type="button" id="burst">Send 40 at once</button>
+          <p>The send queue paces them to Discord's limits, so none should fail and no 429s should come back.</p>
+        </li>
+      </ul>
+
+      <h2 class="label ex-h" id="sample-h">Sample sends</h2>
+      <form class="sample" id="sample-form" novalidate aria-labelledby="sample-h">
+        <label class="fld"><span>What to send</span>
+          <select id="sample-kind">
+            <option value="records">New records</option>
+            <option value="records-photo">New records, each with a photo</option>
+            <option value="chat">Chat messages in the picked record's thread</option>
+            <option value="chat-photo">Chat messages with a photo</option>
+            <option value="status">Status changes in the picked record's thread</option>
+          </select>
+        </label>
+        <label class="fld"><span>How many</span>
+          <input type="number" id="sample-count" min="1" max="500" step="1" value="10" inputmode="numeric">
+        </label>
+        <p class="hint" id="sample-hint"></p>
+        <div class="sample-actions">
+          <button type="submit" class="primary" id="sample-send">Send 10</button>
+          <button type="button" class="link" id="sample-stop" hidden>Stop</button>
+        </div>
+        <p class="sample-progress" id="sample-progress" role="status" hidden></p>
+      </form>
+    </section>
+
+    <div class="inspect">
+      <div class="card response" id="response" role="status"></div>
+
+      <section class="record" id="record" hidden aria-labelledby="record-h">
+        <div class="record-h">
+          <label class="label" id="record-h" for="record-pick">Record</label>
+          <select class="record-pick" id="record-pick"></select>
+          <span class="hint">Pick any record to see its data and add to its thread.</span>
+        </div>
+        <div class="split">
+          <div class="pane stored">
+            <div class="pane-head">
+              <h3 class="label">Full record</h3>
+              <span class="by">checked by <span class="mono">src/redact.js</span></span>
+            </div>
+            <ul class="fields" id="fields"></ul>
+          </div>
+          <div class="seam" aria-hidden="true"></div>
+          <div class="pane discord">
+            <h3 class="label">Discord message</h3>
+            <div id="delivery"></div>
+          </div>
+        </div>
+
+        <div class="card thread" id="thread">
+          <div class="thread-head">
+            <h3 class="label">Thread <span class="mono" id="thread-name"></span></h3>
+            <span id="thread-state"></span>
+            <span class="spacer"></span>
+            <button type="button" class="link" id="thread-action" hidden></button>
+            <button type="button" class="link" id="thread-reload" hidden>Reload from Discord</button>
+          </div>
+          <p class="thread-note" id="thread-note" hidden></p>
+          <ol class="posts" id="posts"></ol>
+          <form class="thread-form" id="thread-form" novalidate>
+            <label class="fld"><span>Message</span>
+              <textarea id="thread-message" rows="2" placeholder="Picked up by the rider, arriving around 3 PM"></textarea>
+            </label>
+            <div class="row">
+              <label class="fld"><span>New status <small class="hint">optional</small></span>
+                <input id="thread-status" list="statuses" autocomplete="off" placeholder="dispatched">
+              </label>
+              <label class="fld"><span>Files</span>
+                <input type="file" id="thread-files" multiple>
+              </label>
+            </div>
+            <datalist id="statuses"><option value="preparing"><option value="dispatched"><option value="delivered"><option value="cancelled"></datalist>
+            <p class="thread-msg" id="thread-msg" role="alert" hidden></p>
+            <button type="submit" class="primary" id="thread-send">Post to thread</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="card queue" id="queue" hidden aria-labelledby="queue-h">
+        <div class="queue-head">
+          <h2 class="label" id="queue-h">Send queue</h2>
+          <p class="totals" id="totals"></p>
+        </div>
+        <div class="meter" id="meter" role="img"></div>
+        <p class="queue-line" id="queue-line"></p>
+      </section>
+
+      <section class="card history" aria-labelledby="history-h">
+        <div class="history-head">
+          <h2 class="label" id="history-h">History</h2>
+          <p class="tally" id="tally"></p>
+        </div>
+        <div class="table-wrap" id="table-wrap" hidden>
+          <table>
+            <thead><tr><th>Record</th><th>Division</th><th>Items</th><th>Customer</th><th>Status</th><th>Files</th><th>Discord</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="history-empty"></p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (v) => (v === null ? 'null' : typeof v === 'string' ? v : JSON.stringify(v));
+  const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+  const accepted = (status) => status === 201 || status === 202;
+  const size = (bytes) => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} KB`);
+  const recordPath = (recordId) => `/api/records/${encodeURIComponent(recordId)}`;
+  const fileUrl = (recordId, n) => `${recordPath(recordId)}/files/${n}`;
+  // **bold** and line breaks, the little formatting thread posts use.
+  const rich = (text) => esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+  const LABEL = { queued: 'Queued', sending: 'Sending', skipped: 'Not sent', mocked: 'Mock', sent: 'Delivered', failed: 'Failed' };
+  const TALLY = { sent: 'delivered', failed: 'failed', sending: 'sending', queued: 'queued', mocked: 'mock', skipped: 'not sent' };
+  const HTTP = { 201: 'Created', 202: 'Accepted', 400: 'Bad Request', 404: 'Not Found', 409: 'Conflict', 413: 'Payload Too Large', 500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable' };
+  const FATE = {
+    sent: ['Sent', 'On the allowlist in src/redact.js'],
+    held: ['Withheld', 'Not on the allowlist, so redact() drops it before Discord'],
+    ignored: ['Not saved', "Sent in the request, but the API didn't store it"],
+    file: ['Visible', "Posted as they are in the record's thread: anyone who can read the channel can open them"],
+  };
+  // [chip class, label] for each thread state, and what to say about it.
+  const THREAD_STATE = {
+    waiting: ['queued', 'Waiting', "The thread starts once the record's message is in Discord."],
+    creating: ['sending', 'Starting', ''],
+    posting: ['sending', 'Posting', ''],
+    ready: ['sent', 'Ready', ''],
+    failed: ['failed', 'Failed', ''],
+    none: ['', 'No thread yet', 'This record was stored before threads. Start one, or post below and it starts on its own.'],
+    message: ['', 'No thread', 'Threads need DISCORD_BOT_TOKEN. Until then, files ride on the record\'s channel message.'],
+    local: ['mocked', 'In memory', "Mock mode or sending off: this thread lives in the server's memory, not Discord."],
+  };
+  const FORM_FIELDS = ['division', 'itemCount', 'customerName', 'notes'];
+  const PRESETS = {
+    sample: { division: 'HOS | MARIKINA', itemCount: 3, customerName: 'Juan Dela Cruz' },
+    invalid: { division: 'HOS' },
+    invented: { division: 'HOS', itemCount: 1, glNumber: 'GL-00123' },
+  };
+
+  const state = {
+    online: null,              // null until the first poll answers
+    config: null,              // GET /api/discord
+    records: [],
+    deliveries: new Map(),
+    requests: new Map(),       // recordId -> body we sent, to spot fields the API ignored
+    selected: null,
+    last: null,                // last send, for the response panel
+    thread: { recordId: null, sig: '', data: null, loading: false, error: null },
+  };
+
+  async function api(path, init) {
+    const t = performance.now();
+    const res = await fetch(path, init);
+    const body = await res.json().catch(() => null);
+    return { status: res.status, body, ms: Math.round(performance.now() - t) };
+  }
+  // JSON, or a form upload when files come along.
+  function send(path, body, files = []) {
+    if (!files.length) {
+      return api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+    const form = new FormData();
+    for (const [key, value] of Object.entries(body)) form.append(key, String(value));
+    for (const file of files) form.append('files', file);
+    return api(path, { method: 'POST', body: form });
+  }
+
+  // Only touch the DOM when the markup actually changed, so polling doesn't steal focus.
+  function setHTML(el, html) {
+    if (el._html === html) return;
+    el.innerHTML = html;
+    el._html = html;
+  }
+
+  // ---------- polling ----------
+  let timer;
+  async function refresh() {
+    clearTimeout(timer);
+    try {
+      const [cfg, recs] = await Promise.all([api('/api/discord'), api('/api/records')]);
+      if (cfg.status !== 200 || recs.status !== 200) throw new Error('unexpected status');
+      state.online = true;
+      state.config = cfg.body;
+      state.records = recs.body.records;
+      state.deliveries = new Map(cfg.body.deliveries.map((d) => [d.recordId, d]));
+      if (!state.records.some((r) => r.recordId === state.selected)) {
+        state.selected = state.records.at(-1)?.recordId ?? null;
+      }
+    } catch {
+      state.online = false;
+    }
+    render();
+    const busy = state.config?.queue?.waiting > 0
+      || [...state.deliveries.values()].some((d) => d.state === 'queued' || d.state === 'sending'
+        || ['waiting', 'creating', 'posting'].includes(d.thread?.state));
+    timer = setTimeout(refresh, busy ? 700 : 3000);
+  }
+
+  // ---------- sending records ----------
+  function setBusy(on) {
+    for (const b of document.querySelectorAll('#send, .exercises button')) b.disabled = on;
+  }
+
+  async function sendRecord(body, files = []) {
+    setBusy(true);
+    try {
+      const r = await send('/api/records', body, files);
+      if (accepted(r.status)) {
+        state.requests.set(r.body.recordId, body);
+        state.selected = r.body.recordId;
+        $('#files').value = '';
+      }
+      const request = files.length ? { ...body, files: files.map((f) => `${f.name} (${size(f.size)})`) } : body;
+      state.last = { kind: 'single', ...r, request };
+    } catch {
+      state.last = { kind: 'offline' };
+    }
+    setBusy(false);
+    await refresh();
+  }
+
+  async function burst() {
+    const c = state.config;
+    const perMinute = c?.queue?.perMinute ?? 30;
+    const each = c?.threads ? ' Each record also gets a thread, which takes a second message.' : '';
+    if (c?.enabled && c.mode === 'live' && !confirm(`This posts 40 records to your Discord channel. The queue sends about ${perMinute} messages a minute, so the last ones arrive a few minutes later.${each} Send them?`)) return;
+    const body = { division: 'HOS', itemCount: 1 };
+    setBusy(true);
+    const t = performance.now();
+    try {
+      const results = await Promise.all(Array.from({ length: 40 }, () => send('/api/records', body)));
+      const ok = results.filter((r) => accepted(r.status));
+      for (const r of ok) state.requests.set(r.body.recordId, body);
+      state.selected = ok.at(-1)?.body.recordId ?? state.selected;
+      state.last = { kind: 'burst', count: results.length, accepted: ok.length, ms: Math.round(performance.now() - t) };
+    } catch {
+      state.last = { kind: 'offline' };
+    }
+    setBusy(false);
+    await refresh();
+  }
+
+  // ---------- form ----------
+  function readForm() {
+    const el = $('#form').elements;
+    const body = {};
+    const division = el.division.value.trim();
+    if (division) body.division = division;
+    const count = el.itemCount.value.trim();
+    if (count !== '') body.itemCount = Number(count);
+    const customerName = el.customerName.value.trim();
+    if (customerName) body.customerName = customerName;
+    const notes = el.notes.value.trim();
+    if (notes) body.notes = notes;
+    for (const row of document.querySelectorAll('.extra')) {
+      const key = row.querySelector('.ek').value.trim();
+      if (key) body[key] = row.querySelector('.ev').value;
+    }
+    return body;
+  }
+
+  function fillForm(values) {
+    const el = $('#form').elements;
+    for (const name of FORM_FIELDS) el[name].value = values[name] ?? '';
+    $('#files').value = '';
+    $('#extras').replaceChildren();
+    for (const [k, v] of Object.entries(values)) if (!FORM_FIELDS.includes(k)) addExtra(k, v);
+  }
+
+  let extraCount = 0;
+  function addExtra(key = '', value = '') {
+    const n = ++extraCount;
+    const row = document.createElement('div');
+    row.className = 'extra';
+    row.innerHTML = `<input class="ek" id="extra-key-${n}" aria-label="Field name" placeholder="glNumber" autocomplete="off">`
+      + `<input class="ev" id="extra-value-${n}" aria-label="Field value" placeholder="GL-00123" autocomplete="off">`
+      + '<button type="button" class="remove" aria-label="Remove field">×</button>';
+    row.querySelector('.ek').value = key;
+    row.querySelector('.ev').value = value;
+    row.querySelector('.remove').addEventListener('click', () => row.remove());
+    $('#extras').append(row);
+    return row;
+  }
+
+  // ---------- thread ----------
+  async function loadThread(recordId, fresh = false) {
+    state.thread.loading = true;
+    renderThread();
+    let r = null;
+    try {
+      r = await api(`${recordPath(recordId)}/thread${fresh ? '?refresh=1' : ''}`);
+    } catch { /* shown below */ }
+    if (state.thread.recordId !== recordId) return;   // another record was picked meanwhile
+    state.thread.loading = false;
+    if (r?.status === 200) {
+      state.thread.data = r.body.thread;
+      state.thread.error = null;
+    } else {
+      state.thread.error = r?.body?.error ?? "Couldn't load the thread.";
+    }
+    renderThread();
+  }
+
+  // Reloads the selected record's thread when it changes: another record, a new state, new posts.
+  function syncThread() {
+    const id = state.selected;
+    if (!id) return;
+    const t = state.deliveries.get(id)?.thread;
+    const sig = `${id}|${t?.state}|${t?.posts}|${t?.pending}`;
+    if (sig === state.thread.sig) return;
+    if (state.thread.recordId !== id) {
+      state.thread.data = null;
+      state.thread.error = null;
+      $('#thread-msg').hidden = true;
+    }
+    state.thread.sig = sig;
+    state.thread.recordId = id;
+    loadThread(id);
+  }
+
+  function renderThread() {
+    const id = state.selected;
+    const view = state.thread.recordId === id ? state.thread.data : null;
+    const summary = state.deliveries.get(id)?.thread;
+    const stateKey = view?.state ?? summary?.state;
+    const [cls, label, about] = THREAD_STATE[stateKey] ?? ['', 'Loading', ''];
+    $('#thread-name').textContent = id ?? '';
+    setHTML($('#thread-state'), `<span class="chip ${cls}">${label}</span>`);
+
+    const error = view?.error ?? summary?.error;
+    const note = $('#thread-note');
+    const text = state.thread.error ? `Couldn't read the thread: ${state.thread.error}`
+      : stateKey === 'failed' && error ? `${error}. Posts not yet in Discord are kept until the server stops.`
+      : about;
+    note.hidden = !text;
+    note.classList.toggle('bad', Boolean(state.thread.error) || stateKey === 'failed');
+    setHTML(note, esc(text));
+
+    const action = $('#thread-action');
+    action.hidden = !(stateKey === 'failed' || stateKey === 'none');
+    action.textContent = stateKey === 'none' ? 'Start thread' : 'Try again';
+    $('#thread-reload').hidden = view?.source !== 'thread' || !view?.id;
+    $('#thread-form').hidden = stateKey === 'message';
+
+    const posts = view?.posts;
+    let html = '';
+    if (state.thread.loading && !posts) html = '<li class="post"><span class="post-time">Reading the thread…</span></li>';
+    else if (posts?.length === 0) html = '<li class="post"><span class="post-time">Nothing in this thread yet.</span></li>';
+    else if (posts) {
+      html = posts.map((p) => {
+        const kind = p.kind === 'copy' ? 'Copy of the record' : p.kind === 'update' ? 'Update' : esc(p.author ?? 'Reply');
+        const chip = p.state === 'pending' ? '<span class="chip queued">Waiting</span>'
+          : p.state === 'failed' ? '<span class="chip failed">Failed</span>' : '';
+        const files = p.files.map((f) => `<a href="${fileUrl(id, f.n)}" target="_blank" rel="noopener">${esc(f.name)}</a> <span class="size">${size(f.size)}</span>`).join('');
+        return `<li class="post post-${p.kind}">
+          <div class="post-head"><span class="post-kind">${kind}</span><span class="post-time">${p.at ? discordTime(p.at) : ''}</span>${chip}</div>
+          ${p.text ? `<div class="post-text">${rich(p.text)}</div>` : ''}
+          ${files ? `<div class="post-files">${files}</div>` : ''}
+          ${p.error ? `<p class="post-error">${esc(p.error)}</p>` : ''}
+        </li>`;
+      }).join('');
+    }
+    setHTML($('#posts'), html);
+  }
+
+  async function postToThread(e) {
+    e.preventDefault();
+    const id = state.selected;
+    if (!id) return;
+    const body = {};
+    const message = $('#thread-message').value.trim();
+    const status = $('#thread-status').value.trim();
+    if (message) body.message = message;
+    if (status) body.status = status;
+    const files = [...$('#thread-files').files];
+    const msg = $('#thread-msg');
+    $('#thread-send').disabled = true;
+    try {
+      const r = await send(`${recordPath(id)}/thread`, body, files);
+      if (accepted(r.status)) {
+        $('#thread-message').value = '';
+        $('#thread-status').value = '';
+        $('#thread-files').value = '';
+        msg.hidden = true;
+      } else {
+        msg.textContent = `${r.status} ${HTTP[r.status] ?? ''}: ${r.body?.error ?? 'the post was refused'}`;
+        msg.hidden = false;
+      }
+    } catch {
+      msg.textContent = "Couldn't reach the API. Is npm run dev running?";
+      msg.hidden = false;
+    }
+    $('#thread-send').disabled = false;
+    state.thread.sig = '';   // reload the thread with the new post
+    await refresh();
+  }
+
+  // ---------- sample sends ----------
+  const SAMPLE = {
+    divisions: ['HOS | MARIKINA', 'HOS | PASIG', 'HOS | QUEZON CITY', 'HOS | MAKATI', 'HOS | TAGUIG'],
+    customers: ['Juan Dela Cruz', 'Maria Santos', 'Ana Reyes', 'Jose Garcia', 'Liza Mendoza', 'Paolo Bautista'],
+    chat: [
+      'Pharmacist checked the prescription.',
+      'Packed and waiting for the rider.',
+      'Rider picked up the order.',
+      'Customer asked to leave it at the guard house.',
+      'Arriving in about 20 minutes.',
+      'Payment received through GCash.',
+      'Delivered, customer signed.',
+    ],
+    statuses: ['preparing', 'dispatched', 'delivered'],
+  };
+  // forRecord: goes to the picked record's thread. messages: how many Discord messages one send
+  // becomes (a record brings its thread copy; a status change also edits the record's message).
+  const SAMPLE_KINDS = {
+    records: { forRecord: false, messages: (c) => (c?.threads ? 2 : 1) },
+    'records-photo': { forRecord: false, messages: (c) => (c?.threads ? 2 : 1) },
+    chat: { forRecord: true, messages: () => 1 },
+    'chat-photo': { forRecord: true, messages: () => 1 },
+    status: { forRecord: true, messages: () => 2 },
+  };
+  const sample = { running: false, stop: false };
+  const sampleCount = () => Math.floor(Number($('#sample-count').value));
+
+  // A small PNG drawn in the browser, so photo sends need no files on disk.
+  function samplePhoto(i, n) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 480;
+    canvas.height = 270;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#E2E8F3';
+    g.fillRect(0, 0, 480, 270);
+    g.fillStyle = '#1F3864';
+    g.font = '700 36px sans-serif';
+    g.fillText('Sample photo', 32, 128);
+    g.font = '26px monospace';
+    g.fillText(`${i} of ${n}`, 32, 176);
+    return new Promise((resolve) => canvas.toBlob((blob) => resolve(new File([blob], `sample-photo-${i}.png`, { type: 'image/png' })), 'image/png'));
+  }
+
+  async function sendSample(kind, i, n, recordId) {
+    const pick = (list) => list[(i - 1) % list.length];
+    const tag = `sample ${i}/${n}`;
+    if (!SAMPLE_KINDS[kind].forRecord) {
+      const body = { division: pick(SAMPLE.divisions), itemCount: ((i - 1) % 5) + 1, customerName: pick(SAMPLE.customers), notes: `Sample send ${i} of ${n}` };
+      const r = await send('/api/records', body, kind === 'records-photo' ? [await samplePhoto(i, n)] : []);
+      if (accepted(r.status)) {
+        state.requests.set(r.body.recordId, body);
+        state.selected = r.body.recordId;
+      }
+      return r;
+    }
+    const path = `${recordPath(recordId)}/thread`;
+    if (kind === 'status') return send(path, { status: pick(SAMPLE.statuses), message: `Status change, ${tag}` });
+    return send(path, { message: `${pick(SAMPLE.chat)} (${tag})` }, kind === 'chat-photo' ? [await samplePhoto(i, n)] : []);
+  }
+
+  function showSample(html, bad = false) {
+    const el = $('#sample-progress');
+    el.hidden = false;
+    el.classList.toggle('bad', bad);
+    el.innerHTML = html;
+  }
+
+  async function runSample(e) {
+    e.preventDefault();
+    if (sample.running) return;
+    const kind = $('#sample-kind').value;
+    const spec = SAMPLE_KINDS[kind];
+    const n = sampleCount();
+    const recordId = state.selected;
+    if (!(n >= 1 && n <= 500)) return showSample('Choose a number from 1 to 500.', true);
+    if (spec.forRecord && !recordId) return showSample('Pick a record in the Record dropdown first.', true);
+    const c = state.config;
+    if (c?.enabled && c.mode === 'live') {
+      const messages = n * spec.messages(c);
+      const where = spec.forRecord ? ` in the thread of ${recordId}` : '';
+      if (!confirm(`This posts about ${messages} messages to Discord${where}. ${paceText(messages)} Send them?`)) return;
+    }
+
+    sample.running = true;
+    sample.stop = false;
+    $('#sample-send').disabled = true;
+    $('#sample-stop').hidden = false;
+    let ok = 0;
+    const refused = [];
+    let i = 0;
+    while (i < n && !sample.stop) {
+      i += 1;
+      let r;
+      try {
+        r = await sendSample(kind, i, n, recordId);
+      } catch {
+        refused.push("the API isn't answering");
+        break;
+      }
+      if (accepted(r.status)) ok += 1;
+      else refused.push(r.body?.error ?? `the API answered ${r.status}`);
+      showSample(`Sending ${i} of ${n}…`);
+    }
+    sample.running = false;
+    $('#sample-send').disabled = false;
+    $('#sample-stop').hidden = true;
+
+    const stopped = i < n ? ` Stopped after ${i}.` : '';
+    const trouble = refused.length ? ` ${refused.length} refused: ${esc(refused[0])}.` : '';
+    const next = c?.enabled && c.mode === 'live' ? ' Discord gets them at its own pace; watch the send queue.' : ' Sending is off or mocked, so nothing left this machine.';
+    showSample(`<b>${ok} of ${n}</b> accepted by the API.${stopped}${trouble}${next}`, refused.length > 0 && ok === 0);
+    state.thread.sig = '';   // reload the thread with the new posts
+    renderSample();
+    await refresh();
+  }
+
+  function paceText(messages) {
+    const per = state.config?.queue?.perMinute ?? 30;
+    return `At ${per} a minute that takes ${messages <= per ? 'under a minute' : `about ${Math.ceil(messages / per)} minutes`}.`;
+  }
+
+  function renderSample() {
+    const spec = SAMPLE_KINDS[$('#sample-kind').value];
+    const n = sampleCount();
+    if (!sample.running) $('#sample-send').textContent = n >= 1 && n <= 500 ? `Send ${n}` : 'Send';
+    const c = state.config;
+    const parts = [];
+    if (spec.forRecord) parts.push(`Goes to the thread of ${state.selected ?? 'the record picked in the Record dropdown'}.`);
+    if (spec.forRecord && c?.enabled && c.mode === 'live' && !c.threads) parts.push('Threads need DISCORD_BOT_TOKEN.');
+    if (c?.enabled && c.mode === 'live' && n >= 1 && n <= 500) {
+      const messages = n * spec.messages(c);
+      parts.push(`About ${messages} Discord messages. ${paceText(messages)}`);
+    } else if (c) {
+      parts.push('Sending is off or mocked, so nothing leaves this machine.');
+    }
+    $('#sample-hint').textContent = parts.join(' ');
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    renderSwitches();
+    renderResponse();
+    renderRecord();
+    renderQueue();
+    renderHistory();
+    syncThread();
+    renderThread();
+    renderSample();
+  }
+
+  function renderSwitches() {
+    const c = state.config;
+    const chip = (cls, text) => `<span class="chip ${cls}">${text}</span>`;
+    if (!state.online || !c) {
+      const dash = chip('', state.online === null ? 'Checking' : 'Offline');
+      for (const id of ['#sw-mode', '#sw-enabled', '#sw-webhook', '#sw-storage']) setHTML($(id), dash);
+      setHTML($('#explain'), state.online === null
+        ? 'Connecting to the API…'
+        : "<b>The API isn't answering.</b> Start it with <code>npm run dev</code>. This page reconnects on its own.");
+      $('#storage-note').hidden = true;
+      return;
+    }
+    const s = c.storage;
+    setHTML($('#sw-mode'), c.mode === 'live' ? chip('live', 'Live') : chip('mock', 'Mock'));
+    setHTML($('#sw-enabled'), c.enabled ? chip('on', 'On') : chip('', 'Off'));
+    setHTML($('#sw-webhook'), c.webhookConfigured ? chip('set', 'Set') : chip(c.mode === 'live' ? 'unset' : '', 'Not set'));
+    setHTML($('#sw-storage'), s.error ? chip('failed', 'Unreadable')
+      : s.kind === 'discord' ? chip('set', 'Discord')
+      : s.kind === 'discord-write-only' ? chip('unset', 'Write-only')
+      : chip('', 'Memory'));
+
+    let text;
+    if (!c.enabled) {
+      text = '<b>Sending is off.</b> Records are saved, and the server console logs what would have gone to Discord. '
+        + 'To send, set <code>DISCORD_ENABLED=true</code> in <code>.env</code> and restart <code>npm run dev</code>.';
+    } else if (c.mode !== 'live') {
+      text = '<b>Mock mode.</b> Messages are caught by a fake adapter and logged to the console. Nothing reaches Discord. '
+        + 'To post for real, set <code>DISCORD_MODE=live</code> in <code>.env</code> and restart <code>npm run dev</code>.';
+    } else {
+      text = '<b>Live.</b> Every record you send posts to your Discord channel, one at a time through the send queue'
+        + (c.threads ? ', and gets a thread named after its id.' : '.');
+    }
+    setHTML($('#explain'), text);
+
+    const u = c.uploads;
+    $('#files-hint').textContent = `Up to ${u.maxFiles} files, ${u.maxBytes / 1e6} MB in total. They're posted to Discord as they are, so anyone who can read the channel can open them.`;
+
+    const note = storageNote(s);
+    const el = $('#storage-note');
+    el.hidden = !note;
+    el.classList.toggle('bad', Boolean(s.error));
+    setHTML(el, note);
+  }
+
+  function storageNote(s) {
+    if (s.error) {
+      return `<b>Couldn't read records from Discord.</b> ${esc(s.error)}. New records are refused until that's fixed and the server restarts, so record ids can't clash.`;
+    }
+    let text = '';
+    if (s.kind === 'discord') {
+      text = `<b>Discord is the database.</b> Each record lives in its message. On startup the server rebuilt this list from the channel: ${plural(s.loaded, 'record')} found in ${plural(s.scanned, 'message')}.`;
+    } else if (s.kind === 'discord-write-only') {
+      text = "<b>Records are written to Discord but can't be read back</b> without <code>DISCORD_BOT_TOKEN</code>, so this list is empty after a restart and record ids start again at 0001.";
+    } else if (s.loaded) {
+      text = `Records are kept in memory; ${plural(s.loaded, 'record')} came from Discord on startup.`;
+    }
+    if (s.kind !== 'memory' && !s.encrypts) {
+      text += " <b>RECORD_SECRET isn't set</b>, so customerName and notes aren't stored in Discord and are lost on restart.";
+    }
+    if (s.unreadable) text += ` ${plural(s.unreadable, 'record')} in the channel didn't decrypt. Check <code>RECORD_SECRET</code> is the one they were written with.`;
+    if (s.locked) text += ` Encrypted fields on ${plural(s.locked, 'record')} stay hidden until <code>RECORD_SECRET</code> is set.`;
+    return text.trim();
+  }
+
+  function renderResponse() {
+    const l = state.last;
+    let html;
+    if (!l) {
+      html = '<p class="empty-state">Send a record to see what the API saves and what reaches Discord.</p>';
+    } else if (l.kind === 'offline') {
+      html = `<div class="line"><span class="code bad">No response</span>
+        <span class="note">Couldn't reach the API. Is <code>npm run dev</code> running?</span></div>`;
+    } else if (l.kind === 'burst') {
+      const c = state.config;
+      const where = !c?.enabled ? 'Sending is off, so Discord never sees these.'
+        : c.mode !== 'live' ? 'Mock mode, so Discord never sees these. Switch to live to watch the queue pace them.'
+        : `Their Discord messages are in the send queue, going out at about ${c.queue?.perMinute ?? 30} a minute. Watch the send queue below.`;
+      html = `<div class="line"><span class="code ${l.accepted === l.count ? 'ok' : 'bad'}">${l.accepted} of ${l.count} accepted</span>
+        <span class="note">All ${l.count} answered in ${l.ms} ms.</span></div>
+        <p class="note">${where}</p>`;
+    } else {
+      const ok = accepted(l.status);
+      const note = l.status === 202 ? `answered in ${l.ms} ms. It's stored once Discord confirms; see the Discord message below.`
+        : ok ? `answered in ${l.ms} ms, before Discord was called`
+        : esc(l.body?.error ?? 'Request failed');
+      html = `<div class="line">
+          <span class="code ${ok ? 'ok' : 'bad'}">${l.status} ${HTTP[l.status] ?? ''}</span>
+          <span class="mono">POST /api/records</span>
+          <span class="note">${note}</span>
+        </div>
+        ${ok ? '' : '<p class="note">Nothing was saved, so nothing went to Discord.</p>'}
+        <div class="io">
+          <div><span class="label quiet">Request</span><pre>${esc(JSON.stringify(l.request, null, 2))}</pre></div>
+          <div><span class="label quiet">Response</span><pre>${esc(JSON.stringify(l.body, null, 2))}</pre></div>
+        </div>`;
+    }
+    setHTML($('#response'), html);
+  }
+
+  // Where fields off the allowlist end up depends on the storage.
+  function heldFate() {
+    const s = state.config?.storage;
+    if (!s || s.kind === 'memory') return FATE.held;
+    return s.encrypts
+      ? ['Encrypted', 'Stored in the Discord message encrypted with RECORD_SECRET, so channel members only see ciphertext']
+      : ['Memory only', "RECORD_SECRET isn't set, so this field isn't stored in Discord and is lost on restart"];
+  }
+
+  function filesHTML(rec) {
+    if (!rec.attachments.length) return `${plural(rec.fileCount, 'file')} in the thread`;
+    return rec.attachments.map((f, i) => `<a href="${fileUrl(rec.recordId, i)}" target="_blank" rel="noopener">${esc(f.name)}</a> <span class="size">${size(f.size)}</span>`).join('<br>');
+  }
+
+  // Every record, newest first, so any of them can be opened and added to.
+  function renderPicker() {
+    const pick = $('#record-pick');
+    const short = (text, n) => (text.length > n ? `${text.slice(0, n - 1)}…` : text);
+    setHTML(pick, [...state.records].reverse()
+      .map((r) => `<option value="${esc(r.recordId)}">${esc(`${r.recordId} · ${short(r.division, 32)} · ${r.status}`)}</option>`)
+      .join(''));
+    if (pick.value !== state.selected) pick.value = state.selected ?? '';
+  }
+
+  function renderRecord() {
+    const rec = state.records.find((r) => r.recordId === state.selected);
+    $('#record').hidden = !rec || !state.config;
+    if (!rec || !state.config) return;
+
+    renderPicker();
+    const fates = { ...FATE, held: heldFate() };
+    const allowed = new Set(state.config.allowed);
+    const req = state.requests.get(rec.recordId) ?? {};
+    const rows = Object.entries(rec)
+      .filter(([k]) => k !== 'fileCount')
+      .filter(([k]) => k !== 'attachments' || rec.attachments.length || rec.fileCount)
+      .map(([k, v]) => ({ k, v, fate: k === 'attachments' ? 'file' : allowed.has(k) ? 'sent' : 'held' }));
+    for (const [k, v] of Object.entries(req)) if (!(k in rec)) rows.push({ k, v, fate: 'ignored' });
+
+    setHTML($('#fields'), rows.map(({ k, v, fate }) => `
+      <li class="field fate-${fate}" title="${esc(fates[fate][1])}">
+        <span class="k">${esc(k)}</span>
+        <span class="v${v === null ? ' null' : ''}">${k === 'attachments' ? filesHTML(rec) : esc(fmt(v))}</span>
+        <span class="fate">${fates[fate][0]}</span>
+      </li>`).join(''));
+    setHTML($('#delivery'), deliveryHTML(state.deliveries.get(rec.recordId), rec));
+  }
+
+  function deliveryText(d) {
+    switch (d.state) {
+      case 'queued': return `Waiting its turn in the send queue.${d.note ? ` ${d.note}` : ' The API already answered.'}`;
+      case 'sending': return d.attempts > 1 ? `Posting to Discord now, attempt ${d.attempts}.` : 'Posting to Discord now.';
+      case 'skipped': return 'Sending is off (DISCORD_ENABLED=false). This is what would have been posted.';
+      case 'mocked': return 'Caught by the mock adapter and logged to the console. Nothing left your machine.';
+      case 'sent': {
+        const how = d.attempts > 1 ? `Discord accepted it on attempt ${d.attempts}.` : 'Discord accepted it.';
+        const edit = d.editError ? ` Updating it failed: ${d.editError}.` : '';
+        return (d.messageId ? `${how} Stored as message ${d.messageId}.` : `${how} Check your channel.`) + edit;
+      }
+      case 'failed': return `${d.error}. The record is still saved, and the API still answered.`;
+      default: return '';
+    }
+  }
+
+  function deliveryHTML(d, rec) {
+    if (!d) return '<p class="dc-note">No Discord delivery was recorded for this record.</p>';
+    return `<div class="delivery"><span class="chip ${d.state}">${LABEL[d.state] ?? esc(d.state)}</span><p>${esc(deliveryText(d))}</p></div>`
+      + messageHTML(d.payload, d.state !== 'sent', rec, d.thread);
+  }
+
+  function discordTime(iso) {
+    const d = iso ? new Date(iso) : new Date();
+    const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return d.toDateString() === new Date().toDateString() ? `Today at ${t}` : `${d.toLocaleDateString()} ${t}`;
+  }
+
+  // Renders the record's channel message the way Discord shows it. Without threads, files ride
+  // on it: the first image inside the embed, the rest as download boxes. With threads, it shows
+  // the thread link Discord puts under the message.
+  function messageHTML(p, unsent, rec, thread) {
+    const e = p.embeds?.[0];
+    const bar = typeof e?.color === 'number' ? `#${e.color.toString(16).padStart(6, '0')}` : '#1E1F22';
+    const fields = (e?.fields ?? []).map((f) => `
+      <div class="dc-field${f.inline ? ' inline' : ''}"><div class="n">${esc(f.name)}</div><div class="v">${esc(f.value)}</div></div>`).join('');
+    const footer = e?.footer?.text;
+    const files = p.attachments?.length ? rec.attachments : [];
+    // Same rule as the server: only these image types show inside an embed.
+    const imageAt = e?.image ? files.findIndex((f) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(f.type)) : -1;
+    const others = files.map((f, i) => ({ f, i })).filter(({ i }) => i !== imageAt).map(({ f, i }) => `
+      <a class="dc-file" href="${fileUrl(rec.recordId, i)}" target="_blank" rel="noopener"><span class="dc-file-name">${esc(f.name)}</span><span class="dc-file-size">${size(f.size)}</span></a>`).join('');
+    const threadLink = thread?.id ? `<div class="dc-thread">${esc(rec.recordId)} · ${plural(thread.posts ?? 0, 'message')}</div>` : '';
+    return `<div class="dc${unsent ? ' unsent' : ''}">
+      <div class="dc-avatar" aria-hidden="true"></div>
+      <div>
+        <div class="dc-meta"><span class="dc-name">Webhook</span><span class="dc-tag">APP</span><span class="dc-time">${discordTime(e?.timestamp)}</span></div>
+        ${p.content ? `<div class="dc-content">${esc(p.content)}</div>` : ''}
+        ${e ? `<div class="dc-embed" style="--bar:${bar}">
+          ${e.title ? `<div class="dc-title">${esc(e.title)}</div>` : ''}
+          ${e.description ? `<div class="dc-desc">${esc(e.description)}</div>` : ''}
+          ${fields ? `<div class="dc-fields">${fields}</div>` : ''}
+          ${imageAt >= 0 ? `<img class="dc-image" src="${fileUrl(rec.recordId, imageAt)}" alt="${esc(files[imageAt].name)}">` : ''}
+          ${footer || e.timestamp ? `<div class="dc-footer">
+            ${footer ? `<div class="dc-footer-text" title="${esc(footer)}">${esc(footer)}</div>` : ''}
+            ${e.timestamp ? discordTime(e.timestamp) : ''}
+          </div>` : ''}
+        </div>` : ''}
+        ${others}
+        ${threadLink}
+      </div>
+    </div>`;
+  }
+
+  // Live mode only: how full the per-minute window is, what's waiting, and why.
+  function renderQueue() {
+    const q = state.online && state.config?.enabled ? state.config.queue : null;
+    $('#queue').hidden = !q;
+    if (!q) return;
+
+    const per = q.perMinute;
+    const used = Math.min(q.sentInWindow, per);
+    const segments = Math.min(per, 60);
+    const filled = Math.round((used / per) * segments);
+    const meter = $('#meter');
+    meter.classList.toggle('full', used >= per);
+    meter.setAttribute('aria-label', `${used} of ${per} sends used in the last minute`);
+    setHTML(meter, Array.from({ length: segments }, (_, i) => `<span${i < filled ? ' class="used"' : ''}></span>`).join(''));
+
+    setHTML($('#totals'), `<span>Delivered <b>${q.totals.sent}</b></span><span>Failed <b>${q.totals.failed}</b></span>`
+      + `<span class="${q.totals.rateLimited ? 'some-429' : 'zero-429'}">429s from Discord <b>${q.totals.rateLimited}</b></span>`);
+
+    let html = `${used} of ${per} sends used in the last minute. `;
+    if (q.rejected) html = `Stopped: ${esc(q.rejected)}.`;
+    else if (!q.waiting) html += 'Nothing waiting.';
+    else if (q.resumeInMs > 0) html += `<b>${q.waiting} waiting</b>, next send in <b>${Math.ceil(q.resumeInMs / 1000)} s</b> (${esc(q.reason)}).`;
+    else html += `<b>${q.waiting} waiting</b>, sending now.`;
+    const line = $('#queue-line');
+    line.classList.toggle('bad', Boolean(q.rejected));
+    setHTML(line, html);
+  }
+
+  function renderHistory() {
+    const focusedId = document.activeElement?.closest?.('#rows tr')?.dataset.id;
+    setHTML($('#rows'), [...state.records].reverse().map((r) => {
+      const d = state.deliveries.get(r.recordId);
+      const sel = r.recordId === state.selected;
+      return `<tr data-id="${esc(r.recordId)}"${sel ? ' class="selected"' : ''}>
+        <td><button type="button" class="rid" aria-pressed="${sel}">${esc(r.recordId)}</button></td>
+        <td>${esc(r.division)}</td>
+        <td class="num">${esc(r.itemCount)}</td>
+        <td${r.customerName ? '' : ' class="muted"'}>${esc(r.customerName ?? '—')}</td>
+        <td>${esc(r.status)}</td>
+        <td class="num">${r.attachments.length || r.fileCount || ''}</td>
+        <td>${d ? `<span class="chip ${d.state}"${d.error ? ` title="${esc(d.error)}"` : ''}>${LABEL[d.state] ?? esc(d.state)}</span>` : ''}</td>
+      </tr>`;
+    }).join(''));
+    if (focusedId) document.querySelector(`#rows tr[data-id="${CSS.escape(focusedId)}"] .rid`)?.focus();
+
+    const empty = state.records.length === 0;
+    $('#table-wrap').hidden = empty;
+    $('#history-empty').hidden = !empty;
+    $('#history-empty').textContent = state.config?.storage?.kind === 'discord'
+      ? 'No records in the channel yet.'
+      : "No records yet. They're kept in memory, so restarting the server clears them.";
+
+    const counts = {};
+    for (const d of state.deliveries.values()) counts[d.state] = (counts[d.state] ?? 0) + 1;
+    $('#tally').textContent = Object.keys(TALLY).filter((k) => counts[k]).map((k) => `${counts[k]} ${TALLY[k]}`).join(' · ');
+  }
+
+  // ---------- wiring ----------
+  $('#form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendRecord(readForm(), [...$('#files').files]);
+  });
+  $('#add-extra').addEventListener('click', () => addExtra().querySelector('.ek').focus());
+  for (const b of document.querySelectorAll('[data-preset]')) {
+    b.addEventListener('click', () => {
+      fillForm(PRESETS[b.dataset.preset]);
+      sendRecord(readForm());
+    });
+  }
+  $('#burst').addEventListener('click', burst);
+  $('#sample-form').addEventListener('submit', runSample);
+  $('#sample-kind').addEventListener('change', renderSample);
+  $('#sample-count').addEventListener('input', renderSample);
+  $('#sample-stop').addEventListener('click', () => { sample.stop = true; });
+  $('#record-pick').addEventListener('change', (e) => {
+    state.selected = e.target.value;
+    render();
+  });
+  $('#thread-form').addEventListener('submit', postToThread);
+  $('#thread-reload').addEventListener('click', () => state.selected && loadThread(state.selected, true));
+  $('#thread-action').addEventListener('click', async () => {
+    if (!state.selected) return;
+    await api(`${recordPath(state.selected)}/thread/retry`, { method: 'POST' });
+    state.thread.sig = '';
+    await refresh();
+  });
+  $('#rows').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    state.selected = tr.dataset.id;
+    render();
+    const box = $('#record').getBoundingClientRect();
+    if (box.top < 0) {
+      const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      $('#record').scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
+    }
+  });
+
+  refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "record-database",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Practice API that posts records to a Discord channel",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test:limits": "node --test --test-reporter=spec test/limits.test.js",
+    "test:orders": "node --test --test-reporter=spec test/orders.test.js",
+    "probe:discord": "node --env-file-if-exists=.env scripts/probe-discord.js",
+    "accounts": "node --env-file-if-exists=.env scripts/create-accounts.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
