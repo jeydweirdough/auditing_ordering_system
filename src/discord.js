@@ -1,23 +1,13 @@
-// One door to Discord. Swap the adapter with DISCORD_MODE so tests and local
-// runs never hit the network. Same shape as a Zoho integrations/ folder.
+// One door to Discord: a webhook that posts through a queue kept within Discord's limits, and,
+// with a bot token, reading the channel and its threads back. src/orderAudit.js makes one for
+// #order-audit.
 const { DiscordQueue } = require('./discordQueue');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-class MockDiscord {
-  constructor() { this.sent = []; }          // tests assert against this
-  async post(payload, { files = [] } = {}) {
-    this.sent.push(payload);
-    const extra = files.length ? ` + ${files.length} file(s)` : '';
-    console.log('[discord:mock]', JSON.stringify(payload.embeds?.[0]?.title ?? payload.content) + extra);
-    return { mocked: true };
-  }
-  async edit() { return { mocked: true }; }
-}
-
 class LiveDiscord {
   constructor(url, { botToken, ...limits } = {}) {
-    if (!url) throw new Error('DISCORD_WEBHOOK_URL missing while DISCORD_MODE=live');
+    if (!url) throw new Error('DISCORD_AUDIT_WEBHOOK_URL missing while DISCORD_MODE=live');
     this.url = url;
     this.hook = parseWebhookUrl(url);
     this.botToken = botToken;
@@ -140,7 +130,7 @@ class LiveDiscord {
   }
 
   // Every message this webhook posted in its channel. A webhook can post but can't list
-  // messages, so this needs a bot token (README, Phase 6).
+  // messages, so this needs a bot token.
   async history() {
     const channelId = await this.channel();
     const messages = [];
@@ -166,7 +156,7 @@ class LiveDiscord {
 function parseWebhookUrl(url) {
   const u = new URL(url);
   const match = u.pathname.match(/\/webhooks\/(\d+)\/([^/]+)/);
-  if (!match) throw new Error('DISCORD_WEBHOOK_URL does not look like a Discord webhook URL');
+  if (!match) throw new Error('DISCORD_AUDIT_WEBHOOK_URL does not look like a Discord webhook URL');
   return { api: `${u.origin}/api/v10`, id: match[1], token: match[2] };
 }
 
@@ -210,43 +200,9 @@ function explain(status, url) {
   if (status === 403 && what === 'thread') return "The bot can't start threads (403). Invite it again with Create Public Threads";
   if (status === 403) return "The bot can't see the channel (403). Add it to the server with View Channels and Read Message History";
   if (status === 404 && what === 'message') return 'Discord no longer has that message (404). It may have been deleted';
-  if (status === 404 && what === 'webhook') return "Discord doesn't know this webhook (404). Check DISCORD_WEBHOOK_URL";
+  if (status === 404 && what === 'webhook') return "Discord doesn't know this webhook (404). Check DISCORD_AUDIT_WEBHOOK_URL";
   if (status === 404) return 'Discord no longer has that message or thread (404). It may have been deleted';
   return `Discord answered ${status} while reading ${what === 'channel' ? 'the channel' : `a ${what}`}`;
 }
 
-const mode = (process.env.DISCORD_MODE || 'mock').toLowerCase();
-const botToken = process.env.DISCORD_BOT_TOKEN || undefined;
-const perMinute = Number(process.env.DISCORD_MAX_PER_MINUTE);
-const adapter = mode === 'live'
-  ? new LiveDiscord(process.env.DISCORD_WEBHOOK_URL, { botToken, ...(perMinute > 0 && { perMinute }) })
-  : new MockDiscord();
-
-async function notify(payload, options = {}) {
-  if (process.env.DISCORD_ENABLED !== 'true') {
-    console.log('[discord] disabled, would have sent:', payload.embeds?.[0]?.title ?? payload.content);
-    return { skipped: true };
-  }
-  return adapter.post(payload, options);
-}
-
-// Queue depth and pacing for the test page. Null in mock mode, which has no queue.
-const queueStats = () => adapter.queue?.stats() ?? null;
-
-// Reading records back, and threads, need live mode and a bot token.
-const canReadBack = mode === 'live' && Boolean(botToken);
-
-module.exports = {
-  LiveDiscord,   // the orders app's #order-audit webhook gets its own (src/orderAudit.js)
-  notify,
-  adapter,
-  mode,
-  queueStats,
-  canReadBack,
-  webhookId: adapter.hook?.id ?? null,
-  editMessage: (messageId, payload, options) => adapter.edit(messageId, payload, options),
-  startThread: (messageId, name) => adapter.startThread(messageId, name),
-  threadMessages: (threadId) => adapter.threadMessages(threadId),
-  fetchMessage: (messageId) => adapter.fetchMessage(messageId),
-  readHistory: () => adapter.history(),
-};
+module.exports = { LiveDiscord };

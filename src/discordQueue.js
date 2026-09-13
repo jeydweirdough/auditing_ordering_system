@@ -1,5 +1,5 @@
 // Sends webhook messages one at a time, at the pace Discord allows, so a burst of
-// records waits in line instead of turning into a pile of 429s.
+// order steps waits in line instead of turning into a pile of 429s.
 //
 // What Discord enforces on a webhook:
 //   - A short bucket, typically 5 requests per 2 seconds. Every response reports it in
@@ -177,7 +177,7 @@ class DiscordQueue {
     return wait;
   }
 
-  // Depth and pacing, for the test page.
+  // Depth and pacing: what's waiting, and when the next send may go.
   stats() {
     const now = Date.now();
     const slot = this.nextSlot(now);

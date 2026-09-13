@@ -3,8 +3,8 @@
 //
 // The data is JSON anyone in the channel can read: the order as it stood after the step, and the
 // step itself. Customer details, addresses, notes, reasons, payment references and who received a
-// delivery are moved into "x" and encrypted with RECORD_SECRET (AES-256-GCM), the key the records
-// use. The order id and step number are bound in, so "x" can't be moved to another reply. Without
+// delivery are moved into "x" and encrypted with RECORD_SECRET (AES-256-GCM). The order id and
+// step number are bound in, so "x" can't be moved to another reply. Without
 // RECORD_SECRET those fields stay readable, and the server warns about it on startup.
 const crypto = require('crypto');
 

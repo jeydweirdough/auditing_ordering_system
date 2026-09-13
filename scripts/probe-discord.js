@@ -6,8 +6,8 @@
 //   npm run probe:discord -- --threads      also the thread name limit (needs the bot)
 //   npm run probe:discord -- --burst        also posts until Discord's first 429
 //
-// Needs DISCORD_PROBE_WEBHOOK_URL in .env: a webhook in a channel made for testing, not the
-// records channel. DISCORD_BOT_TOKEN, if set, adds the checks that need reading.
+// Needs DISCORD_PROBE_WEBHOOK_URL in .env: a webhook in a channel made for testing, not
+// #order-audit. DISCORD_BOT_TOKEN, if set, adds the checks that need reading.
 // Refused requests (400, 413) don't count toward Discord's ban on invalid requests; --burst
 // causes exactly one 429, which does.
 const { describeDiscordError } = require('../src/discordQueue');
@@ -32,8 +32,9 @@ The probe posts test messages and deletes them again, so it needs its own webhoo
   4. Run npm run probe:discord again.`);
   process.exit(1);
 }
-if (hookUrl === process.env.DISCORD_WEBHOOK_URL && !args.has('--records-channel')) {
-  console.log('DISCORD_PROBE_WEBHOOK_URL is the records webhook. Use a webhook in a test channel, or add --records-channel to probe it anyway (the messages are deleted afterwards).');
+// Orders are read back from #order-audit, so the probe stays out of it.
+if (hookUrl === process.env.DISCORD_AUDIT_WEBHOOK_URL) {
+  console.log('DISCORD_PROBE_WEBHOOK_URL is the #order-audit webhook. Use a webhook in a channel made for testing.');
   process.exit(1);
 }
 const parsed = new URL(hookUrl);
@@ -197,14 +198,10 @@ function report(deleted) {
   }
   const passed = (name) => results.find((r) => r.name === name)?.pass;
   const perMinute = Number(process.env.DISCORD_MAX_PER_MINUTE) || 30;
-  const upload = results.find((r) => r.name === 'Upload size');
   console.log(`
 How this project's settings compare:
-  Thread updates     at most 1800 characters plus a status line, inside the 2000-character message limit${passed('Message text') ? '' : ' (not confirmed above)'}
-  Stored record      checked against the 2048-character footer before sending${passed('Embed footer') ? '' : ' (not confirmed above)'}
-  Files              at most 10 per post${passed('Files per message') ? '' : ' (not confirmed above)'}
-  Uploads            DISCORD_MAX_UPLOAD_MB=${Number(process.env.DISCORD_MAX_UPLOAD_MB) || 10}${upload.pass === true ? ', accepted by this server' : upload.pass === false ? ', check the upload line above' : ', run with --uploads to check'}
-  Pacing             follows the bucket headers; DISCORD_MAX_PER_MINUTE=${perMinute} for the per-channel cap Discord doesn't report
+  Order data         a data reply longer than the 2000-character message limit goes as a .json file${passed('Message text') ? '' : ' (not confirmed above)'}
+  Pacing            follows the bucket headers; DISCORD_MAX_PER_MINUTE=${perMinute} for the per-channel cap Discord doesn't report
 
 ${deleted} of ${posted.length} probe messages deleted.${threadsLeft.length ? ` ${threadsLeft.length} thread left in the test channel; it archives itself after an hour.` : ''}
 429s received: ${limited}.`);

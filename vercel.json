@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["sin1"],
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "destination": "/app", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/app",
