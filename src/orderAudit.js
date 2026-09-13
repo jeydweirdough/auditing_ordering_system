@@ -21,8 +21,8 @@ const { LiveDiscord } = require('./discord');
 const { jsonIn, isDataFile } = require('./orderCodec');
 
 const COLOR = 0x1f3864;
-const ORDER_ID = /^ORD-\d{8}-\d{4}$/;
-const CHANNEL_STEP = /^(ORD-\d{8}-\d{4}) · /;
+const ORDER_ID = /^(?:GM|ORD)-\d{8}-\d{4}$/;   // GM- ids, and ORD- ones from before them
+const CHANNEL_STEP = /^((?:GM|ORD)-\d{8}-\d{4}) · /;
 const ADMIN_LOG = 'Admin log';
 
 // Follows two switches: DISCORD_ENABLED, then DISCORD_MODE.
@@ -93,6 +93,7 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
     const changed = (step.details?.changed ?? []).filter((c) => c !== 'Status');
     if (changed.length) parts.push(`Changed: ${changed.join(', ')}`);
     if (!parts.length && step.to) parts.push(`Status: ${statusLabel(step.to)}`);
+    if (step.details?.files) parts.push(`Files: ${step.details.files} attached`);
     return parts.join('\n');
   }
 
@@ -133,9 +134,17 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
   }
 
   // The data for one step, as a reply to its post when the bot may, otherwise as the next message.
+  // Files the order carries go with it, encrypted when they're sealed. The bot's replies can't
+  // carry files, so then the webhook posts it.
   async function postData(order, step, threadId) {
     const { content, file } = codec.toMessage(codec.pack(step.snapshot ?? snapshotOf(order), publicStep(step)));
-    if (threadId && replyAsBot && !file) {
+    const uploads = (step.files ?? []).map((f) => ({
+      name: f.file,
+      type: f.sealed ? 'application/octet-stream' : f.type,
+      data: f.sealed ? codec.sealFile(f.data, order.id, f.n) : f.data,
+    }));
+    const files = [...(file ? [file] : []), ...uploads];
+    if (threadId && replyAsBot && !files.length) {
       try {
         const reply = await transport.live.sendAsBot(threadId, {
           content,
@@ -149,8 +158,8 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
         console.warn(`[orders] ${err.message}. Order data is posted by the webhook as the next message instead.`);
       }
     }
-    const payload = { allowed_mentions: { parse: [] }, content, ...(file && { attachments: [{ id: 0, filename: file.name }] }) };
-    const { messageId } = await transport.live.post(payload, { files: file ? [file] : [], ...(threadId && { threadId }) });
+    const payload = { allowed_mentions: { parse: [] }, content, ...(files.length ? { attachments: files.map((f, id) => ({ id, filename: f.name })) } : {}) };
+    const { messageId } = await transport.live.post(payload, { files, ...(threadId && { threadId }) });
     return { id: messageId, asReply: false };
   }
 
@@ -187,6 +196,7 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
         }
         step.discord.state = 'sent';
         delete step.snapshot;
+        delete step.files;   // Discord has them now
       } catch (err) {
         Object.assign(step.discord, { state: 'failed', error: err.message });
         console.warn(`[orders] ${order.id} step ${step.seq} (${step.label}) not stored in Discord: ${err.message}`);
@@ -205,6 +215,31 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
     for (const step of order?.events ?? []) if (step.discord?.state === 'failed') step.discord.state = 'queued';
     if (order?.discord) order.discord.threadError = null;
     return sync(orderId);
+  }
+
+  // A file an order carries, read back from the data message it went out with. Discord's links
+  // expire, so the message is fetched each time for a fresh one.
+  async function fetchFile(order, step, meta) {
+    const failed = (message, status) => Object.assign(new Error(message), { status });
+    if (transport.mode !== 'live' || !step?.discord?.dataMessageId) {
+      throw failed("This file isn't in Discord, and it's no longer in memory.", 404);
+    }
+    let message;
+    try {
+      message = await transport.live.fetchMessage(step.discord.dataMessageId, step.discord.inThread ? order.discord?.threadId : null);
+    } catch (err) {
+      throw failed(err.message, err.status === 404 ? 404 : 502);
+    }
+    const found = (message.attachments ?? []).find((a) => a.filename === meta.file);
+    if (!found) throw failed('Discord no longer has this file. It may have been deleted.', 404);
+    const res = await fetch(found.url, { signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw failed(`Discord's link to the file answered ${res.status}.`, 502);
+    const data = Buffer.from(await res.arrayBuffer());
+    try {
+      return meta.sealed ? codec.openFile(data, order.id, meta.n) : data;
+    } catch {
+      throw failed("This file didn't decrypt. Is RECORD_SECRET the one it was sent with?", 502);
+    }
   }
 
   // ---------- the Admin log ----------
@@ -357,6 +392,7 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
     retry,
     load,
     logAdmin,
+    fetchFile,
     initialState: () => ({ live: 'queued', mock: 'mocked' }[transport.mode] ?? 'off'),
     describe: () => ({ mode: transport.mode, threads: transport.threads, replies: replyAsBot ? 'bot' : 'webhook' }),
   };

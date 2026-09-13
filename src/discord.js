@@ -57,10 +57,12 @@ class LiveDiscord {
     return { status: res.status, headers: res.headers, text: await res.text() };
   }
 
-  // One message this webhook posted in the channel, with fresh attachment links. Needs no bot token.
-  fetchMessage(messageId) {
+  // One message this webhook posted, in the channel or in threadId, with fresh attachment links.
+  // Needs no bot token.
+  fetchMessage(messageId, threadId) {
     const { api, id, token } = this.hook;
-    return request('GET', `${api}/webhooks/${id}/${token}/messages/${messageId}`);
+    const query = threadId ? `?thread_id=${threadId}` : '';
+    return request('GET', `${api}/webhooks/${id}/${token}/messages/${messageId}${query}`);
   }
 
   // The channel the webhook posts to, looked up once.

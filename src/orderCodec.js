@@ -2,10 +2,11 @@
 // unpacks it again. Those replies are where orders are stored (src/orderAudit.js).
 //
 // The data is JSON anyone in the channel can read: the order as it stood after the step, and the
-// step itself. Customer details, addresses, notes, reasons, payment references and who received a
-// delivery are moved into "x" and encrypted with RECORD_SECRET (AES-256-GCM). The order id and
-// step number are bound in, so "x" can't be moved to another reply. Without
-// RECORD_SECRET those fields stay readable, and the server warns about it on startup.
+// step itself. Customer details, addresses, the receiver, the doctor, remarks, notes, reasons,
+// payment references, who received a delivery and the list of attached files are moved into "x"
+// and encrypted with RECORD_SECRET (AES-256-GCM). The order id and step number are bound in, so
+// "x" can't be moved to another reply. The attached files themselves are encrypted with the same
+// key (sealFile). Without RECORD_SECRET all of it stays readable, and the server warns about it.
 const crypto = require('crypto');
 
 const FORMAT = 'order/1';
@@ -15,7 +16,12 @@ const HIDDEN = [
   ['order', 'customerName'],
   ['order', 'contactNumber'],
   ['order', 'address'],
+  ['order', 'receiverName'],
+  ['order', 'receiverContact'],
+  ['order', 'doctorName'],
+  ['order', 'remarks'],
   ['order', 'notes'],
+  ['order', 'attachments'],   // file names can say who the customer is
   ['order', 'payment', 'reference'],
   ['order', 'shipment', 'receivedBy'],
   ['step', 'note'],
@@ -58,7 +64,7 @@ const tidy = (json) => json
   .replace(PERSON, '{ "id": $1, "name": $2, "role": $3 }');
 
 const fileName = (orderId, seq) => `${orderId}-step-${seq}.json`;
-const isDataFile = (name) => /^ORD-\d{8}-\d{4}-step-\d+\.json$/.test(name ?? '');
+const isDataFile = (name) => /^(?:GM|ORD)-\d{8}-\d{4}-step-\d+\.json$/.test(name ?? '');
 
 // The JSON in a reply's text, or null.
 function jsonIn(content) {
@@ -90,6 +96,24 @@ function createOrderCodec(secret) {
     decipher.setAAD(aad(orderId, seq));
     decipher.setAuthTag(buf.subarray(12, 28));
     return JSON.parse(Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8'));
+  }
+
+  // A file an order carries: the same key, bound to the order and the file's number. Bytes in,
+  // bytes out: the iv, the tag, then the data.
+  function sealFile(data, orderId, n) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    cipher.setAAD(Buffer.from(`file:${orderId}#${n}`));
+    const sealed = Buffer.concat([cipher.update(data), cipher.final()]);
+    return Buffer.concat([iv, cipher.getAuthTag(), sealed]);
+  }
+
+  function openFile(buf, orderId, n) {
+    if (!key) throw new Error("This file is encrypted and RECORD_SECRET isn't set.");
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, buf.subarray(0, 12));
+    decipher.setAAD(Buffer.from(`file:${orderId}#${n}`));
+    decipher.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]);
   }
 
   // One step's data: { format, order, step, x }.
@@ -129,7 +153,7 @@ function createOrderCodec(secret) {
     };
   }
 
-  return { pack, unpack, toMessage, encrypts: Boolean(key) };
+  return { pack, unpack, toMessage, sealFile, openFile, encrypts: Boolean(key) };
 }
 
 module.exports = { createOrderCodec, jsonIn, isDataFile, FORMAT };
