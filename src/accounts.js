@@ -1,5 +1,6 @@
-// Sign-in for the orders app. Accounts live in data/users.json with scrypt-hashed passwords; a
-// signed cookie keeps someone signed in for 8 hours. The role on the account decides which
+// Sign-in for the orders app. Accounts live in data/users.json with scrypt-hashed passwords, or in
+// the ACCOUNTS setting on hosts without a disk (Vercel); a signed cookie keeps someone signed in
+// for 8 hours. The role on the account decides which
 // dashboard they see and which order steps they may take (src/orders.js).
 //
 // Every change Admin makes to an account is announced to onAccountChange listeners, which post it
@@ -14,7 +15,6 @@ const ROLES = ['salesperson', 'management', 'finance', 'dispatch', 'admin'];
 const ROLE_LABELS = { salesperson: 'Salesperson', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
-const store = createJsonStore(path.join(DATA_DIR, 'users.json'), { nextId: 1, users: [] });
 
 const COOKIE = 'rd_session';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -22,6 +22,17 @@ const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('ba
 if (!process.env.SESSION_SECRET) {
   console.warn('[auth] SESSION_SECRET is not set, so sign-ins last only until the server restarts. `npm run accounts` adds one to .env.');
 }
+
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+// With ACCOUNTS set, accounts come from it instead of users.json, so a host without a disk has
+// them too. They're read-only then: the People screen lists them, and people are added, changed
+// and removed by editing ACCOUNTS.
+const FROM_ENV = Boolean(process.env.ACCOUNTS?.trim());
+const ENV_MANAGED = 'Accounts are set in ACCOUNTS on the server. Change them there, then restart the server or redeploy.';
+const store = FROM_ENV
+  ? { data: { users: readAccounts(process.env.ACCOUNTS) }, save: async () => {} }
+  : createJsonStore(path.join(DATA_DIR, 'users.json'), { nextId: 1, users: [] });
 
 // Checked when the email is unknown, so a wrong email takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString('hex'));
@@ -61,10 +72,64 @@ function checkRole(role) {
   return role;
 }
 
+function isHash(password) {
+  return /^scrypt\$[^$]+\$[^$]+$/.test(password);
+}
+
+// ACCOUNTS: one account per line, id | email | password | role | name. The password is plain text
+// or a "scrypt$..." hash like users.json keeps; lines starting with # are skipped. A line that
+// doesn't make sense is left out and logged by its line number, never its contents, so a typo
+// locks out one person rather than everyone.
+function readAccounts(text) {
+  const users = [];
+  text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
+    if (line.startsWith('#')) return;
+    const parts = line.split('|');
+    const account = parts.length < 5 ? null : {
+      id: parts[0].trim(),
+      email: parts[1].trim().toLowerCase(),
+      password: parts.slice(2, -2).join('|').trim(),   // a password may contain |
+      role: parts.at(-2).trim(),
+      name: parts.at(-1).trim(),
+    };
+    const problem = account ? lineProblem(account, users) : 'write it as id | email | password | role | name';
+    if (problem) {
+      console.error(`[auth] ACCOUNTS line ${i + 1} was left out: ${problem}`);
+      return;
+    }
+    const { id, email, password, role, name } = account;
+    users.push({
+      id: Number(id),
+      name,
+      email,
+      role,
+      passwordHash: isHash(password) ? password : hashPassword(password),
+      active: true,
+      // Changes with the line's email or password, which signs that person out everywhere.
+      sessionVersion: crypto.createHmac('sha256', SECRET).update(`${id}\n${email}\n${password}`).digest('base64url').slice(0, 16),
+      createdAt: null,
+    });
+  });
+  console.log(`[auth] ${users.length} account(s) from ACCOUNTS`);
+  return users;
+}
+
+// The id never changes: orders point at their salesperson by it.
+function lineProblem({ id, email, password, role, name }, users) {
+  if (!/^[1-9]\d*$/.test(id)) return 'the id must be a whole number, 1 or more';
+  if (users.some((u) => u.id === Number(id))) return `id ${id} is already used above`;
+  if (!EMAIL.test(email)) return "the email isn't an email address";
+  if (users.some((u) => u.email === email)) return 'the email is already used above';
+  if (!ROLES.includes(role)) return `the role must be one of: ${ROLES.join(', ')}`;
+  if (!name || name.length > 80) return 'give a name of up to 80 characters';
+  return isHash(password) ? null : passwordProblem(password);
+}
+
 async function createAccount({ name, email, role, password } = {}) {
+  if (FROM_ENV) throw bad(ENV_MANAGED, 409);
   const clean = cleanName(name);
   const cleanEmail = String(email ?? '').trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) throw bad(`"${cleanEmail}" is not an email address.`);
+  if (!EMAIL.test(cleanEmail)) throw bad(`"${cleanEmail}" is not an email address.`);
   checkRole(role);
   if (findByEmail(cleanEmail)) throw bad(`${cleanEmail} already has an account.`, 409);
 
@@ -155,6 +220,12 @@ function jsonOnly(req, res, next) {
   next();
 }
 
+// With ACCOUNTS set, the People screen can look but not change.
+function editable(_req, res, next) {
+  if (FROM_ENV) return res.status(409).json({ error: ENV_MANAGED });
+  next();
+}
+
 function fail(err, res, next) {
   if (err.status) return res.status(err.status).json({ error: err.message });
   next(err);
@@ -197,7 +268,7 @@ router.get('/users', requireUser, requireRole('admin'), (_req, res) => {
 });
 
 // A password left blank is generated and returned once, for the admin to hand over.
-router.post('/users', jsonOnly, requireUser, requireRole('admin'), async (req, res, next) => {
+router.post('/users', jsonOnly, requireUser, requireRole('admin'), editable, async (req, res, next) => {
   try {
     const { user, password } = await createAccount(req.body ?? {});
     announce(req.user, 'Account created', `${user.name} (${user.email}) as ${ROLE_LABELS[user.role]}`);
@@ -207,7 +278,7 @@ router.post('/users', jsonOnly, requireUser, requireRole('admin'), async (req, r
   }
 });
 
-router.patch('/users/:id', jsonOnly, requireUser, requireRole('admin'), async (req, res, next) => {
+router.patch('/users/:id', jsonOnly, requireUser, requireRole('admin'), editable, async (req, res, next) => {
   try {
     const user = findUser(Number(req.params.id));
     if (!user) throw bad('No such account.', 404);

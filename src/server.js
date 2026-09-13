@@ -10,6 +10,14 @@ const accounts = require('./accounts');
 const orders = require('./orders');
 
 const app = express();
+
+// Records and orders are read back from Discord before anything is answered, so new ids continue
+// after the stored ones. `npm start` waits for it before listening; Vercel imports this file
+// instead of running it, so there the first request waits for it.
+let loading = null;
+const ready = () => (loading ??= Promise.all([loadFromDiscord(), orders.load()]));
+app.use((_req, _res, next) => { ready().then(() => next(), next); });
+
 app.use(express.json());
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -688,8 +696,7 @@ const port = process.env.PORT || 4000;
 if (require.main === module) {
   if (writesToDiscord && !codec.encrypts) console.warn("[store] RECORD_SECRET isn't set: customerName and notes won't be stored in Discord");
   if (writesToDiscord && !canReadBack) console.warn("[store] DISCORD_BOT_TOKEN isn't set: records are written to Discord but can't be read back, and get no threads");
-  // Read Discord before accepting records or orders, so new ids continue after the stored ones.
-  Promise.all([loadFromDiscord(), orders.load()]).then(() => {
+  ready().then(() => {
     app.listen(port, () => console.log(`record_database listening on :${port}`));
   });
 }
