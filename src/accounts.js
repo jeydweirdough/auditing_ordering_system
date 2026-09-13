@@ -320,4 +320,6 @@ router.patch('/users/:id', jsonOnly, requireUser, requireRole('admin'), editable
   }
 });
 
-module.exports = { router, requireUser, requireRole, jsonOnly, createAccount, findUser, publicUser, onAccountChange, ROLES, ROLE_LABELS };
+const listUsers = () => store.data.users.map(publicUser);
+
+module.exports = { router, requireUser, requireRole, jsonOnly, createAccount, findUser, listUsers, publicUser, onAccountChange, ROLES, ROLE_LABELS };

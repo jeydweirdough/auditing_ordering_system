@@ -12,7 +12,7 @@ let loading = null;
 const ready = () => (loading ??= orders.load());
 app.use((_req, _res, next) => { ready().then(() => next(), next); });
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));   // a new order's files come base64-encoded in the JSON
 
 // The orders app: sign-in, a dashboard per role, and each order's audit trail, mirrored to its
 // thread in #order-audit (src/orders.js).
@@ -28,7 +28,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use((err, _req, res, _next) => {
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: "the request body isn't valid JSON" });
-  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'the request is too large' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'The files are too large to send. Keep them under 3 MB in all.' });
   console.error(err);
   res.status(500).json({ error: 'internal error' });
 });

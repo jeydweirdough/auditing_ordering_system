@@ -23,8 +23,8 @@ Needs Node 24 (`engines` in `package.json`).
 
 | Role | Steps |
 |---|---|
-| Salesperson | raise an order, resubmit one sent back, cancel |
-| Management | approve, send back (reason), reject (reason), cancel |
+| Salesperson | raise an order for themselves or another salesperson, resubmit one sent back, cancel |
+| Management | raise an order for themselves or a salesperson, resubmit their own when sent back, approve, send back (reason), reject (reason), cancel |
 | Finance | verify payment (method, reference, amount, date), hold (reason) |
 | Dispatch | start picking, mark packed, dispatch (courier, tracking), deliver (received by) |
 | Admin | create for any salesperson, edit anything, delete and restore any order, any step; People: add, change role, deactivate, reset password |
@@ -37,11 +37,28 @@ The steps are one table, `ACTIONS` in `src/orders.js`: who may take each, from w
 
 - **Accounts** live in `data/users.json`, passwords hashed with scrypt (`src/passwords.js`). A sign-in is an HMAC-signed cookie (`SESSION_SECRET`) that lasts 8 hours. Deactivating someone or resetting their password signs them out at once.
 - **Or in `ACCOUNTS`**, for hosts without a disk such as Vercel, until there's a database: one account per line, `id | email | password | role | name`, the password in plain text or as a `scrypt$...` hash (`.env.example` has the details). With it set, `data/users.json` isn't read and the People screen is read-only: add, change or remove someone by editing `ACCOUNTS` and restarting, or redeploying on Vercel. Changing someone's password there signs them out everywhere. Never change or reuse an id: orders point at their salesperson by id.
-- **Orders** live in `#order-audit` (`src/orderAudit.js`), not on disk. Each order has a starter message titled with its id and a thread on it. Every step is two posts in the thread: an embed for people (step, status change, `Name · Role`, time), and a reply from the bot holding the order's data as JSON (`src/orderCodec.js`): `{ "format": "order/1", "order", "step", "x" }`, the whole order after that step plus the step. On startup the server reads the channel and every thread and rebuilds each order from its newest reply. Customer name, contact number, address, notes, reasons, payment reference and received-by are in `x`, encrypted with `RECORD_SECRET` (AES-256-GCM, bound to the order id and step). Data too long for one message goes as a `.json` file.
+- **Orders** live in `#order-audit` (`src/orderAudit.js`), not on disk. Each order has an id in the Getmeds format, `GM-YYYYMMDD-NNNN` (numbered from 0001 each day like `getmeds-backend`'s, but dated in Manila; orders from before keep their `ORD-` ids), a starter message titled with it, and a thread on it. Every step is two posts in the thread: an embed for people (step, status change, `Name · Role`, time), and a reply from the bot holding the order's data as JSON (`src/orderCodec.js`): `{ "format": "order/1", "order", "step", "x" }`, the whole order after that step plus the step. On startup the server reads the channel and every thread and rebuilds each order from its newest reply. Customer name, contact number, address, receiver, doctor, customer remarks, notes, reasons, payment reference, received-by and the list of attached files are in `x`, encrypted with `RECORD_SECRET` (AES-256-GCM, bound to the order id and step). Data too long for one message goes as a `.json` file.
+- **The order form** asks for what the Getmeds order form (`getmeds-frontend`, `OrderForm.jsx`) asks for: Division is a fixed list and Sub-division is typed with each Division's branches as suggestions (both from `getmeds-system`'s `divisions.js`), Head quarter is typed, Source and Invoicing from are fixed lists, Payment terms and Delivery method are typed with Zoho's usual answers offered as suggestions, plus the receiver, whether the customer is the doctor, the doctor's name and customer remarks. The lists are at the top of `src/orders.js`.
+- **Attachments** go with a new order: photos, PDF, Word or Excel, up to 10 files and 3 MB in all, each tagged Proof of payment, Purchase order or Other. Vercel takes at most 4.5 MB per request and the files travel base64-encoded in the JSON, so the page redraws photos over 1 MB smaller before sending. They're posted with the order's first data message in its thread, encrypted with `RECORD_SECRET` under a neutral name (`GM-…-file-1.bin`), and the app decrypts them when someone who may see the order opens one (`GET /api/orders/:id/files/:n`). Without `RECORD_SECRET` they're posted as they are.
 - **Posting** happens after the step is taken. The step post goes through the webhook's queue (`src/discordQueue.js`), which keeps within Discord's rate limits; the reply goes through the bot (`sendAsBot`, which needs Send Messages in Threads), or as the webhook's next message if the bot may not. A failed post is kept on its step and sent again, in order, and the API answers 202 until a step is stored. Without `DISCORD_BOT_TOKEN`, orders are in memory only.
 - **Old orders** from `data/orders.json` are copied into their threads on the first start, then the file is renamed `orders.imported.json`.
 - **Admin's changes** are steps too: `edit`, `delete_order` and `restore` in `ACTIONS`, also reachable as `PATCH` and `DELETE /api/orders/:id`, each with a required reason. An edit's step names the changed fields and keeps their old values in `x`. Deleting is soft (`status: "deleted"`): hidden from everyone but Admin, and restorable. Every Admin change, account changes included, also gets a line in the "Admin log" thread in `#order-audit`: what changed and who, never values, reasons or passwords.
 - **Changes are JSON only**, so another site's form can't post one with someone's cookie.
+
+---
+
+## Dashboards
+
+Salesperson, Management, Finance and Admin open on a **Dashboard**: one main panel for what the role is there to watch, then four cards of the same size. A switch above them picks the period (this month, last month, the last 90 days, all time), and each figure is compared with the same stretch before it. Cards tagged **Now** are as things stand, whatever the period. The server works the figures out (`GET /api/orders/dashboard?period=month|last_month|90d|all`), so a salesperson's dashboard only ever counts their own orders.
+
+| Role | Main panel | Cards |
+|---|---|---|
+| Salesperson | Their sales, by day, week or month | Orders raised, approval rate, delivered, sent back to them |
+| Management | Their team, the salespeople whose orders they decided on, and what they approved | Waiting for them, approval rate, time to decide, team delivered |
+| Finance | Awaiting payment, banded by days since approval: 0–3, 4–7, 8–14 and 15+ | Large orders (from `FINANCE_LARGE_ORDER_PHP`, ₱100,000 by default), amount mismatches, on hold, payments verified |
+| Admin | Overall sales, with every salesperson's and manager's figures | Orders raised, delivered, people by role, Discord storage |
+
+Charts use one blue for the series; Finance's bands use the status colours, each named beside it, never colour alone. Every chart has a table view, and every bar a tooltip on hover or keyboard focus.
 
 ---
 
