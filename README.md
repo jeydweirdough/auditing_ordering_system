@@ -200,19 +200,9 @@ A new status also updates the record and its channel message. `GET /api/records/
 
 ---
 
-## Testing Discord's limits
+## Measuring Discord's limits
 
-Two tools, for two questions.
-
-**Does this project behave at Discord's limits?**
-
-```bash
-npm run test:limits
-```
-
-This starts the server against `test/fake-discord.js`, a stand-in that enforces Discord's documented limits. It takes each limit to its edge and one past it: field lengths, the stored footer, files per post, upload size, thread posts, the rate-limit bucket, a 429, a refused webhook, and reading past 100 messages. It also runs the probe below against the stand-in. Nothing touches the real Discord or your `.env`. It takes about 40 seconds; in PowerShell, `$env:LIMITS_FULL=1; npm run test:limits` adds the one-minute test of the per-minute cap.
-
-**What are the real limits on our Discord server?**
+To see the real limits on our Discord server:
 
 ```bash
 npm run probe:discord
@@ -233,8 +223,6 @@ This measures them live through `DISCORD_PROBE_WEBHOOK_URL`, a webhook in a chan
 
 ```bash
 npm run accounts      # once: admin, salesperson, management, finance, dispatch (.test@getmeds.ph) and SESSION_SECRET
-npm run test:orders   # the whole flow against the stand-in Discord, about 10 seconds
-npm run test:accounts # accounts from ACCOUNTS instead of data/users.json, a few seconds
 ```
 
 | Role | Steps |

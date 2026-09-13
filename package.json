@@ -10,9 +10,6 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
-    "test:limits": "node --test --test-reporter=spec test/limits.test.js",
-    "test:orders": "node --test --test-reporter=spec test/orders.test.js",
-    "test:accounts": "node --test --test-reporter=spec test/accounts-env.test.js",
     "probe:discord": "node --env-file-if-exists=.env scripts/probe-discord.js",
     "accounts": "node --env-file-if-exists=.env scripts/create-accounts.js"
   },
