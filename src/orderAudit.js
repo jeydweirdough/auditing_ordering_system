@@ -25,7 +25,7 @@ const ORDER_ID = /^ORD-\d{8}-\d{4}$/;
 const CHANNEL_STEP = /^(ORD-\d{8}-\d{4}) · /;
 const ADMIN_LOG = 'Admin log';
 
-// Follows the same switches as the records: DISCORD_ENABLED, then DISCORD_MODE.
+// Follows two switches: DISCORD_ENABLED, then DISCORD_MODE.
 function buildTransport(env = process.env) {
   if (env.DISCORD_ENABLED !== 'true') return { mode: 'off', threads: false };
   if ((env.DISCORD_MODE || 'mock').toLowerCase() !== 'live') return { mode: 'mock', threads: false };
