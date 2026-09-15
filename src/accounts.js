@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createJsonStore } = require('./jsonStore');
+const { createDiscordStore } = require('./discordStore');
 const { hashPassword, checkPassword, generatePassword, passwordProblem } = require('./passwords');
 const configStore = require('./configStore');
 
@@ -33,6 +34,7 @@ const ROLES = new Proxy(['salesperson', 'management', 'finance', 'dispatch', 'ad
 });
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const BACKUP_DIR = path.join(__dirname, '..', 'data.bak');
 
 const COOKIE = 'rd_session';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -41,6 +43,16 @@ if (!process.env.SESSION_SECRET) {
   console.warn('[auth] SESSION_SECRET is not set, so sign-ins last only until the server restarts. `npm run accounts` adds one to .env.');
 }
 
+const env = process.env;
+const botToken = env.DISCORD_BOT_TOKEN || null;
+
+const userStore = createDiscordStore({
+  webhookUrl: env.DISCORD_USER_WEBHOOK_TOKEN,
+  botToken,
+  category: 'user',
+  threadName: 'Users',
+});
+
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // With ACCOUNTS set, accounts come from it instead of users.json, so a host without a disk has
@@ -48,12 +60,47 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // and removed by editing ACCOUNTS.
 const FROM_ENV = Boolean(process.env.ACCOUNTS?.trim());
 const ENV_MANAGED = 'Accounts are set in ACCOUNTS on the server. Change them there, then restart the server or redeploy.';
-const inMemoryUsers = { nextId: 1, users: [] };
+
+function loadInitialUsers() {
+  if (fs.existsSync(path.join(DATA_DIR, 'users.json'))) {
+    try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'users.json'), 'utf8')); } catch {}
+  }
+  if (fs.existsSync(path.join(BACKUP_DIR, 'users.json'))) {
+    try { return JSON.parse(fs.readFileSync(path.join(BACKUP_DIR, 'users.json'), 'utf8')); } catch {}
+  }
+  return { nextId: 1, users: [] };
+}
+
+const inMemoryUsers = loadInitialUsers();
+
+async function saveStore() {
+  if (FROM_ENV) return;
+  try {
+    await userStore.save(store.data);
+  } catch (err) {
+    console.warn(`[accounts] Failed to save users to Discord: ${err.message}`);
+  }
+}
+
+async function loadFromDiscord() {
+  try {
+    const data = await userStore.load();
+    if (data && Array.isArray(data.users)) {
+      if (!FROM_ENV) {
+        store.data = data;
+      }
+      console.log(`[accounts] Loaded ${data.users.length} accounts from Discord.`);
+      return data;
+    }
+  } catch (err) {
+    console.warn(`[accounts] Failed to load users from Discord: ${err.message}`);
+  }
+  return store.data;
+}
+
 const store = FROM_ENV
   ? { data: { users: readAccounts(process.env.ACCOUNTS) }, save: async () => {} }
-  : fs.existsSync(path.join(DATA_DIR, 'users.json'))
-    ? createJsonStore(path.join(DATA_DIR, 'users.json'), { nextId: 1, users: [] })
-    : { data: inMemoryUsers, save: async () => {} };
+  : { data: inMemoryUsers, save: saveStore };
 
 // Checked when the email is unknown, so a wrong email takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString('hex'));
@@ -392,4 +439,19 @@ router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_user
 
 const listUsers = () => store.data.users.map(publicUser);
 
-module.exports = { router, requireUser, requireRole, requirePermission, jsonOnly, createAccount, findUser, listUsers, publicUser, onAccountChange, ROLES, ROLE_LABELS };
+module.exports = {
+  router,
+  requireUser,
+  requireRole,
+  requirePermission,
+  jsonOnly,
+  createAccount,
+  findUser,
+  listUsers,
+  publicUser,
+  onAccountChange,
+  ROLES,
+  ROLE_LABELS,
+  loadFromDiscord,
+  _store: userStore,
+};

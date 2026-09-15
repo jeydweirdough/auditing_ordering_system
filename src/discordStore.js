@@ -163,13 +163,31 @@ function createDiscordStore({ webhookUrl, botToken, category, threadName, env })
   }
 
   // ---- Ensure thread exists ----
+  // RULE: ID cannot be duplicated. Check Discord first; if existing, ID is the basis!
   async function ensureThread() {
     if (transport.mode !== 'live') return null;
     const { live } = transport;
 
     if (discord.threadId) return discord.threadId;
 
-    // Post starter message
+    // Check Discord channel history FIRST to avoid creating duplicate threads!
+    try {
+      const { messages } = await live.history();
+      for (const m of messages) {
+        const title = m.embeds?.[0]?.title ?? '';
+        if (title === threadName) {
+          discord.starterMessageId = m.id;
+          if (m.thread?.id) {
+            discord.threadId = m.thread.id;
+            return discord.threadId;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[discordStore:${category}/${threadName}] Error looking up existing thread: ${err.message}`);
+    }
+
+    // Only post starter message if none exists in Discord
     if (!discord.starterMessageId) {
       try {
         const { messageId } = await live.post({
@@ -196,6 +214,7 @@ function createDiscordStore({ webhookUrl, botToken, category, threadName, env })
   }
 
   // ---- Save data to Discord ----
+  // RULE: Each ID has only ONE thread message. Data is updated in-place (edited), never duplicated.
   async function save(data) {
     cachedData = data;
 
@@ -216,8 +235,40 @@ function createDiscordStore({ webhookUrl, botToken, category, threadName, env })
       };
       const files = file ? [file] : [];
 
+      // Find existing data message in thread if not already tracked
+      if (!discord.latestDataMessageId && threadId) {
+        try {
+          const threadMsgs = await transport.live.threadMessages(threadId);
+          for (let i = threadMsgs.length - 1; i >= 0; i--) {
+            const m = threadMsgs[i];
+            if (m.webhook_id === transport.live.hook.id) {
+              discord.latestDataMessageId = m.id;
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      // If we already have a data message in this thread and there are no new files, edit in place!
+      if (discord.latestDataMessageId && !files.length) {
+        try {
+          await transport.live.edit(discord.latestDataMessageId, payload, { threadId });
+          return;
+        } catch (err) {
+          console.warn(`[discordStore:${category}/${threadName}] In-place edit failed (${err.message}), replacing message.`);
+        }
+      }
+
+      // Post new message and clean up old data message so only ONE message remains per ID
+      const oldMessageId = discord.latestDataMessageId;
       const { messageId } = await transport.live.post(payload, { files, ...(threadId && { threadId }) });
       discord.latestDataMessageId = messageId;
+
+      if (oldMessageId && oldMessageId !== messageId) {
+        try {
+          await transport.live.deleteMessage(oldMessageId, threadId);
+        } catch {}
+      }
     });
   }
 
