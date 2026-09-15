@@ -12,9 +12,14 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const { requireUser, jsonOnly, findUser, listUsers, onAccountChange, ROLES, ROLE_LABELS } = require('./accounts');
+const { requireUser, requireRole, requirePermission, jsonOnly, findUser, listUsers, onAccountChange, ROLES, ROLE_LABELS } = require('./accounts');
 const { buildTransport, createOrderAudit, storageKind, snapshotOf } = require('./orderAudit');
 const { createOrderCodec } = require('./orderCodec');
+const products = require('./products');
+const customers = require('./customers');
+const configStore = require('./configStore');
+const recycleBin = require('./recycleBin');
+const discordHub = require('./discordHub');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 // GM-YYYYMMDD-NNNN, the Getmeds order id (getmeds-backend's orderIdService.js). Orders raised before
@@ -50,77 +55,74 @@ const WAITING_ON = {
   dispatched: 'dispatch',
 };
 
-// Getmeds' divisions and the named sub-divisions of four of them (getmeds-system, getmeds-frontend,
-// src/constants/divisions.js, which mirrors the backend). Sub-divisions are suggestions, never
-// enforced: reps often cover several and the lists were never complete.
-const DIVISIONS = ['B&B', 'B2B', 'B2C', 'BID', 'CLIDP', 'HOS', 'MSA', 'STC', 'TeleSales Anesthesia', 'URO', 'TeleSales', 'MD Telesales', 'PS'];
-const SUB_DIVISIONS = {
-  'B&B': ['CEBU', 'DAVAO', 'E. RODRIGUEZ', 'EAST AVE', 'NCL', 'SOUTH LUZON', 'TAFT'],
-  HOS: [
-    'GENSAN', 'PALAWAN', 'BAGUIO', 'BICOL', 'CABANATUAN', 'CAMANAVA', 'CAVITE', 'CDO', 'COMMONWEALTH', 'DAVAO NORTH',
-    'DAVAO SOUTH', 'ILOILO', 'LAGUNA', 'LAS PINAS', 'MANILA VACANT', 'MARIKINA', 'NORTH CEBU', 'PAMPANGA', 'PARANAQUE',
-    'PASAY', 'QUEZON PROVINCE', 'SOUTH CEBU', 'TUGUEGARAO', 'ZAMBOANGA',
-  ],
-  STC: ['CEBU', 'COMMONWEALTH', 'DAVAO', 'KALAW', 'NCL', 'SOUTH LUZON', 'TMC ORTIGAS'],
-  URO: ['CEBU', 'COMMONWEALTH', 'DAVAO', 'KALAW', 'NCL', 'SOUTH LUZON', 'TMC ORTIGAS'],
-};
-const PAYMENT_METHODS = ['Cash on delivery', 'Bank transfer', 'GCash', 'Credit terms'];
+// Getmeds' divisions and their official sub-divisions from configStore:
+const DIVISIONS = new Proxy([], {
+  get(target, prop) {
+    const list = configStore.getDivisions().map((d) => d.name);
+    if (prop === 'includes') return (val) => list.includes(val);
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    return list[prop];
+  },
+});
 
-// The next four are the Getmeds order form's lists (getmeds-frontend, OrderForm.jsx), which match
-// Zoho's own Sales Order fields. Payment terms and delivery method are suggestions, not a fixed
-// list, since Zoho takes any typed value there too.
-const SOURCES = [
-  'Doctor order',
-  'Patient order referred by doctor',
-  'Patient order referred by patient',
-  'Emergency purchase',
-  'Hospital PO',
-  'Distributor order',
-];
-const INVOICING_FROM = ['2mg Incorporated', 'Getmeds Philippines Inc.'];
-const DELIVERY_METHODS = [
-  'Own Rider / Company Vehicle',
-  'LBC Express',
-  'Grab Express',
-  'J&T Express',
-  'Lalamove',
-  'Customer Pick-up',
-  'Distributor Delivery',
-];
-const PAYMENT_TERMS = [
-  'Due end of next month', 'Due end of the month', 'Paid', 'Advanced Payment', 'Advanced Payment - Partial',
-  'Donation/Charity', 'Samples', 'Due on Receipt', '60% DP 40% UPON DEL', 'CASH', 'COD', 'Net', 'Net 15',
-  '30 days', '45 Day', 'BPO WALLET', '60 Day', 'DSWD/PCSO', 'OP', '90 Day', 'INITIAL STOCKING', '120 Day', '180 Day',
-];
+const SUB_DIVISIONS = new Proxy({}, {
+  get(target, prop) {
+    return configStore.getAllConfigs().subDivisionMap[prop] || [];
+  },
+  has(target, prop) {
+    return prop in configStore.getAllConfigs().subDivisionMap;
+  },
+});
 
-const FIELDS = {
-  customerName: { label: 'Customer name', type: 'text', max: 120, required: true },
-  contactNumber: { label: 'Contact number', type: 'text', max: 30 },
-  address: { label: 'Delivery address', type: 'textarea', max: 300, required: true },
-  receiverName: { label: 'Receiver name', type: 'text', max: 120 },
-  receiverContact: { label: 'Receiver contact no.', type: 'tel', max: 30 },
-  division: { label: 'Division', type: 'select', options: DIVISIONS, required: true },
-  subDivision: { label: 'Sub-division', type: 'text', max: 60, suggestionsBy: { field: 'division', lists: SUB_DIVISIONS }, help: 'Suggestions follow the Division. You can type your own.' },
-  headQuarter: { label: 'Head quarter', type: 'text', max: 120 },
-  invoicingFrom: { label: 'Invoicing from', type: 'select', options: INVOICING_FROM, required: true, help: 'Which entity this order is invoiced under.' },
-  source: { label: 'Source', type: 'select', options: SOURCES, required: true },
-  paymentMethod: { label: 'Payment method', type: 'select', options: PAYMENT_METHODS, required: true },
-  paymentTerms: { label: 'Payment terms', type: 'text', max: 60, required: true, suggestions: PAYMENT_TERMS, help: "Type to see suggestions (matches Zoho's list), or enter your own." },
-  deliveryMethod: { label: 'Delivery method', type: 'text', max: 60, suggestions: DELIVERY_METHODS, help: 'Type to see suggestions, or enter your own.' },
-  customerIsDoctor: { label: 'Is the customer the doctor?', type: 'choice', options: ['Yes', 'No'] },
-  doctorName: { label: 'Doctor name', type: 'text', max: 120, help: 'The referring or prescribing doctor.' },
-  remarks: { label: 'Customer remarks', type: 'textarea', max: 1000, required: true },
-  notes: { label: 'Notes', type: 'textarea', max: 1000 },
-  note: { label: 'Note', type: 'textarea', max: 500 },
-  reason: { label: 'Reason', type: 'textarea', max: 500, required: true },
-  method: { label: 'Paid by', type: 'select', options: PAYMENT_METHODS, required: true },
-  reference: { label: 'Reference number', type: 'text', max: 60, required: true },
-  amount: { label: 'Amount received (PHP)', type: 'number', min: 0.01, max: 100_000_000, required: true },
-  paidOn: { label: 'Paid on', type: 'date', required: true },
-  courier: { label: 'Courier', type: 'text', max: 60, required: true },
-  trackingNumber: { label: 'Tracking number', type: 'text', max: 60, required: true },
-  receivedBy: { label: 'Received by', type: 'text', max: 120, required: true },
-};
+function getFreshFields() {
+  const configs = configStore.getAllConfigs();
+  return {
+    customerName: { label: 'Customer name', type: 'text', max: 120, required: true },
+    contactNumber: { label: 'Contact number', type: 'text', max: 30 },
+    address: { label: 'Delivery address', type: 'textarea', max: 300, required: true },
+    receiverName: { label: 'Receiver name', type: 'text', max: 120 },
+    receiverContact: { label: 'Receiver contact no.', type: 'tel', max: 30 },
+    division: { label: 'Division', type: 'select', options: configs.divisionList, required: true },
+    subDivision: { label: 'Sub-division', type: 'select', options: ['MD Telesales', 'NBD', 'CRR', 'Hospital', 'Telesales', 'Bidding'], optionsBy: { field: 'division', lists: configs.subDivisionMap }, required: true, help: 'Follows the selected Division.' },
+    headQuarter: { label: 'Head quarter', type: 'text', max: 120, suggestions: configs.headquarters },
+    invoicingFrom: { label: 'Invoicing from', type: 'select', options: configs.invoicingFrom, required: true, help: 'Which entity this order is invoiced under.' },
+    source: { label: 'Source', type: 'select', options: configs.sources, required: true },
+    paymentMethod: { label: 'Payment method', type: 'select', options: configs.paymentMethods, required: true },
+    paymentTerms: { label: 'Payment terms', type: 'select', options: configs.paymentTerms, required: true },
+    deliveryMethod: { label: 'Delivery method', type: 'text', max: 60, suggestions: configs.deliveryMethods, help: 'Type to see suggestions, or enter your own.' },
+    customerIsDoctor: { label: 'Is the customer the doctor?', type: 'choice', options: ['Yes', 'No'] },
+    doctorName: { label: 'Doctor name', type: 'text', max: 120, help: 'The referring or prescribing doctor.' },
+    remarks: { label: 'Customer remarks', type: 'textarea', max: 1000, required: true },
+    notes: { label: 'Notes', type: 'textarea', max: 1000 },
+    note: { label: 'Note', type: 'textarea', max: 500 },
+    reason: { label: 'Reason', type: 'textarea', max: 500, required: true },
+    method: { label: 'Paid by', type: 'select', options: configs.paymentMethods, required: true },
+    reference: { label: 'Reference number', type: 'text', max: 60, required: true },
+    amount: { label: 'Amount received (PHP)', type: 'number', min: 0.01, max: 100_000_000, required: true },
+    paidOn: { label: 'Paid on', type: 'date', required: true },
+    courier: { label: 'Courier', type: 'text', max: 60, required: true },
+    trackingNumber: { label: 'Tracking number', type: 'text', max: 60, required: true },
+    receivedBy: { label: 'Received by', type: 'text', max: 120, required: true },
+  };
+}
+
+const FIELDS = new Proxy({}, {
+  get(target, prop) {
+    const fields = getFreshFields();
+    return fields[prop];
+  },
+  ownKeys() {
+    return Object.keys(getFreshFields());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    return {
+      enumerable: true,
+      configurable: true,
+      value: getFreshFields()[prop],
+    };
+  },
+});
 const ORDER_FIELDS = [
   'customerName', 'contactNumber', 'address', 'receiverName', 'receiverContact',
   'division', 'subDivision', 'headQuarter', 'invoicingFrom', 'source', 'paymentMethod', 'paymentTerms', 'deliveryMethod',
@@ -137,7 +139,13 @@ const FILE_TYPES = {
   xls: 'application/vnd.ms-excel',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
-const FILE_KINDS = { payment_proof: 'Proof of payment', purchase_order: 'Purchase order', other: 'Other' };
+const FILE_KINDS = {
+  payment_proof: 'Proof of payment',
+  purchase_order: 'Purchase order',
+  guarantee_letter: 'Guarantee letter (DSWD/PCSO)',
+  prescription: 'Prescription / Rx',
+  other: 'Other',
+};
 // Vercel takes at most 4.5 MB per request, and files arrive base64-encoded in the JSON, a third
 // bigger than they are. 3 MB of files leaves room for the rest of the order. 10 is Discord's
 // limit of files per message.
@@ -163,11 +171,21 @@ const ACTIONS = {
   edit: { label: 'Edit order', done: 'Edited by Admin', roles: ['admin'], from: LIVE, to: null, form: 'edit', logged: 'Edited' },
   delete_order: { label: 'Delete order', done: 'Deleted by Admin', roles: ['admin'], from: LIVE, to: 'deleted', fields: ['reason'], danger: true, logged: 'Deleted' },
   restore: { label: 'Restore order', done: 'Restored by Admin', roles: ['admin'], from: ['deleted'], to: null, fields: ['reason'], logged: 'Restored' },
+  purge_order: { label: 'Delete permanently', done: 'Permanently deleted by Admin', roles: ['admin'], from: ['deleted'], to: null, fields: ['reason'], danger: true, logged: 'Purged' },
 };
 for (const [name, spec] of Object.entries(ACTIONS)) spec.name = name;
 
 // Who may raise an order: for themselves, or for an active salesperson.
-const CREATORS = ['salesperson', 'management', 'admin'];
+const canRaiseOrders = (user) => user && (user.role === 'admin' || configStore.hasPermission(user.role, 'raise_orders'));
+const CREATORS = new Proxy(['salesperson', 'management', 'admin'], {
+  get(target, prop) {
+    const list = configStore.getRbac().filter((r) => r.id === 'admin' || r.permissions?.raise_orders).map((r) => r.id);
+    if (prop === 'includes') return (val) => list.includes(val);
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    return list[prop];
+  },
+});
 
 const transport = buildTransport();
 const codec = createOrderCodec(process.env.RECORD_SECRET);
@@ -231,7 +249,12 @@ function readFields(names, body) {
     } else {
       v = String(v).trim();
       if (f.max && v.length > f.max) throw bad(`${f.label} can be at most ${f.max} characters.`);
-      if (f.options && !f.options.includes(v)) throw bad(`${f.label} must be one of: ${f.options.join(', ')}.`);
+      const allowed = f.optionsBy ? (f.optionsBy.lists[values[f.optionsBy.field] ?? body?.[f.optionsBy.field]] ?? f.options) : f.options;
+      if (allowed) {
+        const match = allowed.find((opt) => opt.toLowerCase() === v.toLowerCase());
+        if (!match) throw bad(`${f.label} must be one of: ${allowed.join(', ')}.`);
+        v = match;
+      }
     }
     values[name] = v;
   }
@@ -246,19 +269,56 @@ function readItems(raw) {
     const number = (v) => (v == null || v === '' ? NaN : Number(v));   // a blank price is not a free item
     const qty = number(item?.qty);
     const unitPrice = number(item?.unitPrice);
+    const priceType = item?.priceType ? String(item.priceType).trim() : undefined;
+    const unitType = item?.unitType ? String(item.unitType).trim() : undefined;
     if (!product || product.length > 120) throw bad(`Item ${i + 1}: give a product name of up to 120 characters.`);
     if (!Number.isInteger(qty) || qty < 1 || qty > 100_000) throw bad(`Item ${i + 1}: quantity must be a whole number from 1 to 100,000.`);
     if (!Number.isFinite(unitPrice) || unitPrice < 0 || unitPrice > 10_000_000) throw bad(`Item ${i + 1}: unit price must be from 0 to 10,000,000.`);
-    return { product, qty, unitPrice: round2(unitPrice) };
+    return {
+      product,
+      qty,
+      unitPrice: round2(unitPrice),
+      ...(priceType ? { priceType } : {}),
+      ...(unitType ? { unitType } : {}),
+    };
   });
 }
 
 const totalOf = (items) => round2(items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0));
 
-function readOrderForm(body) {
+function readOrderForm(body, attachments = [], role = null) {
   const values = readFields(ORDER_FIELDS, body);
   const items = readItems(body?.items);
-  return { ...values, items, total: totalOf(items) };
+  const customerRecord = customers.findCustomer(values.customerName);
+  const customerHasSpecialPrice = Boolean(
+    body?.customerHasSpecialPrice || body?.hasSpecialPrice || customerRecord?.hasSpecialPrice
+  );
+  const orderData = {
+    ...values,
+    items,
+    customerHasSpecialPrice,
+  };
+  const constraintErr = products.validateOrderConstraints(orderData, attachments);
+  if (constraintErr) throw bad(constraintErr);
+
+  // In salesperson view, products cannot be arbitrary custom products or price-tampered
+  if (role === 'salesperson' && values.division !== 'BID') {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const p = products.findProduct(it.product);
+      if (!p) throw bad(`Item ${i + 1}: Salespeople must select an official catalog product ("${it.product}" was not found).`);
+      // Special price requests allow entering the requested custom price
+      if (it.priceType === 'special') continue;
+      if (it.priceType && p.prices?.[it.priceType]) {
+        const expectedPrice = it.unitType === 'pack' ? p.prices[it.priceType].packPrice : p.prices[it.priceType].unitPrice;
+        if (expectedPrice != null && Math.abs(Number(expectedPrice) - it.unitPrice) > 0.01) {
+          throw bad(`Item ${i + 1}: Products and prices cannot be changed in the salesperson view (expected ₱${expectedPrice} for ${p.brandName || p.fullName}).`);
+        }
+      }
+    }
+  }
+
+  return { ...values, items, total: totalOf(items), customerHasSpecialPrice };
 }
 
 // [{ name, type, size, kind, data }] from the page's [{ name, kind, data (base64) }]. Names are
@@ -319,10 +379,31 @@ const canSee = (user, order) => (order.status !== 'deleted' || user.role === 'ad
 // A restored order goes back to the status it had when it was deleted.
 const statusBeforeDelete = (order) => order.events.findLast((e) => e.to === 'deleted')?.from ?? 'pending_approval';
 
+const ACTION_PERMISSIONS = {
+  resubmit: 'raise_orders',
+  approve: 'approve_orders',
+  send_back: 'send_back_orders',
+  reject: 'reject_orders',
+  verify_payment: 'verify_payment',
+  hold: 'hold_payment',
+  start_picking: 'pick_pack_dispatch',
+  mark_packed: 'pick_pack_dispatch',
+  dispatch: 'pick_pack_dispatch',
+  deliver: 'deliver_orders',
+  cancel: 'raise_orders',
+  edit: 'edit_orders',
+  delete_order: 'delete_orders',
+  restore: 'restore_orders',
+  purge_order: 'delete_orders',
+};
+
 // Why this person may not take this step now, as [status, message], or null when they may.
 function refuse(user, order, spec) {
-  if (user.role !== 'admin' && !spec.roles.includes(user.role)) {
-    return [403, `Only ${spec.roles.map((r) => ROLE_LABELS[r]).join(' or ')} can do this step.`];
+  const perm = ACTION_PERMISSIONS[spec.name];
+  const hasPerm = perm ? configStore.hasPermission(user.role, perm) : (user.role === 'admin' || spec.roles.includes(user.role));
+
+  if (!hasPerm && user.role !== 'admin') {
+    return [403, `Your role does not have permission to do this step.`];
   }
   if (!spec.from.includes(order.status)) return [409, `This order is ${STATUS[order.status].toLowerCase()}, so this step isn't open.`];
   // mine: only whoever raised the order or whom it's for (Admin aside). owner: the same, for
@@ -377,6 +458,12 @@ function applyEdit(order, body) {
     }
   }
 
+  if ('items' in body || present.some((k) => ['division', 'paymentTerms', 'source', 'notes', 'remarks'].includes(k))) {
+    const merged = { ...order, ...next };
+    const err = products.validateOrderConstraints(merged, order.attachments ?? []);
+    if (err) throw bad(err);
+  }
+
   let owner = null;
   if (body.ownerId != null && body.ownerId !== '' && Number(body.ownerId) !== order.ownerId) {
     owner = salespersonFor(body.ownerId);
@@ -406,6 +493,25 @@ function applyEdit(order, body) {
   };
   const payment = editPart(order.payment, PAYMENT_FIELDS, body.payment);
   const shipment = editPart(order.shipment, SHIPMENT_FIELDS, body.shipment);
+  let newFiles = [];
+  if (Array.isArray(body.attachments)) {
+    let currentAttachments = order.attachments ?? [];
+    if (Array.isArray(body.keepExistingAttachmentIndices)) {
+      currentAttachments = currentAttachments.filter((f) => body.keepExistingAttachmentIndices.includes(f.n));
+    }
+    newFiles = readAttachments(body.attachments);
+    if (newFiles.length > 0 || currentAttachments.length !== (order.attachments?.length ?? 0)) {
+      const startN = currentAttachments.length;
+      const appended = newFiles.map(({ data, ...file }, idx) => ({
+        n: startN + idx,
+        ...file,
+        seq: order.events.length + 1,
+        ...discordFile(order.id, startN + idx, file.name),
+      }));
+      order.attachments = [...currentAttachments, ...appended];
+      note('Attachments', `${order.attachments.length} file(s)`);
+    }
+  }
 
   if (!changed.length) throw bad('Nothing changed.');
 
@@ -416,7 +522,7 @@ function applyEdit(order, body) {
   }
   if (payment) order.payment = payment;
   if (shipment) order.shipment = shipment;
-  return { to, note: reason, details: { changed, before } };
+  return { to, note: reason, details: { changed, before }, newFiles };
 }
 
 // Each step keeps a copy of the order as it stood after it, for its data reply. The copy isn't
@@ -466,6 +572,9 @@ const summary = (o) => ({
   owner: ownerName(o),
   createdAt: o.createdAt,
   updatedAt: o.updatedAt,
+  deletedAt: o.deletedAt || null,
+  purgeAt: o.purgeAt || null,
+  deletedBy: o.deletedBy || null,
   discordProblem: o.events.some((s) => s.discord?.state === 'failed'),
 });
 
@@ -496,6 +605,27 @@ function splitDivision(order) {
   if (sub && DIVISIONS.includes(division) && !order.subDivision) Object.assign(order, { division, subDivision: sub });
 }
 
+async function checkAndPurgeExpired() {
+  const now = Date.now();
+  const deleted = Object.values(state.orders).filter((o) => o.status === 'deleted');
+  for (const order of deleted) {
+    const purgeTime = order.purgeAt
+      ? new Date(order.purgeAt).getTime()
+      : (order.deletedAt ? new Date(order.deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000 : null);
+    if (purgeTime && now >= purgeTime) {
+      console.log(`[retention] Order ${order.id} reached 30-day retention limit; vanishing from Discord database.`);
+      await audit.purgeOrder(order, { name: 'Retention Worker', role: 'system' });
+      delete state.orders[order.id];
+      recycleBin.removeRecycledItem(order.id, 'order');
+    }
+  }
+  await recycleBin.purgeExpiredRecycledItems().catch((err) => {
+    console.warn('[retention] Failed to purge expired recycled items:', err.message);
+  });
+}
+
+setInterval(checkAndPurgeExpired, 60 * 60 * 1000).unref();
+
 // Reads every order back from #order-audit, before the server takes requests. Never throws: if
 // Discord can't be read, the reason is kept and new orders are refused until a restart.
 async function load() {
@@ -510,6 +640,8 @@ async function load() {
     const found = await audit.load();
     state.orders = found.orders;
     for (const order of Object.values(state.orders)) splitDivision(order);
+    customers.seedFromOrders(Object.values(state.orders));
+    await checkAndPurgeExpired();
     countIds(found.ids);
     Object.assign(storage, { loaded: Object.keys(found.orders).length, scanned: found.scanned, locked: found.locked, unreadable: found.unreadable });
     console.log(`[orders] loaded ${storage.loaded} order(s) from #order-audit, ${found.scanned} channel message(s) scanned`);
@@ -811,7 +943,7 @@ const DASHBOARDS = { salesperson: salespersonDashboard, management: managementDa
 const router = express.Router();
 router.use(requireUser, jsonOnly);
 
-router.get('/meta', (_req, res) => res.json({
+router.get('/meta', (req, res) => res.json({
   statuses: STATUS,
   roles: ROLE_LABELS,
   orderFields: ORDER_FIELDS.map(describeField),
@@ -820,7 +952,457 @@ router.get('/meta', (_req, res) => res.json({
   files: { ...FILES, kinds: FILE_KINDS, accept: Object.keys(FILE_TYPES).map((ext) => `.${ext}`).join(',') },
   discord: audit.describe(),
   storage,
+  products: products.getProducts(),
+  divisionRules: products.DIVISION_PRICE_RULES,
+  priceTiers: products.PRICE_TIERS,
+  configs: configStore.getAllConfigs(),
+  canRaiseOrders: canRaiseOrders(req.user),
+  canManageSettings: req.user.role === 'admin' || configStore.hasPermission(req.user.role, 'manage_settings'),
+  canManageUsers: req.user.role === 'admin' || configStore.hasPermission(req.user.role, 'manage_users'),
 }));
+
+router.get('/products', (_req, res) => res.json({
+  products: products.getProducts(),
+  divisionRules: products.DIVISION_PRICE_RULES,
+  priceTiers: products.PRICE_TIERS,
+}));
+
+router.get('/customers', (req, res) => {
+  const q = String(req.query.q ?? '').trim();
+  res.json({ customers: customers.searchCustomers(q) });
+});
+
+router.post('/customers', (req, res, next) => {
+  try {
+    const customer = customers.addCustomer(req.body ?? {});
+    res.status(201).json({ customer });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.post('/customers/quick', (req, res, next) => {
+  try {
+    const name = String(req.body?.name || req.body?.customerName || '').trim();
+    if (!name) throw bad('Customer name is required.');
+    const customer = customers.addCustomer({
+      name,
+      contactNumber: req.body?.contactNumber || '',
+      address: req.body?.address || '',
+      receiverName: req.body?.receiverName || '',
+      receiverContact: req.body?.receiverContact || '',
+      hasSpecialPrice: Boolean(req.body?.hasSpecialPrice),
+    });
+    res.status(201).json({ customer });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Master Reference Data & RBAC routes
+router.get('/configs', (_req, res) => {
+  res.json({ configs: configStore.getAllConfigs() });
+});
+
+router.post('/configs/:type', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { type } = req.params;
+    const body = req.body || {};
+    if (type === 'divisions') {
+      const name = String(body.name || '').trim();
+      if (!name) throw bad('Division name is required.');
+      const subDivisions = Array.isArray(body.subDivisions)
+        ? body.subDivisions.map((s) => String(s).trim()).filter(Boolean)
+        : [];
+      const list = configStore.getDivisions();
+      if (list.some((d) => d.name.toLowerCase() === name.toLowerCase())) {
+        throw bad(`Division "${name}" already exists.`);
+      }
+      list.push({ name, subDivisions });
+      configStore.setDivisions(list);
+      return res.status(201).json({ ok: true, divisions: list });
+    }
+
+    const item = String(body.item || '').trim();
+    if (!item) throw bad('Item text is required.');
+
+    let setter;
+    let getter;
+    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
+    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
+    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
+    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
+    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
+    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
+    else throw bad(`Unknown configuration type: ${type}`, 404);
+
+    const list = getter();
+    if (list.some((i) => i.toLowerCase() === item.toLowerCase())) {
+      throw bad(`"${item}" already exists.`);
+    }
+    list.push(item);
+    setter(list);
+    res.status(201).json({ ok: true, items: list });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.put('/configs/:type', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { type } = req.params;
+    const body = req.body || {};
+    if (type === 'divisions') {
+      const oldName = String(body.oldName || '').trim();
+      const name = String(body.name || oldName).trim();
+      const subDivisions = Array.isArray(body.subDivisions)
+        ? body.subDivisions.map((s) => String(s).trim()).filter(Boolean)
+        : undefined;
+      const list = configStore.getDivisions();
+      const idx = list.findIndex((d) => d.name === oldName);
+      if (idx === -1) throw bad(`Division "${oldName}" not found.`, 404);
+      list[idx].name = name;
+      if (subDivisions !== undefined) list[idx].subDivisions = subDivisions;
+      configStore.setDivisions(list);
+      return res.json({ ok: true, divisions: list });
+    }
+
+    const oldItem = String(body.oldItem || '').trim();
+    const newItem = String(body.newItem || '').trim();
+    if (!oldItem || !newItem) throw bad('Both oldItem and newItem are required.');
+
+    let setter;
+    let getter;
+    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
+    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
+    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
+    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
+    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
+    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
+    else throw bad(`Unknown configuration type: ${type}`, 404);
+
+    const list = getter();
+    const idx = list.indexOf(oldItem);
+    if (idx === -1) throw bad(`Item "${oldItem}" not found.`, 404);
+    list[idx] = newItem;
+    setter(list);
+    res.json({ ok: true, items: list });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/configs/:type/:id', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { type, id } = req.params;
+    const target = decodeURIComponent(id).trim();
+    if (type === 'divisions') {
+      let list = configStore.getDivisions();
+      list = list.filter((d) => d.name !== target);
+      configStore.setDivisions(list);
+      return res.json({ ok: true, divisions: list });
+    }
+
+    let setter;
+    let getter;
+    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
+    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
+    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
+    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
+    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
+    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
+    else throw bad(`Unknown configuration type: ${type}`, 404);
+
+    let list = getter();
+    list = list.filter((i) => i !== target);
+    setter(list);
+
+    recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
+      id: `${type}-${target}`,
+      type: 'setting',
+      name: `${type}: ${target}`,
+      data: { type, item: target },
+      user: req.user,
+      discord: { category: 'setting' },
+    }));
+    discordHub.notifyCategory('setting', {
+      title: `🗑️ Moved to Recycle Bin: ${target}`,
+      description: `Setting ${type} "${target}" was deleted and moved to Recycle Bin (30-day retention).`,
+      actor: req.user,
+    }).catch(() => {});
+
+    res.json({ ok: true, items: list });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.post('/rbac/roles', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id, label, description, permissions } = req.body || {};
+    const cleanId = String(id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanLabel = String(label || '').trim();
+    if (!cleanId || !cleanLabel) throw bad('Role ID and Label are required.');
+    const rbac = configStore.getRbac();
+    if (rbac.some((r) => r.id === cleanId)) throw bad(`Role "${cleanId}" already exists.`);
+    const newRole = {
+      id: cleanId,
+      label: cleanLabel,
+      description: String(description || '').trim(),
+      isSystem: false,
+      permissions: typeof permissions === 'object' && permissions ? permissions : {},
+    };
+    rbac.push(newRole);
+    configStore.setRbac(rbac);
+    res.status(201).json({ ok: true, role: newRole, rbac });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.put('/rbac/roles/:roleId', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { roleId } = req.params;
+    const { label, description, permissions } = req.body || {};
+    const rbac = configStore.getRbac();
+    const role = rbac.find((r) => r.id === roleId);
+    if (!role) throw bad(`Role "${roleId}" not found.`, 404);
+    if (label) role.label = String(label).trim();
+    if (description !== undefined) role.description = String(description).trim();
+    if (permissions && typeof permissions === 'object') {
+      role.permissions = { ...role.permissions, ...permissions };
+    }
+    configStore.setRbac(rbac);
+    res.json({ ok: true, role, rbac });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/rbac/roles/:roleId', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { roleId } = req.params;
+    let rbac = configStore.getRbac();
+    const role = rbac.find((r) => r.id === roleId);
+    if (!role) throw bad(`Role "${roleId}" not found.`, 404);
+    if (role.isSystem || role.id === 'admin') throw bad('Cannot delete a system role.');
+    rbac = rbac.filter((r) => r.id !== roleId);
+    configStore.setRbac(rbac);
+
+    recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
+      id: role.id,
+      type: 'role',
+      name: `Role: ${role.label || role.id}`,
+      data: role,
+      user: req.user,
+      discord: { category: 'rbac' },
+    }));
+    discordHub.notifyCategory('rbac', {
+      title: `🗑️ Moved to Recycle Bin: ${role.label || role.id}`,
+      description: `Role "${role.label || role.id}" was deleted and moved to Recycle Bin (30-day retention).`,
+      actor: req.user,
+    }).catch(() => {});
+
+    res.json({ ok: true, rbac });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Promotions, Bundles & Discounts API
+router.get('/promotions', (req, res, next) => {
+  try {
+    const promotions = configStore.getPromotions();
+    res.json({ ok: true, promotions });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Bundles CRUD
+router.post('/promotions/bundle', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id, name, code, description, items, bundlePrice, active } = req.body || {};
+    if (!name || !bundlePrice) throw bad('Bundle name and bundle price are required.');
+    const promos = configStore.getPromotions();
+    promos.bundles = promos.bundles || [];
+
+    const cleanId = id || `bnd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const existingIdx = promos.bundles.findIndex((b) => b.id === cleanId);
+    const bundleData = {
+      id: cleanId,
+      name: String(name).trim(),
+      code: String(code || '').trim().toUpperCase(),
+      description: String(description || '').trim(),
+      items: Array.isArray(items) ? items : [],
+      bundlePrice: Number(bundlePrice) || 0,
+      active: active !== undefined ? Boolean(active) : true,
+    };
+
+    if (existingIdx >= 0) {
+      promos.bundles[existingIdx] = bundleData;
+    } else {
+      promos.bundles.unshift(bundleData);
+    }
+
+    configStore.setPromotions(promos);
+    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, bundle: bundleData, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/promotions/bundle/:bundleId', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { bundleId } = req.params;
+    const promos = configStore.getPromotions();
+    const bundle = (promos.bundles || []).find((b) => b.id === bundleId);
+    promos.bundles = (promos.bundles || []).filter((b) => b.id !== bundleId);
+    configStore.setPromotions(promos);
+    if (bundle) {
+      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
+        id: bundle.id,
+        type: 'bundle',
+        name: `Bundle: ${bundle.name}`,
+        data: bundle,
+        user: req.user,
+        discord: { category: 'promotion' },
+      }));
+      discordHub.notifyCategory('promotion', {
+        title: `🗑️ Moved to Recycle Bin: ${bundle.name}`,
+        description: `Bundle "${bundle.name}" was deleted and moved to Recycle Bin (30-day retention).`,
+        actor: req.user,
+      }).catch(() => {});
+    }
+    res.json({ ok: true, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Promos / Campaigns CRUD
+router.post('/promotions/promo', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id, name, code, description, startDate, endDate, tag, active } = req.body || {};
+    if (!name) throw bad('Campaign name is required.');
+    const promos = configStore.getPromotions();
+    promos.promos = promos.promos || [];
+
+    const cleanId = id || `prm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const existingIdx = promos.promos.findIndex((p) => p.id === cleanId);
+    const promoData = {
+      id: cleanId,
+      name: String(name).trim(),
+      code: String(code || '').trim().toUpperCase(),
+      description: String(description || '').trim(),
+      startDate: startDate || null,
+      endDate: endDate || null,
+      tag: String(tag || '').trim(),
+      active: active !== undefined ? Boolean(active) : true,
+    };
+
+    if (existingIdx >= 0) {
+      promos.promos[existingIdx] = promoData;
+    } else {
+      promos.promos.unshift(promoData);
+    }
+
+    configStore.setPromotions(promos);
+    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, promo: promoData, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/promotions/promo/:promoId', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { promoId } = req.params;
+    const promos = configStore.getPromotions();
+    const promo = (promos.promos || []).find((p) => p.id === promoId);
+    promos.promos = (promos.promos || []).filter((p) => p.id !== promoId);
+    configStore.setPromotions(promos);
+    if (promo) {
+      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
+        id: promo.id,
+        type: 'promo',
+        name: `Promo: ${promo.name}`,
+        data: promo,
+        user: req.user,
+        discord: { category: 'promotion' },
+      }));
+      discordHub.notifyCategory('promotion', {
+        title: `🗑️ Moved to Recycle Bin: ${promo.name}`,
+        description: `Promo "${promo.name}" was deleted and moved to Recycle Bin (30-day retention).`,
+        actor: req.user,
+      }).catch(() => {});
+    }
+    res.json({ ok: true, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Discounts CRUD
+router.post('/promotions/discount', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id, name, code, type, value, minSpend, description, active } = req.body || {};
+    if (!name || value == null) throw bad('Discount name and value are required.');
+    const promos = configStore.getPromotions();
+    promos.discounts = promos.discounts || [];
+
+    const cleanId = id || `dsc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const existingIdx = promos.discounts.findIndex((d) => d.id === cleanId);
+    const discountData = {
+      id: cleanId,
+      name: String(name).trim(),
+      code: String(code || '').trim().toUpperCase(),
+      type: type === 'fixed' ? 'fixed' : 'percentage',
+      value: Number(value) || 0,
+      minSpend: Number(minSpend) || 0,
+      description: String(description || '').trim(),
+      active: active !== undefined ? Boolean(active) : true,
+    };
+
+    if (existingIdx >= 0) {
+      promos.discounts[existingIdx] = discountData;
+    } else {
+      promos.discounts.unshift(discountData);
+    }
+
+    configStore.setPromotions(promos);
+    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, discount: discountData, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/promotions/discount/:discountId', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { discountId } = req.params;
+    const promos = configStore.getPromotions();
+    const discount = (promos.discounts || []).find((d) => d.id === discountId);
+    promos.discounts = (promos.discounts || []).filter((d) => d.id !== discountId);
+    configStore.setPromotions(promos);
+    if (discount) {
+      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
+        id: discount.id,
+        type: 'discount',
+        name: `Discount: ${discount.name}`,
+        data: discount,
+        user: req.user,
+        discord: { category: 'promotion' },
+      }));
+      discordHub.notifyCategory('promotion', {
+        title: `🗑️ Moved to Recycle Bin: ${discount.name}`,
+        description: `Discount "${discount.name}" was deleted and moved to Recycle Bin (30-day retention).`,
+        actor: req.user,
+      }).catch(() => {});
+    }
+    res.json({ ok: true, promotions: promos });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
 
 // The signed-in person's dashboard, for ?period=month (the default), last_month, 90d or all.
 router.get('/dashboard', (req, res, next) => {
@@ -870,9 +1452,8 @@ const accepted = (fallback) => (storesInDiscord ? 202 : fallback);
 router.post('/', (req, res, next) => {
   try {
     if (!CREATORS.includes(req.user.role)) throw bad('Only Salesperson, Management or Admin can raise orders.', 403);
-    if (storage.error) throw bad(`Orders couldn't be read from #order-audit, so a new order could reuse an existing id. ${storage.error}`, 503);
-    const form = readOrderForm(req.body);
     const files = readAttachments(req.body?.attachments);
+    const form = readOrderForm(req.body, files, req.user.role);
     const pick = req.body?.ownerId;
     const forOther = pick != null && pick !== '' && Number(pick) !== req.user.id;
     const owner = forOther ? salespersonFor(pick) : req.user;   // for me, or for an active salesperson
@@ -898,6 +1479,18 @@ router.post('/', (req, res, next) => {
     const step = record(order, req.user, 'created', 'Order created', null, 'pending_approval', { details });
     keepFiles(step, order, files);
     state.orders[order.id] = order;
+    if (order.customerName) {
+      customers.addCustomer({
+        name: order.customerName,
+        contactNumber: order.contactNumber,
+        address: order.address,
+        receiverName: order.receiverName,
+        receiverContact: order.receiverContact,
+        division: order.division,
+        subDivision: order.subDivision,
+        headQuarter: order.headQuarter,
+      });
+    }
     audit.sync(order.id);
     if (req.user.role === 'admin') {
       audit.logAdmin({ title: `Created ${order.id}`, description: `For ${owner.name}`, actor: order.createdBy, at: now });
@@ -908,6 +1501,119 @@ router.post('/', (req, res, next) => {
   }
 });
 
+router.get('/recycle-bin', requirePermission('manage_settings'), (req, res) => {
+  const recycledOrders = Object.values(state.orders)
+    .filter((o) => o.status === 'deleted')
+    .map((o) => ({
+      ...summary(o),
+      daysLeft: recycleBin.calculateDaysLeft(o.purgeAt || (o.deletedAt ? new Date(new Date(o.deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() : null)),
+      type: 'order',
+    }));
+  const recycledOthers = recycleBin.getRecycleBinSettings().map((it) => ({
+    ...it,
+    daysLeft: recycleBin.calculateDaysLeft(it.purgeAt),
+  }));
+  res.json({
+    orders: recycledOrders,
+    others: recycledOthers,
+    total: recycledOrders.length + recycledOthers.length,
+  });
+});
+
+async function purgeSingleRecycledItem(req, res, next) {
+  try {
+    const id = req.params.id;
+    const order = state.orders[id];
+    if (order) {
+      if (order.status !== 'deleted') {
+        throw bad('Order must be in the Recycle Bin before it can be permanently deleted.', 400);
+      }
+      await audit.purgeOrder(order, req.user);
+      delete state.orders[id];
+      recycleBin.removeRecycledItem(id, 'order');
+      return res.json({ ok: true, message: `Order ${id} permanently deleted and vanished from Discord database.` });
+    }
+
+    const item = recycleBin.findRecycledItem(id);
+    if (item) {
+      await recycleBin.permanentlyPurgeRecycledItem(item);
+      return res.json({ ok: true, message: `${item.name} permanently deleted and vanished from Discord database.` });
+    }
+
+    throw bad('Item not found in Recycle Bin.', 404);
+  } catch (err) {
+    fail(err, res, next);
+  }
+}
+
+router.delete('/recycle-bin/:id', requirePermission('delete_orders'), purgeSingleRecycledItem);
+router.delete('/:id/permanent', requirePermission('delete_orders'), purgeSingleRecycledItem);
+
+router.post('/recycle-bin/empty', requirePermission('delete_orders'), async (req, res, next) => {
+  try {
+    const deletedOrders = Object.values(state.orders).filter((o) => o.status === 'deleted');
+    for (const order of deletedOrders) {
+      await audit.purgeOrder(order, req.user);
+      delete state.orders[order.id];
+      recycleBin.removeRecycledItem(order.id, 'order');
+    }
+    const otherItems = [...recycleBin.getRecycleBinSettings()];
+    for (const item of otherItems) {
+      await recycleBin.permanentlyPurgeRecycledItem(item);
+    }
+    res.json({
+      ok: true,
+      purgedOrders: deletedOrders.length,
+      purgedOthers: otherItems.length,
+      totalPurged: deletedOrders.length + otherItems.length,
+      message: `Recycle Bin emptied: ${deletedOrders.length + otherItems.length} item(s) permanently vanished from Discord database.`,
+    });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.post('/recycle-bin/:id/restore', requirePermission('delete_orders'), async (req, res, next) => {
+  const id = req.params.id;
+  const order = state.orders[id];
+  if (order) {
+    req.body = req.body || {};
+    req.body.reason = req.body.reason || req.body.note || 'Restored from Recycle Bin';
+    return takeStep(req, res, next, 'restore');
+  }
+  const item = recycleBin.findRecycledItem(id);
+  if (item) {
+    if (item.type === 'customer' && item.data) {
+      customers.addCustomer(item.data);
+    } else if (item.type === 'bundle' && item.data) {
+      const bundles = configStore.getPromotionsBundles();
+      bundles.push(item.data);
+      configStore.setPromotionsBundles(bundles);
+    } else if (item.type === 'promo' && item.data) {
+      const promos = configStore.getPromotionsPromos();
+      promos.push(item.data);
+      configStore.setPromotionsPromos(promos);
+    } else if (item.type === 'discount' && item.data) {
+      const discounts = configStore.getPromotionsDiscounts();
+      discounts.push(item.data);
+      configStore.setPromotionsDiscounts(discounts);
+    } else if (item.type === 'role' && item.data) {
+      const roles = configStore.getRoles();
+      roles.push(item.data);
+      configStore.setRoles(roles);
+    }
+    recycleBin.removeRecycledItem(id);
+    const category = item.discord?.category || 'setting';
+    await discordHub.notifyCategory(category, {
+      title: `♻️ Restored: ${item.name}`,
+      description: `${item.name} (${item.type}) was restored from the Recycle Bin by ${req.user.name}.`,
+      actor: req.user,
+    }).catch(() => {});
+    return res.json({ ok: true, message: `${item.name} restored successfully.` });
+  }
+  return res.status(404).json({ error: 'Item not found in Recycle Bin.' });
+});
+
 router.get('/:id', (req, res, next) => {
   try {
     res.json({ order: fullOrder(visibleOrder(req), req.user) });
@@ -916,7 +1622,7 @@ router.get('/:id', (req, res, next) => {
   }
 });
 
-function takeStep(req, res, next, name) {
+async function takeStep(req, res, next, name) {
   try {
     const order = visibleOrder(req);
     const spec = Object.hasOwn(ACTIONS, name) ? ACTIONS[name] : null;
@@ -930,12 +1636,44 @@ function takeStep(req, res, next, name) {
     let to = spec.to;
     let details = null;
     let note = null;
+    let newFiles = [];
     if (spec.form === 'order') {
-      const form = readOrderForm(body);
+      // Products, division, sub-division, and headquarters cannot be changed in salesperson view
+      if (req.user.role === 'salesperson') {
+        body.division = order.division;
+        body.subDivision = order.subDivision;
+        body.headQuarter = order.headQuarter;
+      }
+      let currentAttachments = order.attachments ?? [];
+      if (Array.isArray(body.keepExistingAttachmentIndices)) {
+        currentAttachments = currentAttachments.filter((f) => body.keepExistingAttachmentIndices.includes(f.n));
+      }
+      if (Array.isArray(body.attachments) && body.attachments.length > 0) {
+        newFiles = readAttachments(body.attachments);
+        const startN = currentAttachments.length;
+        const appended = newFiles.map(({ data, ...file }, idx) => ({
+          n: startN + idx,
+          ...file,
+          seq: order.events.length + 1,
+          ...discordFile(order.id, startN + idx, file.name),
+        }));
+        order.attachments = [...currentAttachments, ...appended];
+      } else {
+        order.attachments = currentAttachments;
+      }
+
+      const form = readOrderForm(body, order.attachments ?? [], req.user.role);
+      if (req.user.role === 'salesperson') {
+        form.items = order.items;
+        form.total = order.total;
+        form.division = order.division;
+        form.subDivision = order.subDivision;
+        form.headQuarter = order.headQuarter;
+      }
       Object.assign(order, form);
-      details = { items: form.items.length, total: form.total };
+      details = { items: form.items.length, total: form.total, ...(newFiles.length ? { files: newFiles.length } : {}) };
     } else if (spec.form === 'edit') {
-      ({ to, details, note } = applyEdit(order, body));
+      ({ to, details, note, newFiles } = applyEdit(order, body));
     } else if (spec.fields) {
       const values = readFields(spec.fields, body);
       note = values.reason ?? values.note ?? null;
@@ -945,9 +1683,27 @@ function takeStep(req, res, next, name) {
       if (spec.name === 'dispatch') order.shipment = { ...facts, dispatchedAt: at };
       if (spec.name === 'deliver') order.shipment = { ...order.shipment, ...facts, deliveredAt: at };
     }
-    if (spec.name === 'restore') to = statusBeforeDelete(order);
+    if (spec.name === 'purge_order') {
+      await audit.purgeOrder(order, req.user);
+      delete state.orders[order.id];
+      recycleBin.removeRecycledItem(order.id, 'order');
+      return res.json({ ok: true, purged: true, message: `Order ${order.id} permanently deleted and vanished from Discord database.` });
+    }
+    if (spec.name === 'delete_order') {
+      order.deletedAt = at;
+      order.purgeAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      order.deletedBy = { id: req.user.id, name: req.user.name, role: req.user.role };
+    } else if (spec.name === 'restore') {
+      to = statusBeforeDelete(order);
+      delete order.deletedAt;
+      delete order.purgeAt;
+      delete order.deletedBy;
+    }
 
     const step = record(order, req.user, spec.name, spec.done, from, to, { details, note });
+    if (newFiles && newFiles.length > 0) {
+      keepFiles(step, order, newFiles);
+    }
     audit.sync(order.id);
     if (spec.logged) logAdmin(req.user, `${spec.logged} ${order.id}`, step);
     res.status(accepted(200)).json({ order: fullOrder(order, req.user) });
@@ -956,9 +1712,11 @@ function takeStep(req, res, next, name) {
   }
 }
 
+
+
 router.post('/:id/actions/:action', (req, res, next) => takeStep(req, res, next, req.params.action));
 router.patch('/:id', (req, res, next) => takeStep(req, res, next, 'edit'));             // Admin: update
-router.delete('/:id', (req, res, next) => takeStep(req, res, next, 'delete_order'));   // Admin: delete, kept for restoring
+router.delete('/:id', (req, res, next) => takeStep(req, res, next, 'delete_order'));   // Admin: delete, moved to Recycle Bin
 
 // Opens file n of an order, for anyone who may see the order. Until Discord has it, it comes from
 // memory; after that from its message in #order-audit, decrypted here.
@@ -993,4 +1751,11 @@ router.post('/:id/audit/retry', (req, res, next) => {
   }
 });
 
-module.exports = { router, load, STATUS, ACTIONS };
+function setOrderPurgeDateForTesting(orderId, deletedAt, purgeAt) {
+  if (state.orders[orderId]) {
+    state.orders[orderId].deletedAt = deletedAt;
+    state.orders[orderId].purgeAt = purgeAt;
+  }
+}
+
+module.exports = { router, load, STATUS, ACTIONS, checkAndPurgeExpired, setOrderPurgeDateForTesting };
