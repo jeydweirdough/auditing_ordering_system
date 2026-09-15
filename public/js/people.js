@@ -23,13 +23,23 @@ function renderPeopleView() {
 
   const { users, roles } = peopleData;
   const roleOptions = (selected) => roles.map((r) => `<option value="${r.value}"${r.value === selected ? ' selected' : ''}>${esc(r.label)}</option>`).join('');
+  const teamLeaders = users.filter((u) => u.active && (u.role === 'team_leader' || u.role === 'admin'));
+  const tlOptions = (selected) => [
+    '<option value="">(None assigned)</option>',
+    ...teamLeaders.map((tl) => `<option value="${tl.id}"${tl.id === selected ? ' selected' : ''}>${esc(tl.name)} (${esc(tl.roleLabel || tl.role)})</option>`)
+  ].join('');
   
   const rows = users.map((u) => {
     const isSelf = u.id === currentUser.id;
+    const isSalesperson = u.role === 'salesperson';
+    const tlCell = isSalesperson
+      ? `<td><select data-tl aria-label="Team Leader for ${esc(u.name)}"${u.active ? '' : ' disabled'}>${tlOptions(u.teamLeaderId)}</select></td>`
+      : `<td><span class="quiet-text">—</span></td>`;
     return `<tr data-user="${u.id}" data-name="${esc(u.name)}" class="${u.active ? '' : 'inactive'}">
       <td>${esc(u.name)}${isSelf ? ' <small>(you)</small>' : ''}</td>
       <td class="mono">${esc(u.email)}</td>
       <td><select data-role aria-label="Role for ${esc(u.name)}"${isSelf ? ' disabled' : ''}>${roleOptions(u.role)}</select></td>
+      ${tlCell}
       <td><div class="status-cell">${u.active ? '<span class="pill ok">Active</span>' : '<span class="pill stop">Deactivated</span>'}${isSelf ? '' : `<button type="button" class="link" data-toggle="${u.active ? 'off' : 'on'}">${u.active ? 'Deactivate' : 'Reactivate'}</button>`}</div></td>
       <td><button type="button" class="btn quiet small" data-reset>Reset password</button></td>
     </tr>`;
@@ -38,7 +48,7 @@ function renderPeopleView() {
   root.innerHTML = `<div class="panel" id="people-panel">
     <div class="side-head">
       <h2 class="title">People</h2>
-      <p class="sub">Accounts are kept in data/users.json on this computer, with hashed passwords. Every change here is posted to the Admin log thread in #order-audit: who changed which account, and how. Never passwords.</p>
+      <p class="sub">User accounts are synchronized directly with Discord. Team leaders supervise salespeople, review and endorse orders before management confirmation.</p>
     </div>
     ${revealState ? `<div class="callout" role="status">
       <span>Password for <strong>${esc(revealState.email)}</strong>, shown only this once:</span>
@@ -47,7 +57,7 @@ function renderPeopleView() {
       <button type="button" class="link" data-dismiss>Done</button>
     </div>` : ''}
     <div class="table-wrap"><table class="people">
-      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th><span class="sr">Password</span></th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Team Leader</th><th>Status</th><th><span class="sr">Password</span></th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
     <form id="person-form" class="person-form" novalidate>
@@ -56,6 +66,7 @@ function renderPeopleView() {
         <label class="field" for="p-name"><span>Name</span><input id="p-name" name="name" type="text" maxlength="80" required></label>
         <label class="field" for="p-email"><span>Email</span><input id="p-email" name="email" type="email" autocomplete="off" required></label>
         <label class="field" for="p-role"><span>Role</span><select id="p-role" name="role">${roleOptions('salesperson')}</select></label>
+        <label class="field" for="p-tl"><span>Team Leader <em>if salesperson</em></span><select id="p-tl" name="teamLeaderId">${tlOptions('')}</select></label>
         <label class="field" for="p-password"><span>Password <em>optional</em></span><input id="p-password" name="password" type="password" autocomplete="new-password" placeholder="Blank makes one for you"></label>
       </div>
       <p class="error" id="person-error" role="alert" hidden></p>
@@ -100,6 +111,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.target.matches('[data-role]')) {
       const row = e.target.closest('tr');
       await updatePerson(row, { role: e.target.value });
+      return;
+    }
+    if (e.target.matches('[data-tl]')) {
+      const row = e.target.closest('tr');
+      const teamLeaderId = e.target.value ? Number(e.target.value) : null;
+      await updatePerson(row, { teamLeaderId });
+      return;
     }
   });
 
@@ -163,13 +181,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const name = data.get('name').trim();
       const email = data.get('email').trim();
       const role = data.get('role');
+      const teamLeaderId = data.get('teamLeaderId') ? Number(data.get('teamLeaderId')) : null;
       const password = data.get('password') || undefined;
 
       const btn = $('#btn-add-person');
       setButtonLoading(btn, true, 'Adding person…');
 
       try {
-        const { user, password: newPassword } = await api('POST', '/api/users', { name, email, role, password });
+        const { user, password: newPassword } = await api('POST', '/api/users', { name, email, role, password, teamLeaderId });
         revealState = { email: user.email, password: newPassword };
         toast(`${user.name} added.`);
         await fetchPeople();

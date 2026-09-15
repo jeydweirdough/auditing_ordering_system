@@ -25,6 +25,7 @@
       <button type="button" class="settings-tab-btn active" data-settings-tab="users" role="tab" aria-selected="true">User Accounts</button>
       <button type="button" class="settings-tab-btn" data-settings-tab="rbac" role="tab" aria-selected="false">Role Permissions (RBAC)</button>
       <button type="button" class="settings-tab-btn" data-settings-tab="configs" role="tab" aria-selected="false">Master Configurations</button>
+      <button type="button" class="settings-tab-btn" data-settings-tab="order-fields" role="tab" aria-selected="false">Order Fields</button>
     </div>
 
     <div id="settings-content">
@@ -72,6 +73,74 @@
     <div class="actions">
       <button type="submit" class="btn" id="btn-save-div">Save Division</button>
       <button type="button" class="btn quiet" data-cancel-div>Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: Add / Edit Custom Order Field -->
+<dialog class="modal" id="order-field-dialog" aria-labelledby="field-dialog-title">
+  <form id="order-field-form" novalidate style="max-width: 480px;">
+    <h2 class="title" id="field-dialog-title">Add Order Field</h2>
+    <p class="sub" style="font-size: 13px; color: var(--ink-2); margin-bottom: 12px;">Configure dynamic order fields matching internal and customer forms.</p>
+    <input type="hidden" id="field-edit-mode" name="editMode" value="create">
+    
+    <label class="field" for="field-label-input"><span>Field Label <strong style="color:var(--crimson); font-size:12px;">*</strong></span>
+      <input type="text" id="field-label-input" name="label" placeholder="e.g. Hospital Purchase Order No." maxlength="80" required>
+    </label>
+
+    <label class="field" for="field-id-input"><span>Field Key / Identifier <strong style="color:var(--crimson); font-size:12px;">*</strong></span>
+      <input type="text" id="field-id-input" name="id" placeholder="e.g. hospital_po_number" pattern="[a-z0-9_]+" maxlength="40" required>
+      <small class="help">Unique identifier (letters, numbers, underscore).</small>
+    </label>
+
+    <div class="grid2" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <label class="field" for="field-type-select"><span>Field Type <strong style="color:var(--crimson); font-size:12px;">*</strong></span>
+        <select id="field-type-select" name="type" required>
+          <option value="text">Text (Single Line)</option>
+          <option value="number">Number</option>
+          <option value="select">Dropdown Selection</option>
+          <option value="textarea">Textarea (Multi-line)</option>
+          <option value="date">Date</option>
+          <option value="choice">Choice (Yes / No)</option>
+        </select>
+      </label>
+
+      <label class="field" for="field-section-select"><span>Form Section <strong style="color:var(--crimson); font-size:12px;">*</strong></span>
+        <select id="field-section-select" name="section" required>
+          <option value="details">Order Details</option>
+          <option value="billing">Billing & Payment</option>
+          <option value="logistics">Logistics & Delivery</option>
+          <option value="additional" selected>Additional Information</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="field-options-container" style="display: none; margin-bottom: 12px;">
+      <label class="field" for="field-options-input"><span>Dropdown Options <em>(comma-separated)</em></span>
+        <input type="text" id="field-options-input" name="options" placeholder="e.g. Urgent, Normal, Low">
+        <small class="help">Enter options separated by commas.</small>
+      </label>
+    </div>
+
+    <label class="field" for="field-help-input"><span>Help Text / Placeholder <em>(optional)</em></span>
+      <input type="text" id="field-help-input" name="helpText" placeholder="e.g. Specify hospital purchase order number" maxlength="150">
+    </label>
+
+    <div style="display:flex; gap:20px; margin: 12px 0 16px 0; align-items:center;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13.5px; font-weight:500;">
+        <input type="checkbox" id="field-required-checkbox" name="required">
+        <span>Required field</span>
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13.5px; font-weight:500;">
+        <input type="checkbox" id="field-active-checkbox" name="active" checked>
+        <span>Active in forms</span>
+      </label>
+    </div>
+
+    <p class="error" id="field-form-error" role="alert" hidden></p>
+    <div class="actions">
+      <button type="submit" class="btn" id="btn-save-field">Save Field</button>
+      <button type="button" class="btn quiet" data-cancel-field>Cancel</button>
     </div>
   </form>
 </dialog>

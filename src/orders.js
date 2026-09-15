@@ -28,6 +28,7 @@ const ORDER_ID = /^(GM|ORD)-(\d{8})-(\d{4})$/;
 const state = { counters: {}, orders: {} };
 
 const STATUS = {
+  pending_tl_approval: 'Waiting for Team Leader',
   pending_approval: 'Waiting for approval',
   returned: 'Sent back',
   rejected: 'Rejected',
@@ -45,6 +46,7 @@ const LIVE = Object.keys(STATUS).filter((s) => s !== 'deleted');   // every stat
 
 // Whose move it is, for "Next: Finance" on the page. Finished orders have none.
 const WAITING_ON = {
+  pending_tl_approval: 'team_leader',
   pending_approval: 'management',
   returned: 'salesperson',
   awaiting_payment: 'finance',
@@ -77,7 +79,7 @@ const SUB_DIVISIONS = new Proxy({}, {
 
 function getFreshFields() {
   const configs = configStore.getAllConfigs();
-  return {
+  const base = {
     customerName: { label: 'Customer name', type: 'text', max: 120, required: true },
     contactNumber: { label: 'Contact number', type: 'text', max: 30 },
     address: { label: 'Delivery address', type: 'textarea', max: 300, required: true },
@@ -102,9 +104,28 @@ function getFreshFields() {
     amount: { label: 'Amount received (PHP)', type: 'number', min: 0.01, max: 100_000_000, required: true },
     paidOn: { label: 'Paid on', type: 'date', required: true },
     courier: { label: 'Courier', type: 'text', max: 60, required: true },
-    trackingNumber: { label: 'Tracking number', type: 'text', max: 60, required: true },
-    receivedBy: { label: 'Received by', type: 'text', max: 120, required: true },
+    trackingNumber: { label: 'Tracking number / Reference ID / URL', type: 'text', max: 255, required: true, help: 'Carrier tracking number, reference ID, or tracking link' },
+    receivedBy: { label: 'Received by', type: 'text', max: 120, required: true, help: 'Person who received the order' },
+    packingNotes: { label: 'Packing notes', type: 'textarea', max: 500, help: 'Optional notes on parcel condition, box count, etc.' },
   };
+
+  const customFields = configStore.getOrderFields() || [];
+  for (const cf of customFields) {
+    if (!cf || !cf.id) continue;
+    base[cf.id] = {
+      label: cf.label || cf.id,
+      type: cf.type || 'text',
+      max: cf.type === 'textarea' ? 1000 : 255,
+      required: Boolean(cf.required),
+      options: cf.options || (cf.type === 'choice' ? ['Yes', 'No'] : undefined),
+      help: cf.helpText || cf.help,
+      section: cf.section || 'additional',
+      isCustom: true,
+      active: cf.active !== false,
+    };
+  }
+
+  return base;
 }
 
 const FIELDS = new Proxy({}, {
@@ -123,11 +144,26 @@ const FIELDS = new Proxy({}, {
     };
   },
 });
-const ORDER_FIELDS = [
+
+const BASE_ORDER_FIELDS = [
   'customerName', 'contactNumber', 'address', 'receiverName', 'receiverContact',
   'division', 'subDivision', 'headQuarter', 'invoicingFrom', 'source', 'paymentMethod', 'paymentTerms', 'deliveryMethod',
   'customerIsDoctor', 'doctorName', 'remarks', 'notes',
 ];
+
+const ORDER_FIELDS = new Proxy(BASE_ORDER_FIELDS, {
+  get(target, prop) {
+    const custom = (configStore.getOrderFields() || []).filter((f) => f.active !== false).map((f) => f.id);
+    const all = [...BASE_ORDER_FIELDS, ...custom];
+    if (prop === 'filter') return (fn) => all.filter(fn);
+    if (prop === 'map') return (fn) => all.map(fn);
+    if (prop === 'includes') return (val) => all.includes(val);
+    if (prop === 'length') return all.length;
+    if (prop === Symbol.iterator) return all[Symbol.iterator].bind(all);
+    if (typeof prop === 'string' && /^\d+$/.test(prop)) return all[Number(prop)];
+    return all[prop];
+  },
+});
 
 // Files a new order can carry, by extension: photos, PDF, Word and Excel, as the Getmeds order form
 // takes. The type a file is served back with comes from here, never from the browser.
@@ -144,31 +180,37 @@ const FILE_KINDS = {
   purchase_order: 'Purchase order',
   guarantee_letter: 'Guarantee letter (DSWD/PCSO)',
   prescription: 'Prescription / Rx',
+  packing_proof: 'Proof of packing',
+  dispatch_proof: 'Proof of dispatch / waybill',
+  delivery_proof: 'Proof of delivery (POD)',
   other: 'Other',
 };
 // Vercel takes at most 4.5 MB per request, and files arrive base64-encoded in the JSON, a third
 // bigger than they are. 3 MB of files leaves room for the rest of the order. 10 is Discord's
 // limit of files per message.
-const FILES = { max: 10, maxBytes: 3_000_000 };
+const FILES = { max: 20, maxBytes: 8_000_000 };
 const PAYMENT_FIELDS = ['method', 'reference', 'amount', 'paidOn'];
-const SHIPMENT_FIELDS = ['courier', 'trackingNumber', 'receivedBy'];
+const SHIPMENT_FIELDS = ['courier', 'trackingNumber', 'receivedBy', 'packedBy', 'packedAt', 'dispatchedAt', 'deliveredAt', 'packingNotes'];
 
 // label: the button. done: how the step reads in the audit trail. owner: a salesperson may only
 // do it on their own orders. form: the step has its own form on the page. logged: Admin's steps
 // also get a line in the Admin log. Admin may take any step.
 const ACTIONS = {
-  resubmit: { label: 'Resubmit for approval', done: 'Resubmitted', roles: ['salesperson', 'management'], from: ['returned'], to: 'pending_approval', mine: true, form: 'order' },
+  resubmit: { label: 'Edit for approval', done: 'Resubmitted', roles: ['salesperson', 'team_leader', 'management'], from: ['returned'], to: (order, user) => (user?.role === 'salesperson' || order?.createdBy?.role === 'salesperson' ? 'pending_tl_approval' : 'pending_approval'), mine: true, form: 'order' },
+  tl_approve: { label: 'Endorse to Management', done: 'Endorsed by Team Leader', roles: ['team_leader'], from: ['pending_tl_approval'], to: 'pending_approval', fields: ['note'] },
+  tl_send_back: { label: 'Send back for changes', done: 'Sent back by Team Leader', roles: ['team_leader'], from: ['pending_tl_approval'], to: 'returned', fields: ['reason'] },
+  tl_reject: { label: 'Reject', done: 'Rejected by Team Leader', roles: ['team_leader'], from: ['pending_tl_approval'], to: 'rejected', fields: ['reason'], danger: true },
   approve: { label: 'Approve', done: 'Approved', roles: ['management'], from: ['pending_approval'], to: 'awaiting_payment', fields: ['note'] },
-  send_back: { label: 'Send back for changes', done: 'Sent back for changes', roles: ['management'], from: ['pending_approval'], to: 'returned', fields: ['reason'] },
-  reject: { label: 'Reject', done: 'Rejected', roles: ['management'], from: ['pending_approval'], to: 'rejected', fields: ['reason'], danger: true },
+  send_back: { label: 'Send back for changes', done: 'Sent back for changes', roles: ['management'], from: ['pending_approval', 'pending_tl_approval'], to: 'returned', fields: ['reason'] },
+  reject: { label: 'Reject', done: 'Rejected', roles: ['management'], from: ['pending_approval', 'pending_tl_approval'], to: 'rejected', fields: ['reason'], danger: true },
   verify_payment: { label: 'Verify payment', done: 'Payment verified', roles: ['finance'], from: ['awaiting_payment', 'on_hold'], to: 'ready_for_dispatch', fields: ['method', 'reference', 'amount', 'paidOn'] },
   hold: { label: 'Put on hold', done: 'Put on hold', roles: ['finance'], from: ['awaiting_payment'], to: 'on_hold', fields: ['reason'], danger: true },
   start_picking: { label: 'Start picking', done: 'Picking started', roles: ['dispatch'], from: ['ready_for_dispatch'], to: 'picking' },
-  mark_packed: { label: 'Mark packed', done: 'Packed', roles: ['dispatch'], from: ['picking'], to: 'packed' },
+  mark_packed: { label: 'Mark packed', done: 'Packed', roles: ['dispatch'], from: ['picking'], to: 'packed', fields: ['packingNotes'] },
   dispatch: { label: 'Dispatch', done: 'Dispatched', roles: ['dispatch'], from: ['packed'], to: 'dispatched', fields: ['courier', 'trackingNumber'] },
   deliver: { label: 'Mark delivered', done: 'Delivered', roles: ['dispatch'], from: ['dispatched'], to: 'completed', fields: ['receivedBy'] },
-  cancel: { label: 'Cancel order', done: 'Cancelled', roles: ['salesperson', 'management'], from: ['pending_approval', 'returned', 'awaiting_payment', 'on_hold'], to: 'cancelled', owner: true, fields: ['reason'], danger: true },
-  edit: { label: 'Edit order', done: 'Edited by Admin', roles: ['admin'], from: LIVE, to: null, form: 'edit', logged: 'Edited' },
+  cancel: { label: 'Cancel order', done: 'Cancelled', roles: ['salesperson', 'team_leader', 'management'], from: ['pending_tl_approval', 'pending_approval', 'returned', 'awaiting_payment', 'on_hold'], to: 'cancelled', owner: true, fields: ['reason'], danger: true },
+  edit: { label: 'Edit order', done: 'Edited by Admin', roles: ['admin', 'management', 'finance', 'team_leader'], from: LIVE, to: null, form: 'edit', logged: 'Edited' },
   delete_order: { label: 'Delete order', done: 'Deleted by Admin', roles: ['admin'], from: LIVE, to: 'deleted', fields: ['reason'], danger: true, logged: 'Deleted' },
   restore: { label: 'Restore order', done: 'Restored by Admin', roles: ['admin'], from: ['deleted'], to: null, fields: ['reason'], logged: 'Restored' },
   purge_order: { label: 'Delete permanently', done: 'Permanently deleted by Admin', roles: ['admin'], from: ['deleted'], to: null, fields: ['reason'], danger: true, logged: 'Purged' },
@@ -177,7 +219,7 @@ for (const [name, spec] of Object.entries(ACTIONS)) spec.name = name;
 
 // Who may raise an order: for themselves, or for an active salesperson.
 const canRaiseOrders = (user) => user && (user.role === 'admin' || configStore.hasPermission(user.role, 'raise_orders'));
-const CREATORS = new Proxy(['salesperson', 'management', 'admin'], {
+const CREATORS = new Proxy(['salesperson', 'team_leader', 'management', 'admin'], {
   get(target, prop) {
     const list = configStore.getRbac().filter((r) => r.id === 'admin' || r.permissions?.raise_orders).map((r) => r.id);
     if (prop === 'includes') return (val) => list.includes(val);
@@ -233,6 +275,7 @@ function readFields(names, body) {
   const values = {};
   for (const name of names) {
     const f = FIELDS[name];
+    if (!f) continue;
     let v = body?.[name];
     if (v == null || String(v).trim() === '') {
       if (f.required) throw bad(`${f.label} is required.`);
@@ -241,7 +284,10 @@ function readFields(names, body) {
     }
     if (f.type === 'number') {
       v = Number(v);
-      if (!Number.isFinite(v) || v < f.min || v > f.max) throw bad(`${f.label} must be a number from ${f.min} to ${f.max.toLocaleString('en-PH')}.`);
+      if (!Number.isFinite(v) || (f.min != null && v < f.min) || (f.max != null && v > f.max)) {
+        const rangeText = f.min != null && f.max != null ? ` from ${f.min} to ${f.max.toLocaleString('en-PH')}` : '';
+        throw bad(`${f.label} must be a valid number${rangeText}.`);
+      }
       v = round2(v);
     } else if (f.type === 'date') {
       v = String(v);
@@ -250,7 +296,7 @@ function readFields(names, body) {
       v = String(v).trim();
       if (f.max && v.length > f.max) throw bad(`${f.label} can be at most ${f.max} characters.`);
       const allowed = f.optionsBy ? (f.optionsBy.lists[values[f.optionsBy.field] ?? body?.[f.optionsBy.field]] ?? f.options) : f.options;
-      if (allowed) {
+      if (allowed && allowed.length > 0) {
         const match = allowed.find((opt) => opt.toLowerCase() === v.toLowerCase());
         if (!match) throw bad(`${f.label} must be one of: ${allowed.join(', ')}.`);
         v = match;
@@ -359,7 +405,11 @@ const discordFile = (orderId, n, name) => (codec.encrypts
 // so they never reach the page or the data reply.
 function keepFiles(step, order, files) {
   if (!files.length) return;
-  const value = files.map((f, n) => ({ n, file: order.attachments[n].file, sealed: order.attachments[n].sealed, type: f.type, data: f.data }));
+  const currentAtts = order.attachments || [];
+  const value = files.map((f, idx) => {
+    const att = currentAtts.find((a) => a.name === f.name) || currentAtts[currentAtts.length - files.length + idx];
+    return { n: att?.n ?? idx, file: att?.file, sealed: att?.sealed, type: f.type, data: f.data };
+  });
   Object.defineProperty(step, 'files', { value, writable: true, configurable: true });
 }
 
@@ -373,14 +423,26 @@ function salespersonFor(id) {
 const ownerName = (order) => order.owner?.name ?? order.createdBy.name;
 // An order is someone's when it's for them or they raised it, e.g. for another salesperson.
 const isMine = (user, order) => order.ownerId === user.id || order.createdBy?.id === user.id;
-const canSee = (user, order) => (order.status !== 'deleted' || user.role === 'admin')
-  && (user.role !== 'salesperson' || isMine(user, order));
+const canSee = (user, order) => {
+  if (order.status === 'deleted' && user.role !== 'admin') return false;
+  if (user.role === 'salesperson') return isMine(user, order);
+  if (user.role === 'team_leader') {
+    if (isMine(user, order)) return true;
+    const ownerUser = findUser(order.ownerId);
+    if (ownerUser?.teamLeaderId && ownerUser.teamLeaderId !== user.id) return false;
+    return true;
+  }
+  return true;
+};
 
 // A restored order goes back to the status it had when it was deleted.
 const statusBeforeDelete = (order) => order.events.findLast((e) => e.to === 'deleted')?.from ?? 'pending_approval';
 
 const ACTION_PERMISSIONS = {
   resubmit: 'raise_orders',
+  tl_approve: 'approve_orders',
+  tl_send_back: 'send_back_orders',
+  tl_reject: 'reject_orders',
   approve: 'approve_orders',
   send_back: 'send_back_orders',
   reject: 'reject_orders',
@@ -411,6 +473,13 @@ function refuse(user, order, spec) {
   if ((spec.mine && user.role !== 'admin') || (spec.owner && user.role === 'salesperson')) {
     if (!isMine(user, order)) return [403, "Only whoever raised this order, or the salesperson it's for, can do that."];
   }
+  // Team leader supervision: if order owner has a specific team leader assigned, only that team leader (or admin) can take team_leader steps
+  if (user.role === 'team_leader' && spec.roles.includes('team_leader')) {
+    const ownerUser = findUser(order.ownerId);
+    if (ownerUser?.teamLeaderId && ownerUser.teamLeaderId !== user.id) {
+      return [403, "This order belongs to a salesperson not assigned to your team."];
+    }
+  }
   return null;
 }
 
@@ -419,7 +488,13 @@ const actionsFor = (user, order) => Object.values(ACTIONS)
   .map((spec) => ({
     name: spec.name,
     label: spec.label,
-    to: spec.name === 'restore' ? STATUS[statusBeforeDelete(order)] : spec.to ? STATUS[spec.to] : null,
+    to: spec.name === 'restore'
+      ? STATUS[statusBeforeDelete(order)]
+      : typeof spec.to === 'function'
+      ? STATUS[spec.to(order, user)]
+      : spec.to
+      ? STATUS[spec.to]
+      : null,
     danger: Boolean(spec.danger),
     form: spec.form ?? null,
     fields: (spec.fields ?? []).map(describeField),
@@ -724,8 +799,8 @@ const AGING = [
   { label: 'Late', days: '8–14 days', from: 8, to: 14 },
   { label: 'Overdue', days: '15+ days', from: 15, to: Infinity },
 ];
-const DECISIONS = ['approve', 'send_back', 'reject'];
-const BEFORE_PAYMENT = ['pending_approval', 'returned', 'awaiting_payment', 'on_hold'];
+const DECISIONS = ['approve', 'send_back', 'reject', 'tl_approve', 'tl_send_back', 'tl_reject'];
+const BEFORE_PAYMENT = ['pending_tl_approval', 'pending_approval', 'returned', 'awaiting_payment', 'on_hold'];
 
 const dayName = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' });
 const monthName = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'short', year: 'numeric' });
@@ -936,7 +1011,116 @@ function adminDashboard(_user, all, r) {
   };
 }
 
-const DASHBOARDS = { salesperson: salespersonDashboard, management: managementDashboard, finance: financeDashboard, admin: adminDashboard };
+function dispatchDashboard(_user, all, r, now) {
+  const brief = (o, extra = {}) => ({
+    id: o.id,
+    customer: o.customerName ?? null,
+    owner: ownerName(o),
+    total: o.total,
+    deliveryMethod: o.deliveryMethod || 'Standard',
+    courier: o.dispatch?.courier || null,
+    trackingNumber: o.dispatch?.trackingNumber || null,
+    status: o.status,
+    ...extra,
+  });
+
+  const ready = all.filter((o) => o.status === 'ready_for_dispatch');
+  const picking = all.filter((o) => o.status === 'picking');
+  const packed = all.filter((o) => o.status === 'packed');
+  const dispatched = all.filter((o) => o.status === 'dispatched');
+
+  const delivered = all.filter((o) => o.events.some((e) => e.type === 'deliver' && within(e.at, r)));
+  const prevDelivered = r.prev ? all.filter((o) => o.events.some((e) => e.type === 'deliver' && within(e.at, r.prev))) : null;
+
+  const turnarounds = delivered.map((o) => {
+    const readyEvent = o.events.find((e) => e.type === 'verify_payment' || e.to === 'ready_for_dispatch');
+    const deliverEvent = o.events.find((e) => e.type === 'deliver');
+    if (!readyEvent || !deliverEvent) return null;
+    const diff = (Date.parse(deliverEvent.at) - Date.parse(readyEvent.at)) / HOUR;
+    return Number.isFinite(diff) && diff >= 0 ? diff : null;
+  }).filter((h) => h !== null);
+
+  const courierCounts = {};
+  for (const o of [...dispatched, ...delivered]) {
+    const c = o.dispatch?.courier || o.deliveryMethod || 'Standard';
+    courierCounts[c] = (courierCounts[c] || 0) + 1;
+  }
+  const couriers = Object.entries(courierCounts)
+    .map(([courier, count]) => ({ courier, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    pipeline: {
+      ready: { count: ready.length, value: sumOf(ready), items: ready.slice(0, 5).map(brief) },
+      picking: { count: picking.length, value: sumOf(picking), items: picking.slice(0, 5).map(brief) },
+      packed: { count: packed.length, value: sumOf(packed), items: packed.slice(0, 5).map(brief) },
+      dispatched: { count: dispatched.length, value: sumOf(dispatched), items: dispatched.slice(0, 5).map(brief) },
+    },
+    fulfillment: {
+      deliveredCount: delivered.length,
+      deliveredValue: sumOf(delivered),
+      prevDeliveredCount: prevDelivered ? prevDelivered.length : null,
+      prevDeliveredValue: prevDelivered ? sumOf(prevDelivered) : null,
+      turnaroundHours: turnarounds.length ? median(turnarounds) : null,
+    },
+    couriers,
+    urgent: [...ready, ...picking].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)).slice(0, 8).map(brief),
+  };
+}
+
+function teamLeaderDashboard(user, all, r, now) {
+  const brief = (o, extra = {}) => ({ id: o.id, customer: o.customerName ?? null, owner: ownerName(o), total: o.total, status: o.status, ...extra });
+  const users = listUsers();
+  // Supervised salespeople (direct teamLeaderId match, or unassigned salespeople)
+  const mySalespeople = users.filter((u) => u.role === 'salesperson' && (u.teamLeaderId === user.id || !u.teamLeaderId));
+  const teamUserIds = new Set(mySalespeople.map((u) => u.id));
+
+  const teamOrders = all.filter((o) => teamUserIds.has(o.ownerId) || o.ownerId === user.id);
+  const pendingReview = teamOrders.filter((o) => o.status === 'pending_tl_approval');
+  const inProgress = teamOrders.filter((o) => !['completed', 'cancelled', 'rejected', 'deleted'].includes(o.status) && o.status !== 'pending_tl_approval');
+
+  const nowSales = salesFigures(teamOrders, r);
+  const prevSales = r.prev ? salesFigures(teamOrders, r.prev) : null;
+
+  const team = mySalespeople.map((u) => {
+    const orders = teamOrders.filter((o) => o.ownerId === u.id);
+    const f = salesFigures(orders, r);
+    return {
+      id: u.id,
+      name: u.name,
+      active: u.active,
+      raised: f.raised,
+      sales: f.sales,
+      deliveredValue: f.deliveredValue,
+      pending: orders.filter((o) => o.status === 'pending_tl_approval').length,
+    };
+  }).sort((a, b) => b.sales - a.sales || b.raised - a.raised);
+
+  return {
+    now: nowSales,
+    prev: prevSales,
+    trend: trendOf(teamOrders, r),
+    pendingReview: {
+      count: pendingReview.length,
+      value: sumOf(pendingReview),
+      items: pendingReview.slice(0, 6).map(brief),
+    },
+    inProgress: {
+      count: inProgress.length,
+      value: sumOf(inProgress),
+    },
+    team,
+  };
+}
+
+const DASHBOARDS = {
+  salesperson: salespersonDashboard,
+  team_leader: teamLeaderDashboard,
+  management: managementDashboard,
+  finance: financeDashboard,
+  dispatch: dispatchDashboard,
+  admin: adminDashboard,
+};
 
 // ---------- routes ----------
 
@@ -994,6 +1178,140 @@ router.post('/customers/quick', (req, res, next) => {
       hasSpecialPrice: Boolean(req.body?.hasSpecialPrice),
     });
     res.status(201).json({ customer });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+// Custom Order Fields routes
+router.get('/custom-fields', requireUser, (_req, res) => {
+  res.json({ fields: configStore.getOrderFields() });
+});
+
+router.post('/custom-fields', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const label = String(body.label || '').trim();
+    if (!label) throw bad('Field label is required.');
+    if (label.length > 80) throw bad('Field label cannot exceed 80 characters.');
+
+    let id = String(body.id || body.name || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!id) {
+      id = label.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+    }
+    if (!id || id.length < 2) throw bad('Field identifier must be at least 2 characters.');
+    if (id.length > 40) throw bad('Field identifier cannot exceed 40 characters.');
+
+    if (BASE_ORDER_FIELDS.includes(id) || ['id', 'status', 'items', 'total', 'events', 'ownerId', 'createdBy', 'createdAt', 'updatedAt', 'files', 'payment', 'shipment'].includes(id)) {
+      throw bad(`Field identifier "${id}" is reserved for system use.`);
+    }
+
+    const currentFields = configStore.getOrderFields();
+    if (currentFields.some((f) => f.id.toLowerCase() === id.toLowerCase())) {
+      throw bad(`Field with identifier "${id}" already exists.`);
+    }
+
+    const validTypes = ['text', 'number', 'select', 'textarea', 'date', 'choice'];
+    const type = validTypes.includes(body.type) ? body.type : 'text';
+    const validSections = ['details', 'billing', 'logistics', 'additional'];
+    const section = validSections.includes(body.section) ? body.section : 'additional';
+
+    let options = [];
+    if (type === 'select') {
+      if (Array.isArray(body.options)) {
+        options = body.options.map((o) => String(o).trim()).filter(Boolean);
+      } else if (typeof body.options === 'string') {
+        options = body.options.split(',').map((o) => o.trim()).filter(Boolean);
+      }
+      if (options.length === 0) throw bad('Dropdown (select) fields require at least one option.');
+    } else if (type === 'choice') {
+      options = ['Yes', 'No'];
+    }
+
+    const newField = {
+      id,
+      label,
+      type,
+      section,
+      required: Boolean(body.required),
+      options,
+      helpText: body.helpText ? String(body.helpText).trim() : '',
+      active: body.active !== false,
+      createdAt: new Date().toISOString(),
+    };
+
+    currentFields.push(newField);
+    configStore.setOrderFields(currentFields);
+    res.status(201).json({ ok: true, field: newField });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.put('/custom-fields/:id', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const body = req.body || {};
+    const currentFields = configStore.getOrderFields();
+    const index = currentFields.findIndex((f) => f.id.toLowerCase() === id.toLowerCase());
+    if (index === -1) throw bad(`Custom field "${id}" not found.`, 404);
+
+    const existing = currentFields[index];
+    if (body.label !== undefined) {
+      const label = String(body.label || '').trim();
+      if (!label) throw bad('Field label cannot be blank.');
+      if (label.length > 80) throw bad('Field label cannot exceed 80 characters.');
+      existing.label = label;
+    }
+
+    if (body.section !== undefined) {
+      const validSections = ['details', 'billing', 'logistics', 'additional'];
+      if (!validSections.includes(body.section)) throw bad(`Section must be one of: ${validSections.join(', ')}.`);
+      existing.section = body.section;
+    }
+
+    if (body.required !== undefined) {
+      existing.required = Boolean(body.required);
+    }
+
+    if (body.active !== undefined) {
+      existing.active = Boolean(body.active);
+    }
+
+    if (body.helpText !== undefined) {
+      existing.helpText = String(body.helpText || '').trim();
+    }
+
+    if (existing.type === 'select' && body.options !== undefined) {
+      let options = [];
+      if (Array.isArray(body.options)) {
+        options = body.options.map((o) => String(o).trim()).filter(Boolean);
+      } else if (typeof body.options === 'string') {
+        options = body.options.split(',').map((o) => o.trim()).filter(Boolean);
+      }
+      if (options.length === 0) throw bad('Dropdown (select) fields require at least one option.');
+      existing.options = options;
+    }
+
+    existing.updatedAt = new Date().toISOString();
+    currentFields[index] = existing;
+    configStore.setOrderFields(currentFields);
+    res.json({ ok: true, field: existing });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.delete('/custom-fields/:id', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const currentFields = configStore.getOrderFields();
+    const filtered = currentFields.filter((f) => f.id.toLowerCase() !== id.toLowerCase());
+    if (filtered.length === currentFields.length) {
+      throw bad(`Custom field "${id}" not found.`, 404);
+    }
+    configStore.setOrderFields(filtered);
+    res.json({ ok: true, deleted: id });
   } catch (err) {
     fail(err, res, next);
   }
@@ -1451,7 +1769,7 @@ const accepted = (fallback) => (storesInDiscord ? 202 : fallback);
 
 router.post('/', (req, res, next) => {
   try {
-    if (!CREATORS.includes(req.user.role)) throw bad('Only Salesperson, Management or Admin can raise orders.', 403);
+    if (!CREATORS.includes(req.user.role)) throw bad('Only Salesperson, Team Leader, Management or Admin can raise orders.', 403);
     const files = readAttachments(req.body?.attachments);
     const form = readOrderForm(req.body, files, req.user.role);
     const pick = req.body?.ownerId;
@@ -1459,9 +1777,10 @@ router.post('/', (req, res, next) => {
     const owner = forOther ? salespersonFor(pick) : req.user;   // for me, or for an active salesperson
     const now = new Date().toISOString();
     const id = nextOrderId();
+    const initialStatus = (req.user.role === 'salesperson') ? 'pending_tl_approval' : 'pending_approval';
     const order = {
       id,
-      status: 'pending_approval',
+      status: initialStatus,
       ownerId: owner.id,
       owner: { id: owner.id, name: owner.name },
       createdBy: { id: req.user.id, name: req.user.name, role: req.user.role },
@@ -1476,7 +1795,7 @@ router.post('/', (req, res, next) => {
       discord: {},
     };
     const details = { items: form.items.length, total: form.total, ...(files.length ? { files: files.length } : {}) };
-    const step = record(order, req.user, 'created', 'Order created', null, 'pending_approval', { details });
+    const step = record(order, req.user, 'created', 'Order created', null, initialStatus, { details });
     keepFiles(step, order, files);
     state.orders[order.id] = order;
     if (order.customerName) {
@@ -1633,12 +1952,12 @@ async function takeStep(req, res, next, name) {
     const body = req.body ?? {};
     const from = order.status;
     const at = new Date().toISOString();
-    let to = spec.to;
+    let to = typeof spec.to === 'function' ? spec.to(order, req.user) : spec.to;
     let details = null;
     let note = null;
     let newFiles = [];
     if (spec.form === 'order') {
-      // Products, division, sub-division, and headquarters cannot be changed in salesperson view
+      // Division, sub-division, and headquarters cannot be changed in salesperson view (products and items can be edited upon resubmission)
       if (req.user.role === 'salesperson') {
         body.division = order.division;
         body.subDivision = order.subDivision;
@@ -1664,8 +1983,6 @@ async function takeStep(req, res, next, name) {
 
       const form = readOrderForm(body, order.attachments ?? [], req.user.role);
       if (req.user.role === 'salesperson') {
-        form.items = order.items;
-        form.total = order.total;
         form.division = order.division;
         form.subDivision = order.subDivision;
         form.headQuarter = order.headQuarter;
@@ -1680,8 +1997,23 @@ async function takeStep(req, res, next, name) {
       const facts = Object.fromEntries(Object.entries(values).filter(([k, v]) => k !== 'reason' && k !== 'note' && v != null));
       details = Object.keys(facts).length ? facts : null;
       if (spec.name === 'verify_payment') order.payment = { ...facts, verifiedBy: req.user.name, verifiedAt: at };
-      if (spec.name === 'dispatch') order.shipment = { ...facts, dispatchedAt: at };
-      if (spec.name === 'deliver') order.shipment = { ...order.shipment, ...facts, deliveredAt: at };
+      if (spec.name === 'mark_packed') order.shipment = { ...(order.shipment || {}), ...facts, packedAt: at, packedBy: req.user.name };
+      if (spec.name === 'dispatch') order.shipment = { ...(order.shipment || {}), ...facts, dispatchedAt: at, dispatchedBy: req.user.name };
+      if (spec.name === 'deliver') order.shipment = { ...(order.shipment || {}), ...facts, deliveredAt: at, deliveredBy: req.user.name };
+    }
+    if (Array.isArray(body.attachments) && body.attachments.length > 0 && spec.form !== 'order' && spec.form !== 'edit') {
+      const addedFiles = readAttachments(body.attachments);
+      let currentAttachments = order.attachments ?? [];
+      const startN = currentAttachments.length;
+      const appended = addedFiles.map(({ data, ...file }, idx) => ({
+        n: startN + idx,
+        ...file,
+        seq: order.events.length + 1,
+        ...discordFile(order.id, startN + idx, file.name),
+      }));
+      order.attachments = [...currentAttachments, ...appended];
+      newFiles = [...newFiles, ...addedFiles];
+      details = { ...(details || {}), files: addedFiles.length };
     }
     if (spec.name === 'purge_order') {
       await audit.purgeOrder(order, req.user);
@@ -1700,7 +2032,9 @@ async function takeStep(req, res, next, name) {
       delete order.deletedBy;
     }
 
-    const step = record(order, req.user, spec.name, spec.done, from, to, { details, note });
+    const roleLabel = ROLE_LABELS[req.user.role] ?? (req.user.role ? (req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1)) : 'Admin');
+    const doneLabel = spec.name === 'edit' ? `Edited by ${roleLabel}` : spec.done;
+    const step = record(order, req.user, spec.name, doneLabel, from, to, { details, note });
     if (newFiles && newFiles.length > 0) {
       keepFiles(step, order, newFiles);
     }

@@ -680,6 +680,10 @@ function orderForm(o, mode) {
   const [title, intro, submit] = ['New order', 'Management approves it next, then Finance verifies payment and Dispatch ships it.', 'Submit for approval'];
   const catalogDatalist = `<datalist id="products-catalog-list">${(S.meta?.products ?? []).map((p) => `<option value="${esc(p.fullName)}" label="${esc(p.brandName || p.genericName)} · ${esc(p.classification)}">`).join('')}</datalist>`;
 
+  const activeFields = fields.filter((f) => f !== notes && f.active !== false);
+  const mainFields = activeFields.filter((f) => !f.isCustom || (f.section && f.section !== 'additional'));
+  const additionalFields = activeFields.filter((f) => f.isCustom && (f.section || 'additional') === 'additional');
+
   return `
     <div class="side-head">
       ${back}
@@ -690,8 +694,16 @@ function orderForm(o, mode) {
     <form id="order-form" class="block" data-mode="${mode}" novalidate>
       <div class="grid2">
         ${forLine()}
-        ${fields.filter((f) => f !== notes).map((f) => fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name], f.name, o)).join('')}
+        ${mainFields.map((f) => fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name] || f.help, f.name, o)).join('')}
       </div>
+      ${additionalFields.length > 0 ? `
+        <fieldset class="field choice" style="margin-top:16px; border:1px solid var(--line); border-radius:8px; padding:14px;">
+          <legend style="padding:0 8px; font-weight:700; color:var(--navy); font-size:13px;">Additional Information</legend>
+          <div class="grid2">
+            ${additionalFields.map((f) => fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name] || f.help, f.name, o)).join('')}
+          </div>
+        </fieldset>
+      ` : ''}
       <fieldset class="items-edit">
         <legend class="label">Items</legend>
         <div class="item-rows" id="item-rows">${items.map((it) => itemRow(it, o?.division)).join('')}</div>
