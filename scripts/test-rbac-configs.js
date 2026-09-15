@@ -6,6 +6,7 @@ const customers = require('../src/customers');
 
 async function run() {
   console.log('--- Testing ConfigStore & Master Data Files ---');
+  await configStore.loadFromDiscord();
 
   // Test 1: ConfigStore defaults and data files
   const configs = configStore.getAllConfigs();

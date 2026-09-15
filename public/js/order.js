@@ -20,7 +20,7 @@ const S = {
 
 const DANGER_ACTIONS = ['cancel', 'delete_order', 'restore', 'reject', 'purge_order'];
 
-const dl = (rows) => `<dl class="facts">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+const dl = (rows) => `<dl class="facts">${rows.map(([k, v, raw]) => `<dt>${esc(k)}</dt><dd>${raw ? v : esc(v)}</dd>`).join('')}</dl>`;
 
 function route(o) {
   let base = o.status;
@@ -134,17 +134,17 @@ function stepBox(o) {
   const buttons = workflowActions.map((a) => {
     let cls = 'btn quiet';
     let icon = '';
-    if (a.name === 'approve') {
+    if (a.name === 'approve' || a.name === 'tl_approve') {
       cls = 'btn btn-approve';
       icon = '✓ ';
-    } else if (a.name === 'send_back') {
+    } else if (a.name === 'send_back' || a.name === 'tl_send_back') {
       cls = 'btn btn-sendback';
       icon = '↩ ';
-    } else if (a.name === 'reject') {
+    } else if (a.name === 'reject' || a.name === 'tl_reject') {
       cls = 'btn btn-reject';
       icon = '✕ ';
     } else if (a.name === 'resubmit') {
-      cls = 'btn';
+      cls = 'btn btn-sendback-submit';
       icon = '↺ ';
     } else if (!a.danger) {
       cls = 'btn';
@@ -207,7 +207,11 @@ function actionForm(o, a) {
   let contextCard = '';
   let chipPresets = '';
 
-  if (a.name === 'send_back' || a.name === 'reject') {
+  const isApprove = a.name === 'approve' || a.name === 'tl_approve';
+  const isSendBack = a.name === 'send_back' || a.name === 'tl_send_back';
+  const isReject = a.name === 'reject' || a.name === 'tl_reject';
+
+  if (isSendBack || isReject) {
     const rxFiles = (o.attachments || []).filter((f) => f.kind === 'prescription');
     const itemsSummary = (o.items || []).map((it) => `${it.product} (${it.qty} × ${peso(it.unitPrice)}${it.priceType ? ` · ${it.priceType}` : ''})`).join(', ');
 
@@ -219,7 +223,7 @@ function actionForm(o, a) {
         <div class="summary-line"><span>Prescription:</span> ${rxFiles.length ? `✓ Attached (${esc(rxFiles.map(f => f.name).join(', '))})` : '⚠️ None attached'}</div>
       </div>`;
 
-    const presets = a.name === 'send_back' ? [
+    const presets = isSendBack ? [
       'Missing valid prescription (Rx) for B2C order',
       'Incorrect price tier applied for this division',
       'Missing official guarantee letter / bidding documents',
@@ -242,29 +246,85 @@ function actionForm(o, a) {
       </div>`;
   }
 
-  const isApprove = a.name === 'approve';
-  const isSendBack = a.name === 'send_back';
-  const isReject = a.name === 'reject';
+  let actionFilesHtml = '';
+  if (['mark_packed', 'dispatch', 'deliver'].includes(a.name)) {
+    const config = {
+      mark_packed: {
+        title: 'Attach Packing Proof',
+        help: 'Upload photos of packed box, bubble wrap, item expiration labels, or parcel seal.',
+        kind: 'packing_proof',
+        icon: '📦',
+      },
+      dispatch: {
+        title: 'Attach Waybill / Dispatch Proof',
+        help: 'Upload photos of courier waybill, tracking slip, delivery receipt, or rider handover.',
+        kind: 'dispatch_proof',
+        icon: '🚚',
+      },
+      deliver: {
+        title: 'Attach Proof of Delivery (POD) Image',
+        help: 'Upload delivery photos, recipient receiving the parcel, or signed receipt for proof.',
+        kind: 'delivery_proof',
+        icon: '🏠',
+      },
+    }[a.name];
+
+    const staged = S.actionStaged || [];
+    const filesRows = staged.map((f, i) => {
+      return `<li class="file-row" style="padding:6px 10px; margin-bottom:6px; background:var(--surface); border:1px solid var(--line); border-radius:6px; display:flex; align-items:center; gap:8px;">
+        ${f.previewUrl ? `<img src="${f.previewUrl}" style="width:36px; height:36px; object-fit:cover; border-radius:4px;" />` : `<span style="font-size:18px;">📄</span>`}
+        <div style="flex:1; min-width:0;">
+          <span style="display:block; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(f.name)}</span>
+          <span style="font-size:11px; color:var(--ink-2);">${esc(bytes(f.size))}</span>
+        </div>
+        <button type="button" class="btn quiet small" data-remove-action-file="${i}" style="padding:2px 8px; color:var(--bad);">✕</button>
+      </li>`;
+    }).join('');
+
+    actionFilesHtml = `
+      <fieldset class="field" style="margin:14px 0; padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:var(--bg);">
+        <legend style="padding:0 6px; font-size:13px; font-weight:700; color:var(--navy);">${config.icon} ${config.title}</legend>
+        <p class="hint" style="margin:0 0 8px; font-size:12px;">${config.help}</p>
+        ${staged.length ? `<ul style="list-style:none; padding:0; margin:0 0 10px;">${filesRows}</ul>` : ''}
+        <label class="btn quiet small" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <span>+ Upload Image / Document</span>
+          <input type="file" accept="image/*,.pdf" multiple style="display:none;" data-action-file-input data-kind="${config.kind}" />
+        </label>
+      </fieldset>`;
+  }
 
   const title = isApprove ? '✓ Approve order'
     : isSendBack ? '↩ Send back for changes'
     : isReject ? '✕ Reject order'
+    : a.name === 'mark_packed' ? '📦 Pack Order & Attach Proof'
+    : a.name === 'dispatch' ? '🚚 Dispatch Order & Waybill'
+    : a.name === 'deliver' ? '🏠 Mark Delivered & Attach Proof'
     : esc(a.label);
 
   const intro = isSendBack
     ? `Moves ${esc(o.id)} to <strong>Sent back</strong>. The reason will be clearly shown to the salesperson so they can correct it and resubmit.`
     : isApprove
-      ? `Moves ${esc(o.id)} to <strong>${esc(a.to)}</strong>. You can optionally include an approval note below.`
-      : `Moves ${esc(o.id)} to <strong>${esc(a.to)}</strong>. The audit trail records it as you, now.`;
+      ? `Moves ${esc(o.id)} to <strong>${esc(a.to || 'next stage')}</strong>. You can optionally include an approval note below.`
+      : a.name === 'mark_packed'
+        ? `Marks ${esc(o.id)} as <strong>Packed</strong>. You can attach photos of the packed parcel/box below for auditing.`
+        : a.name === 'dispatch'
+          ? `Dispatches ${esc(o.id)}. Provide the courier, tracking number or URL, and upload waybill/handover images.`
+          : a.name === 'deliver'
+            ? `Marks ${esc(o.id)} as <strong>Delivered</strong>. Enter the recipient name and upload Proof of Delivery (POD) photos.`
+            : `Moves ${esc(o.id)} to <strong>${esc(a.to || 'next stage')}</strong>. The audit trail records it as you, now.`;
 
   const btnCls = a.danger ? 'btn danger'
     : isApprove ? 'btn btn-approve'
     : isSendBack ? 'btn btn-sendback-submit'
+    : ['mark_packed', 'dispatch', 'deliver'].includes(a.name) ? 'btn btn-approve'
     : 'btn';
 
   const submitLabel = isApprove ? '✓ Confirm Approval'
     : isSendBack ? '↩ Send back to Salesperson'
     : isReject ? '✕ Confirm Rejection'
+    : a.name === 'mark_packed' ? '📦 Confirm Packed'
+    : a.name === 'dispatch' ? '🚚 Confirm Dispatch'
+    : a.name === 'deliver' ? '🏠 Confirm Delivered'
     : esc(a.label);
 
   return `<form id="action-form" data-action="${esc(a.name)}" novalidate>
@@ -275,6 +335,7 @@ function actionForm(o, a) {
     ${contextCard}
     ${chipPresets}
     ${fields}
+    ${actionFilesHtml}
     <p class="error" id="action-error" role="alert" hidden></p>
     <div class="actions">
       <button type="submit" class="${btnCls}">${submitLabel}</button>
@@ -350,6 +411,14 @@ function orderView(o) {
     ['Notes', o.notes],
   ].filter(([, v]) => v);
 
+  const customFields = (currentMeta?.orderFields ?? []).filter((f) => f.isCustom);
+  const customFacts = [];
+  for (const cf of customFields) {
+    if (o[cf.name] != null && String(o[cf.name]).trim() !== '') {
+      customFacts.push([cf.label || cf.name, String(o[cf.name])]);
+    }
+  }
+
   const pay = o.payment && [
     ['Paid by', o.payment.method],
     ['Reference number', o.payment.reference],
@@ -358,13 +427,23 @@ function orderView(o) {
     ['Verified by', `${o.payment.verifiedBy}, ${stamp(o.payment.verifiedAt)}`],
   ];
   const short = o.payment && Math.abs(o.payment.amount - o.total) >= 0.01;
+  const trackingVal = o.shipment?.trackingNumber;
+  const isUrl = Boolean(trackingVal && /^(https?:\/\/)/i.test(trackingVal.trim()));
+  const trackingDisplay = isUrl
+    ? `<a href="${esc(trackingVal.trim())}" target="_blank" rel="noopener noreferrer" style="color:var(--brand);font-weight:600;text-decoration:underline;word-break:break-all;">🔗 ${esc(trackingVal.trim())} ↗</a>`
+    : trackingVal;
+
   const ship = o.shipment && [
     ['Courier', o.shipment.courier],
-    ['Tracking number', o.shipment.trackingNumber],
-    ['Dispatched', o.shipment.dispatchedAt && stamp(o.shipment.dispatchedAt)],
+    ['Tracking / Ref ID', trackingDisplay, isUrl],
+    ['Packed', [o.shipment.packedBy, o.shipment.packedAt && stamp(o.shipment.packedAt)].filter(Boolean).join(' · ')],
+    ['Packing notes', o.shipment.packingNotes],
+    ['Dispatched', [o.shipment.dispatchedBy, o.shipment.dispatchedAt && stamp(o.shipment.dispatchedAt)].filter(Boolean).join(' · ')],
     ['Received by', o.shipment.receivedBy],
-    ['Delivered', o.shipment.deliveredAt && stamp(o.shipment.deliveredAt)],
+    ['Delivered', [o.shipment.deliveredBy, o.shipment.deliveredAt && stamp(o.shipment.deliveredAt)].filter(Boolean).join(' · ')],
   ].filter(([, v]) => v);
+
+  const shipProofFiles = (o.attachments || []).filter((f) => ['packing_proof', 'dispatch_proof', 'delivery_proof'].includes(f.kind));
 
   const canEdit = o.actions?.some((a) => a.name === 'edit');
   const backHref = S.tabOrigin ? `/orders?tab=${encodeURIComponent(S.tabOrigin)}` : '/orders';
@@ -390,15 +469,34 @@ function orderView(o) {
         <br><small><strong>${days} days remaining</strong> (Will automatically vanish from Discord on ${purgeDate})</small>
       </div>`;
     })() : ''}
+    ${o.status === 'returned' ? (() => {
+      const sentBack = o.events.findLast((e) => e.type === 'send_back' || e.type === 'tl_send_back');
+      const senderRole = sentBack?.actor?.role === 'team_leader' ? 'Team Leader' : 'Management';
+      return `<div class="banner warn-banner" style="margin:12px 0;padding:12px 16px;border-radius:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:var(--ink);">
+        <strong style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--bad, #dc2626);">↩ Order Sent Back for Changes</strong>
+        <p style="margin:6px 0 0;font-size:13.5px;">${sentBack?.actor ? `<strong>${esc(sentBack.actor.name)} (${esc(senderRole)}) noted:</strong> ` : ''}"${esc(sentBack?.note || 'Please review and correct order details.')}"</p>
+        <p class="hint" style="margin:6px 0 0;font-size:12px;">Review the requested changes below. You can update products, quantities, price tiers, customer information, or attachments and resubmit.</p>
+      </div>`;
+    })() : ''}
     <div class="route-wrap">${route(o)}</div>
     <div class="order-view-layout">
       <div class="order-main-col">
         ${stepBox(o)}
         <section class="block"><h3 class="label">Order</h3>${dl(facts)}</section>
+        ${customFacts.length ? `<section class="block"><h3 class="label">Additional Information</h3>${dl(customFacts)}</section>` : ''}
         <section class="block"><h3 class="label">Items</h3>${itemsTable(o)}</section>
         ${o.attachments?.length ? `<section class="block"><h3 class="label">Attachments</h3>${filesList(o)}</section>` : ''}
         ${pay ? `<section class="block"><h3 class="label">Payment</h3>${dl(pay)}${short ? `<p class="warn">The amount received differs from the order total of ${peso(o.total)}.</p>` : ''}</section>` : ''}
-        ${ship?.length ? `<section class="block"><h3 class="label">Shipment</h3>${dl(ship)}</section>` : ''}
+        ${ship?.length ? `
+          <section class="block">
+            <h3 class="label">Shipment & Delivery Proof</h3>
+            ${dl(ship)}
+            ${shipProofFiles.length ? `
+              <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+                <span class="sub" style="font-size:12px; font-weight:700; color:var(--navy); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.04em;">Proof of Packing, Dispatch & Delivery (${shipProofFiles.length})</span>
+                ${filesList({ id: o.id, attachments: shipProofFiles })}
+              </div>` : ''}
+          </section>` : ''}
         ${dangerZone(o)}
       </div>
       <aside class="order-audit-col">
@@ -758,19 +856,24 @@ function filesBlock(o, mode) {
 
 function orderForm(o, mode) {
   const isSalesperson = currentUser?.role === 'salesperson';
-  const productsLocked = isSalesperson && mode === 'resubmit';
   const divisionLocked = isSalesperson && mode === 'resubmit';
   const fields = currentMeta.orderFields;
   const notes = fields.find((f) => f.name === 'notes');
   const items = o?.items?.length ? o.items : [undefined];
-  const sentBack = mode === 'resubmit' && o.events.findLast((e) => e.type === 'send_back');
+  const sentBack = mode === 'resubmit' && o.events.findLast((e) => e.type === 'send_back' || e.type === 'tl_send_back');
+  const roleLabel = currentUser?.roleLabel || (currentUser?.role ? (currentUser.role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())) : 'Admin');
   const [title, intro, submit] = {
-    resubmit: [`Fix and resubmit ${esc(o?.id)}`, 'Make the changes Management asked for, attach any missing files, then resubmit. It goes back to Management for approval.', 'Resubmit for approval'],
-    edit: [`Edit ${esc(o?.id)}`, "Change anything, the status and files included. What you change goes into the order's thread in #order-audit as Edited by Admin, with a line in the Admin log.", 'Save changes'],
+    resubmit: [`Fix and resubmit ${esc(o?.id)}`, 'Make the changes requested, attach any missing files, then resubmit for approval.', 'Resubmit for approval'],
+    edit: [`Edit ${esc(o?.id)}`, `Change order details, items, or status. What you change goes into the order's audit trail as Edited by ${roleLabel}.`, 'Save changes'],
   }[mode] || ['Edit order', '', 'Save'];
 
   const catalogDatalist = `<datalist id="products-catalog-list">${(currentMeta?.products ?? []).map((p) => `<option value="${esc(p.fullName)}" label="${esc(p.brandName || p.genericName)} · ${esc(p.classification)}">`).join('')}</datalist>`;
   const ownerName = o.owner?.name || o.createdBy?.name || 'You';
+
+  const activeFields = fields.filter((f) => f !== notes && f.active !== false);
+  const mainFields = activeFields.filter((f) => !f.isCustom || (f.section && f.section !== 'additional'));
+  const additionalFields = activeFields.filter((f) => f.isCustom && (f.section || 'additional') === 'additional');
+  const senderRole = sentBack?.actor?.role === 'team_leader' ? 'Team Leader' : 'Management';
 
   return `
     <div class="side-head">
@@ -780,25 +883,35 @@ function orderForm(o, mode) {
       <h2 class="title">${title}</h2>
       <p class="sub">${esc(intro)}</p>
     </div>
-    ${sentBack?.note ? `<p class="warn"><strong>${esc(sentBack.actor.name)} sent it back:</strong> ${esc(sentBack.note)}</p>` : ''}
+    ${sentBack?.note ? `<div class="warn" style="margin-bottom:14px;padding:10px 14px;border-radius:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);">
+      <strong>↩ ${esc(sentBack.actor.name)} (${esc(senderRole)}) sent it back:</strong>
+      <p style="margin:4px 0 0;">${esc(sentBack.note)}</p>
+    </div>` : ''}
     ${catalogDatalist}
     <div class="order-view-layout">
       <div class="order-main-col">
         <form id="order-form" class="block" data-mode="${mode}" novalidate>
           <div class="for-line-box" style="margin-bottom:12px; padding:10px 14px; background:var(--surface); border:1px solid var(--line); border-radius:6px; font-size:13.5px; display:flex; justify-content:space-between; align-items:center;">
             <span>Order identity: <strong>${esc(o.id)}</strong> · Salesperson: <strong>${esc(ownerName)}</strong></span>
-            <span class="badge ${mode === 'resubmit' ? 'warn-badge' : 'info-badge'}">${mode === 'resubmit' ? 'Salesperson Fix & Resubmit' : 'Admin Edit'}</span>
+            <span class="badge ${mode === 'resubmit' ? 'warn-badge' : 'info-badge'}">${mode === 'resubmit' ? 'Salesperson Fix & Resubmit' : `${roleLabel} Edit`}</span>
           </div>
-          <div class="grid2">${fields.filter((f) => f !== notes).map((f) => {
+          <div class="grid2">${mainFields.map((f) => {
             const isDivLock = divisionLocked && ['division', 'subDivision', 'headQuarter'].includes(f.name);
-            return fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name], f.name, o, isDivLock);
+            return fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name] || f.help, f.name, o, isDivLock);
           }).join('')}</div>
+          ${additionalFields.length > 0 ? `
+            <fieldset class="field choice" style="margin:16px 0; border:1px solid var(--line); border-radius:8px; padding:14px;">
+              <legend style="padding:0 8px; font-weight:700; color:var(--navy); font-size:13px;">Additional Information</legend>
+              <div class="grid2">
+                ${additionalFields.map((f) => fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name] || f.help, f.name, o)).join('')}
+              </div>
+            </fieldset>
+          ` : ''}
           <fieldset class="items-edit">
             <legend class="label">Items</legend>
-            ${productsLocked ? '<p class="hint" style="color:var(--navy);font-weight:600;margin-bottom:6px;">🔒 Products cannot be changed in the salesperson view. Only Management or Admin can modify items on an order.</p>' : ''}
-            <div class="item-rows" id="item-rows">${items.map((it) => itemRow(it, o?.division, productsLocked)).join('')}</div>
+            <div class="item-rows" id="item-rows">${items.map((it) => itemRow(it, o?.division, false)).join('')}</div>
             <div class="items-foot">
-              ${productsLocked ? '' : '<button type="button" class="btn quiet small" data-add-item>Add item</button>'}
+              <button type="button" class="btn quiet small" data-add-item>Add item</button>
               <p>Total <strong id="form-total">${peso(o?.total || 0)}</strong></p>
             </div>
           </fieldset>
@@ -955,8 +1068,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       const act = S.order?.actions?.find((a) => a.name === name);
-      if (act && (act.form || (act.fields && act.fields.length > 0))) {
+      if (act && (act.form || (act.fields && act.fields.length > 0) || ['mark_packed', 'dispatch', 'deliver'].includes(name))) {
         S.formFor = name;
+        S.actionStaged = [];
         render();
         return;
       }
@@ -966,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ok = await confirmModal({
           title: isPurge ? 'Delete permanently from Discord' : `${label} order`,
           message: isPurge
-            ? `Are you sure you want to permanently delete order ${S.order.id}? This will immediately delete its thread and records from the Discord database and cannot be recovered.`
+            ? `Are you sure you want to permanently delete order ${S.order.id}?\n\nThis will immediately delete its thread and records from the Discord database and cannot be recovered.`
             : `Are you sure you want to ${label.toLowerCase()} order ${S.order.id}? This will be recorded in the audit trail.`,
           confirmText: label,
           cancelText: 'Cancel',
@@ -976,13 +1090,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       setButtonLoading(actionBtn, true, 'Updating…');
       try {
-        const res = await api('POST', `/api/orders/${encodeURIComponent(S.order.id)}/actions/${name}`, {});
-        if (name === 'purge_order') {
-          toast(`Order ${S.order.id} permanently deleted and vanished from Discord database.`);
-          window.location.href = '/orders?tab=deleted';
-          return;
-        }
-        const { order } = res;
+        const { order } = await api('POST', `/api/orders/${encodeURIComponent(S.order.id)}/actions/${name}`, {});
         S.order = order;
         toast(`${order.id}: ${order.events.at(-1)?.label || 'Updated'}.`);
         render();
@@ -994,8 +1102,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    const removeActFile = e.target.closest('[data-remove-action-file]');
+    if (removeActFile) {
+      const idx = Number(removeActFile.dataset.removeActionFile);
+      if (!Number.isNaN(idx) && S.actionStaged?.[idx]) {
+        S.actionStaged.splice(idx, 1);
+        render();
+      }
+      return;
+    }
+
     if (e.target.closest('[data-back]')) {
       S.formFor = null;
+      S.actionStaged = [];
       render();
       return;
     }
@@ -1082,6 +1201,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target.files?.length) {
         addFiles(e.target.files);
         e.target.value = '';
+      }
+      return;
+    }
+    if (e.target.matches('[data-action-file-input]')) {
+      const input = e.target;
+      const kind = input.dataset.kind || 'other';
+      if (input.files?.length) {
+        S.actionStaged = S.actionStaged || [];
+        for (const file of input.files) {
+          let previewUrl = '';
+          if (file.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif|svg|avif|bmp)$/i.test(file.name)) {
+            try { previewUrl = URL.createObjectURL(file); } catch {}
+          }
+          S.actionStaged.push({ name: file.name, size: file.size, kind, file, previewUrl });
+        }
+        render();
       }
       return;
     }
@@ -1179,6 +1314,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!ok) return;
       }
       const body = Object.fromEntries(new FormData(form));
+      if (S.actionStaged && S.actionStaged.length > 0) {
+        body.attachments = await Promise.all(
+          S.actionStaged.map(async (f) => ({
+            name: f.name,
+            kind: f.kind,
+            data: await base64(f.file),
+          }))
+        );
+      }
       const errorEl = $('#action-error');
       if (errorEl) errorEl.hidden = true;
       setButtonLoading(submitBtn, true, 'Submitting…');
@@ -1192,6 +1336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { order } = res;
         S.order = order;
         S.formFor = null;
+        S.actionStaged = [];
         toast(`${order.id}: ${order.events.at(-1)?.label || 'Updated'}.`);
         render();
       } catch (err) {

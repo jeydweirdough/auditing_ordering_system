@@ -169,7 +169,7 @@ async function run() {
     });
     const orderDetails = await getOrderRes.json();
     const lastEvent = orderDetails.order.events[orderDetails.order.events.length - 1];
-    assert.strictEqual(lastEvent.label, 'Edited by Admin');
+    assert(['Edited by Admin', 'Edited by Administrator'].includes(lastEvent.label), `Expected edit label, got: ${lastEvent.label}`);
     assert(lastEvent.details && Array.isArray(lastEvent.details.changed), 'Details should contain changed labels');
     assert(lastEvent.details.changed.includes('Division'), 'Should record Division change');
     assert(lastEvent.details.changed.includes('Sub-division'), 'Should record Sub-division change');

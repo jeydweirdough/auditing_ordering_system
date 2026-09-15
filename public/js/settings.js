@@ -3,6 +3,7 @@
 let currentTab = 'users';
 let peopleData = null;
 let configsData = null;
+let customFieldsData = null;
 let revealState = null;
 
 async function loadAllData() {
@@ -11,12 +12,14 @@ async function loadAllData() {
     root.innerHTML = '<div class="loading-state"><div class="spinner"></div><p class="loading-text">Loading configuration settings…</p></div>';
   }
   try {
-    const [usersRes, configsRes] = await Promise.all([
+    const [usersRes, configsRes, customFieldsRes] = await Promise.all([
       api('GET', '/api/users'),
       api('GET', '/api/orders/configs'),
+      api('GET', '/api/orders/custom-fields').catch(() => ({ fields: [] })),
     ]);
     peopleData = usersRes;
     configsData = configsRes.configs;
+    customFieldsData = customFieldsRes.fields || configsRes.configs?.orderFields || [];
     renderCurrentTab();
   } catch (err) {
     if (err instanceof SignedOut) return;
@@ -43,6 +46,8 @@ function renderCurrentTab() {
     renderRbacTab(root);
   } else if (currentTab === 'configs') {
     renderConfigsTab(root);
+  } else if (currentTab === 'order-fields') {
+    renderOrderFieldsTab(root);
   }
 }
 
@@ -318,6 +323,97 @@ function renderConfigsTab(root) {
 }
 
 // --------------------------------------------------------------------------
+// Tab 4: Configurable Custom Order Fields Management
+// --------------------------------------------------------------------------
+const SECTION_LABELS = {
+  details: 'Order Details',
+  billing: 'Billing & Payment',
+  logistics: 'Logistics & Delivery',
+  additional: 'Additional Information',
+};
+
+function renderOrderFieldsTab(root) {
+  const fields = customFieldsData || [];
+  const sections = ['details', 'billing', 'logistics', 'additional'];
+
+  const sectionsHtml = sections.map((secKey) => {
+    const secFields = fields.filter((f) => (f.section || 'additional') === secKey);
+    const rowsHtml = secFields.length === 0
+      ? `<tr><td colspan="6" style="text-align:center; color:var(--ink-3); padding:16px;">No custom fields in this section yet.</td></tr>`
+      : secFields.map((f) => {
+          const typeBadge = `<span class="badge" style="background:var(--sunk); color:var(--ink);">${esc(f.type || 'text')}</span>`;
+          const reqBadge = f.required
+            ? `<span class="badge" style="background:#fee2e2; color:#991b1b; font-weight:600;">Required</span>`
+            : `<span class="badge" style="background:var(--sunk); color:var(--ink-3);">Optional</span>`;
+          const statusBadge = f.active !== false
+            ? `<span class="badge" style="background:#dcfce7; color:#166534;">Active</span>`
+            : `<span class="badge" style="background:var(--sunk); color:var(--ink-3);">Inactive</span>`;
+          const optionsText = f.type === 'select' && Array.isArray(f.options) && f.options.length
+            ? `<small style="display:block; color:var(--ink-3); margin-top:2px;">Options: ${esc(f.options.slice(0, 4).join(', '))}${f.options.length > 4 ? '…' : ''}</small>`
+            : '';
+          const helpText = f.helpText ? `<small style="display:block; color:var(--ink-3); font-style:italic;">${esc(f.helpText)}</small>` : '';
+
+          return `<tr data-field-id="${esc(f.id)}">
+            <td>
+              <strong>${esc(f.label)}</strong>
+              <div style="font-family:var(--mono); font-size:11.5px; color:var(--ink-3);">${esc(f.id)}</div>
+              ${helpText}
+            </td>
+            <td>${typeBadge}</td>
+            <td>${reqBadge}</td>
+            <td>${optionsText || '<span style="color:var(--ink-3);">—</span>'}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align:right; white-space:nowrap;">
+              <button type="button" class="btn quiet sm" data-edit-field="${esc(f.id)}" style="margin-right:4px;">Edit</button>
+              <button type="button" class="btn quiet sm" data-toggle-field="${esc(f.id)}" style="margin-right:4px;">${f.active !== false ? 'Deactivate' : 'Activate'}</button>
+              <button type="button" class="btn quiet danger sm" data-delete-field="${esc(f.id)}">Delete</button>
+            </td>
+          </tr>`;
+        }).join('');
+
+    return `
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:12px;">
+          <div>
+            <h3 style="font-size:15px; font-weight:700; color:var(--navy); margin-bottom:2px;">${esc(SECTION_LABELS[secKey])}</h3>
+            <p style="font-size:12.5px; color:var(--ink-3);">Fields positioned in the ${esc(SECTION_LABELS[secKey].toLowerCase())} section of order forms.</p>
+          </div>
+          <span class="badge info-badge">${secFields.length} field${secFields.length === 1 ? '' : 's'}</span>
+        </div>
+        <table class="table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:30%;">Field & Identifier</th>
+              <th style="width:12%;">Type</th>
+              <th style="width:12%;">Constraint</th>
+              <th style="width:22%;">Options</th>
+              <th style="width:10%;">Status</th>
+              <th style="text-align:right; width:14%;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  root.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+      <div>
+        <h2 style="font-size:18px; font-weight:700; color:var(--navy); margin-bottom:4px;">Custom Order Fields</h2>
+        <p style="font-size:13.5px; color:var(--ink-2); max-width:640px;">
+          Configure dynamic order fields matching internal documents and customer requisition forms. Custom fields automatically render on the New Order page and Order Details view, and sync to Discord.
+        </p>
+      </div>
+      <button type="button" class="btn" id="btn-open-field-dialog" style="flex-shrink:0;">+ Add Order Field</button>
+    </div>
+    ${sectionsHtml}
+  `;
+}
+
+// --------------------------------------------------------------------------
 // Event Listeners and Actions
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -332,7 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const initialTab = urlParams.get('tab');
-  if (initialTab && ['users', 'rbac', 'configs'].includes(initialTab)) {
+  if (initialTab && ['users', 'rbac', 'configs', 'order-fields'].includes(initialTab)) {
     currentTab = initialTab;
   }
 
@@ -399,6 +495,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Close division modal
     if (e.target.closest('[data-cancel-div]')) {
       $('#division-dialog')?.close();
+      return;
+    }
+
+    // Open add order field modal
+    if (e.target.closest('#btn-open-field-dialog')) {
+      const modal = $('#order-field-dialog');
+      if (modal) {
+        $('#order-field-form').reset();
+        $('#field-edit-mode').value = 'create';
+        const idInput = $('#field-id-input');
+        if (idInput) {
+          idInput.value = '';
+          idInput.readOnly = false;
+          idInput.style.background = '';
+        }
+        $('#field-dialog-title').textContent = 'Add Order Field';
+        const optContainer = $('#field-options-container');
+        if (optContainer) optContainer.style.display = 'none';
+        const errEl = $('#field-form-error');
+        if (errEl) errEl.hidden = true;
+        modal.showModal();
+      }
+      return;
+    }
+
+    // Close order field modal
+    if (e.target.closest('[data-cancel-field]')) {
+      $('#order-field-dialog')?.close();
       return;
     }
   });
@@ -506,10 +630,91 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     }
+
+    // Edit custom field
+    const editFieldBtn = e.target.closest('[data-edit-field]');
+    if (editFieldBtn) {
+      const fieldId = editFieldBtn.dataset.editField;
+      const f = (customFieldsData || []).find((x) => x.id === fieldId);
+      if (!f) return;
+      const modal = $('#order-field-dialog');
+      if (modal) {
+        $('#order-field-form').reset();
+        $('#field-edit-mode').value = 'edit';
+        $('#field-dialog-title').textContent = `Edit Field: ${f.label}`;
+        $('#field-label-input').value = f.label || '';
+        const idInput = $('#field-id-input');
+        if (idInput) {
+          idInput.value = f.id;
+          idInput.readOnly = true;
+          idInput.style.background = 'var(--sunk)';
+        }
+        $('#field-type-select').value = f.type || 'text';
+        $('#field-section-select').value = f.section || 'additional';
+        $('#field-help-input').value = f.helpText || f.help || '';
+        $('#field-required-checkbox').checked = Boolean(f.required);
+        $('#field-active-checkbox').checked = f.active !== false;
+
+        const optContainer = $('#field-options-container');
+        if (f.type === 'select') {
+          optContainer.style.display = 'block';
+          $('#field-options-input').value = Array.isArray(f.options) ? f.options.join(', ') : '';
+        } else {
+          optContainer.style.display = 'none';
+        }
+        const errEl = $('#field-form-error');
+        if (errEl) errEl.hidden = true;
+        modal.showModal();
+      }
+      return;
+    }
+
+    // Toggle active status of field
+    const toggleFieldBtn = e.target.closest('[data-toggle-field]');
+    if (toggleFieldBtn) {
+      const fieldId = toggleFieldBtn.dataset.toggleField;
+      const f = (customFieldsData || []).find((x) => x.id === fieldId);
+      if (!f) return;
+      const nextActive = f.active === false;
+      try {
+        await api('PUT', `/api/orders/custom-fields/${encodeURIComponent(fieldId)}`, {
+          active: nextActive,
+        });
+        toast(`Field "${f.label}" ${nextActive ? 'activated' : 'deactivated'}.`, 'ok');
+        await loadAllData();
+      } catch (err) {
+        toast(err.message, 'bad');
+      }
+      return;
+    }
+
+    // Delete custom field
+    const deleteFieldBtn = e.target.closest('[data-delete-field]');
+    if (deleteFieldBtn) {
+      const fieldId = deleteFieldBtn.dataset.deleteField;
+      const f = (customFieldsData || []).find((x) => x.id === fieldId);
+      if (!f) return;
+      if (!confirm(`Are you sure you want to permanently delete custom field "${f.label}" (${f.id})?`)) return;
+      try {
+        await api('DELETE', `/api/orders/custom-fields/${encodeURIComponent(fieldId)}`);
+        toast(`Field "${f.label}" deleted.`, 'ok');
+        await loadAllData();
+      } catch (err) {
+        toast(err.message, 'bad');
+      }
+      return;
+    }
   });
 
-  // Role change in user table
+  // Role change in user table & Field type change
   document.addEventListener('change', async (e) => {
+    if (e.target.id === 'field-type-select') {
+      const optContainer = $('#field-options-container');
+      if (optContainer) {
+        optContainer.style.display = e.target.value === 'select' ? 'block' : 'none';
+      }
+      return;
+    }
     if (e.target.matches('[data-user-role]')) {
       const row = e.target.closest('tr');
       const userId = row.dataset.user;
@@ -662,6 +867,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadAllData();
       } catch (err) {
         toast(err.message, 'bad');
+      }
+      return;
+    }
+
+    // Submit order field form (add / edit)
+    if (e.target.id === 'order-field-form') {
+      e.preventDefault();
+      const errEl = $('#field-form-error');
+      if (errEl) errEl.hidden = true;
+      const data = new FormData(e.target);
+      const mode = $('#field-edit-mode').value;
+      const label = data.get('label')?.trim();
+      const id = data.get('id')?.trim();
+      const type = data.get('type');
+      const section = data.get('section');
+      const helpText = data.get('helpText')?.trim() || '';
+      const required = $('#field-required-checkbox').checked;
+      const active = $('#field-active-checkbox').checked;
+      const optStr = data.get('options')?.trim() || '';
+      const options = optStr ? optStr.split(',').map((o) => o.trim()).filter(Boolean) : [];
+
+      if (!label) {
+        if (errEl) { errEl.textContent = 'Field label is required.'; errEl.hidden = false; }
+        return;
+      }
+      if (type === 'select' && options.length === 0) {
+        if (errEl) { errEl.textContent = 'At least one dropdown option is required.'; errEl.hidden = false; }
+        return;
+      }
+
+      try {
+        if (mode === 'create') {
+          await api('POST', '/api/orders/custom-fields', {
+            label, id, type, section, helpText, required, active, options,
+          });
+          toast(`Field "${label}" created successfully!`, 'ok');
+        } else {
+          await api('PUT', `/api/orders/custom-fields/${encodeURIComponent(id)}`, {
+            label, section, helpText, required, active, options,
+          });
+          toast(`Field "${label}" updated successfully!`, 'ok');
+        }
+        $('#order-field-dialog')?.close();
+        await loadAllData();
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message;
+          errEl.hidden = false;
+        }
       }
       return;
     }

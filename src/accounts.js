@@ -14,7 +14,7 @@ const { createDiscordStore } = require('./discordStore');
 const { hashPassword, checkPassword, generatePassword, passwordProblem } = require('./passwords');
 const configStore = require('./configStore');
 
-const DEFAULT_ROLE_LABELS = { salesperson: 'Salesperson', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
+const DEFAULT_ROLE_LABELS = { salesperson: 'Salesperson', team_leader: 'Team Leader', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
 const ROLE_LABELS = new Proxy(DEFAULT_ROLE_LABELS, {
   get(target, prop) {
     if (typeof prop !== 'string') return target[prop];
@@ -23,13 +23,14 @@ const ROLE_LABELS = new Proxy(DEFAULT_ROLE_LABELS, {
   },
 });
 
-const ROLES = new Proxy(['salesperson', 'management', 'finance', 'dispatch', 'admin'], {
+const ROLES = new Proxy(['salesperson', 'team_leader', 'management', 'finance', 'dispatch', 'admin'], {
   get(target, prop) {
     const list = configStore.getRbac().map((r) => r.id);
-    if (prop === 'includes') return (val) => list.includes(val);
-    if (prop === 'length') return list.length;
-    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
-    return list[prop];
+    const active = list.length > 0 ? list : target;
+    if (prop === 'includes') return (val) => active.includes(val);
+    if (prop === 'length') return active.length;
+    if (prop === Symbol.iterator) return active[Symbol.iterator].bind(active);
+    return active[prop];
   },
 });
 
@@ -121,6 +122,7 @@ const publicUser = (u) => ({
   roleLabel: ROLE_LABELS[u.role],
   active: u.active,
   createdAt: u.createdAt,
+  teamLeaderId: u.teamLeaderId ?? null,
   canRaiseOrders: u.role === 'admin' || configStore.hasPermission(u.role, 'raise_orders'),
   canManageSettings: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_settings'),
   canManageUsers: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_users'),
@@ -163,15 +165,20 @@ function readAccounts(text) {
   const users = [];
   text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
     if (line.startsWith('#')) return;
-    const parts = line.split('|');
-    const account = parts.length < 5 ? null : {
-      id: parts[0].trim(),
-      email: parts[1].trim().toLowerCase(),
-      password: parts.slice(2, -2).join('|').trim(),   // a password may contain |
-      role: parts.at(-2).trim(),
-      name: parts.at(-1).trim(),
+    const rawParts = line.split('|').map((s) => s.trim());
+    let teamLeaderId = null;
+    if (rawParts.length >= 6 && /^\d+$/.test(rawParts.at(-1))) {
+      teamLeaderId = Number(rawParts.pop());
+    }
+    const account = rawParts.length < 5 ? null : {
+      id: rawParts[0],
+      email: rawParts[1].toLowerCase(),
+      password: rawParts.slice(2, -2).join('|').trim(),   // a password may contain |
+      role: rawParts.at(-2),
+      name: rawParts.at(-1),
+      teamLeaderId,
     };
-    const problem = account ? lineProblem(account, users) : 'write it as id | email | password | role | name';
+    const problem = account ? lineProblem(account, users) : 'write it as id | email | password | role | name [| teamLeaderId]';
     if (problem) {
       console.error(`[auth] ACCOUNTS line ${i + 1} was left out: ${problem}`);
       return;
@@ -182,6 +189,7 @@ function readAccounts(text) {
       name,
       email,
       role,
+      teamLeaderId,
       passwordHash: isHash(password) ? password : hashPassword(password),
       active: true,
       // Changes with the line's email or password, which signs that person out everywhere.
@@ -204,7 +212,7 @@ function lineProblem({ id, email, password, role, name }, users) {
   return isHash(password) ? null : passwordProblem(password);
 }
 
-async function createAccount({ name, email, role, password } = {}) {
+async function createAccount({ name, email, role, password, teamLeaderId } = {}) {
   if (FROM_ENV) throw bad(ENV_MANAGED, 409);
   const clean = cleanName(name);
   const cleanEmail = String(email ?? '').trim().toLowerCase();
@@ -222,6 +230,7 @@ async function createAccount({ name, email, role, password } = {}) {
     name: clean,
     email: cleanEmail,
     role,
+    teamLeaderId: teamLeaderId != null && teamLeaderId !== '' ? (Number(teamLeaderId) || null) : null,
     passwordHash: hashPassword(pw),
     active: true,
     sessionVersion: 0,   // raised to sign someone out everywhere: deactivation, password reset
@@ -399,7 +408,7 @@ router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_user
   try {
     const user = findUser(Number(req.params.id));
     if (!user) throw bad('No such account.', 404);
-    const { name, role, active, resetPassword } = req.body ?? {};
+    const { name, role, active, resetPassword, teamLeaderId } = req.body ?? {};
     const self = user.id === req.user.id;
     if (self && (active === false || (role && role !== 'admin'))) {
       throw bad("You can't deactivate your own account or take away your own admin role.");
@@ -416,6 +425,14 @@ router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_user
     if (newRole !== user.role) {
       changes.push(`Role: ${ROLE_LABELS[user.role]} → ${ROLE_LABELS[newRole]}`);
       user.role = newRole;
+    }
+    if (teamLeaderId !== undefined) {
+      const parsedTl = teamLeaderId != null && teamLeaderId !== '' ? (Number(teamLeaderId) || null) : null;
+      if (parsedTl !== user.teamLeaderId) {
+        const tlUser = parsedTl ? findUser(parsedTl) : null;
+        changes.push(`Team Leader: ${tlUser ? tlUser.name : 'Unassigned'}`);
+        user.teamLeaderId = parsedTl;
+      }
     }
     if (typeof active === 'boolean' && active !== user.active) {
       user.active = active;

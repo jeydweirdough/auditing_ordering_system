@@ -215,9 +215,139 @@ function adminDash(d) {
     </div>`;
 }
 
+function dispatchDash(d) {
+  const { pipeline, fulfillment: f, couriers, urgent } = d;
+  const ready = pipeline.ready;
+  const picking = pipeline.picking;
+  const packed = pipeline.packed;
+  const dispatched = pipeline.dispatched;
+
+  const urgentList = urgent.length
+    ? `<ul class="mini">${urgent.map((o) => `<li><button type="button" class="mini-row" data-open="${esc(o.id)}">
+        <span class="id">${esc(o.id)}</span><span class="mini-name">${esc(o.customer ?? o.owner)}</span>
+        <span class="pill ${o.status === 'ready_for_dispatch' ? 'wait' : 'ok'}">${esc(o.status === 'ready_for_dispatch' ? 'Ready to Pick' : 'Picking')}</span>
+        <span class="num">${esc(php(o.total))}</span>
+      </button></li>`).join('')}</ul>`
+    : '<p class="quiet-box">No urgent orders awaiting dispatch action.</p>';
+
+  const courierRows = couriers.length
+    ? `<div class="table-wrap"><table class="dash-table">
+        <thead><tr><th>Courier / Method</th><th class="num">Shipments</th></tr></thead>
+        <tbody>${couriers.map((c) => `<tr><td><strong>${esc(c.courier)}</strong></td><td class="num">${c.count}</td></tr>`).join('')}</tbody>
+      </table></div>`
+    : '<p class="quiet-box">No deliveries in this period.</p>';
+
+  return `
+    ${dashHero({
+      label: `Fulfillment & Deliveries · ${d.period.label}`,
+      value: php(f.deliveredValue),
+      sub: `${delta(f.deliveredValue, f.prevDeliveredValue, php)}<p class="hint">${plural(f.deliveredCount, 'order')} delivered${f.turnaroundHours != null ? ` · Median turnaround: ${esc(howLong(f.turnaroundHours))}` : ''}</p>`,
+      body: `<div class="hero-list"><h3 class="label">Priority orders for dispatch</h3>${urgentList}</div>`,
+    })}
+    <div class="dash-cards">
+      ${dashCard({
+        label: 'Ready for dispatch',
+        tag: 'Awaiting picking',
+        value: whole(ready.count),
+        sub: `<p class="hint">${esc(php(ready.value))} total</p>`,
+        foot: '<a href="/orders?tab=board" class="link">Go to Dispatch Board</a>',
+      })}
+      ${dashCard({
+        label: 'Picking in progress',
+        tag: 'Warehouse',
+        value: whole(picking.count),
+        sub: `<p class="hint">${esc(php(picking.value))} total</p>`,
+      })}
+      ${dashCard({
+        label: 'Packed & ready',
+        tag: 'Handover',
+        value: whole(packed.count),
+        sub: `<p class="hint">${esc(php(packed.value))} total</p>`,
+      })}
+      ${dashCard({
+        label: 'In transit',
+        tag: 'With courier',
+        value: whole(dispatched.count),
+        sub: `<p class="hint">${esc(php(dispatched.value))} total</p>`,
+      })}
+    </div>
+    <div class="hero-list" style="margin-top: var(--gap, 1.5rem);">
+      <h3 class="label">Courier Breakdown (${d.period.label})</h3>
+      ${courierRows}
+    </div>`;
+}
+
+function teamLeaderDash(d) {
+  const { now: n, prev: p, pendingReview, inProgress, team } = d;
+  const maxSales = Math.max(0, ...team.map((s) => s.sales));
+  const teamRows = team.length
+    ? `<div class="table-wrap"><table class="dash-table">
+        <thead><tr><th>Salesperson</th><th class="num">Pending review</th><th class="num">Raised</th><th>Sales</th><th class="num">Delivered</th></tr></thead>
+        <tbody>${team.map((s) => `<tr>
+          <td>${esc(s.name)}${s.active ? '' : ' <span class="tag">Inactive</span>'}</td>
+          <td class="num">${s.pending ? `<span class="pill wait">${s.pending}</span>` : '0'}</td>
+          <td class="num">${s.raised}</td>
+          ${barCell(s.sales, maxSales)}
+          <td class="num">${esc(php(s.deliveredValue))}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`
+    : '<p class="quiet-box">No salespeople assigned to your team yet.</p>';
+
+  const pendingList = pendingReview.items.length
+    ? `<ul class="mini">${pendingReview.items.map((o) => `<li><button type="button" class="mini-row" data-open="${esc(o.id)}">
+        <span class="id">${esc(o.id)}</span><span class="mini-name">${esc(o.customer ?? o.owner)}</span>
+        <span class="pill wait">Needs Review</span>
+        <span class="num">${esc(php(o.total))}</span>
+      </button></li>`).join('')}</ul>`
+    : '<p class="quiet-box">No orders currently waiting for your review.</p>';
+
+  return `
+    ${dashHero({
+      label: `Team performance · ${d.period.label}`,
+      value: php(n.sales),
+      sub: `${delta(n.sales, p?.sales, php)}<p class="hint">Sales from your supervised salespeople in this period.</p>`,
+      body: `<div class="hero-list"><h3 class="label">Supervised Salespeople</h3>${teamRows}</div>`,
+    })}
+    <div class="dash-cards">
+      ${dashCard({
+        label: 'Waiting for your review',
+        tag: 'Needs action',
+        value: whole(pendingReview.count),
+        sub: `<p class="hint">${esc(php(pendingReview.value))} total</p>`,
+        foot: '<a href="/orders?tab=tl_approval" class="link">Review orders</a>',
+      })}
+      ${dashCard({
+        label: 'Orders raised',
+        value: whole(n.raised),
+        sub: `${delta(n.raised, p?.raised, whole)}${spark(running(d.trend.map((b) => b.count)))}`,
+      })}
+      ${dashCard({
+        label: 'Team in progress',
+        value: whole(inProgress.count),
+        sub: `<p class="hint">${esc(php(inProgress.value))} active pipeline</p>`,
+      })}
+      ${dashCard({
+        label: 'Delivered',
+        value: php(n.deliveredValue),
+        sub: `<p class="hint">${plural(n.delivered, 'order')} delivered</p>${delta(n.deliveredValue, p?.deliveredValue, php)}`,
+      })}
+    </div>
+    <div class="hero-list" style="margin-top: var(--gap, 1.5rem);">
+      <h3 class="label">Orders Awaiting Your Review</h3>
+      ${pendingList}
+    </div>`;
+}
+
 function dashboardHtml(d) {
   const periods = Object.entries(d.periods).map(([key, label]) => `<button type="button" class="seg-btn" data-period="${esc(key)}" aria-pressed="${key === d.period.key}">${esc(label)}</button>`).join('');
-  const bodyFn = { salesperson: salespersonDash, management: managementDash, finance: financeDash, admin: adminDash }[d.role];
+  const bodyFn = {
+    salesperson: salespersonDash,
+    team_leader: teamLeaderDash,
+    management: managementDash,
+    finance: financeDash,
+    dispatch: dispatchDash,
+    admin: adminDash,
+  }[d.role];
   const body = bodyFn ? bodyFn(d) : `<p class="quiet-box">No dashboard for role ${esc(d.role)}.</p>`;
   return `<div class="dash">
       <div class="dash-bar">
