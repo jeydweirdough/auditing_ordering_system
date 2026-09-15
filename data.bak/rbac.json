@@ -1,0 +1,107 @@
+[
+  {
+    "id": "admin",
+    "label": "Administrator",
+    "description": "Full access to create, edit, delete orders, manage users and configure system settings.",
+    "isSystem": true,
+    "permissions": {
+      "raise_orders": true,
+      "edit_orders": true,
+      "delete_orders": true,
+      "restore_orders": true,
+      "approve_orders": true,
+      "send_back_orders": true,
+      "reject_orders": true,
+      "verify_payment": true,
+      "hold_payment": true,
+      "pick_pack_dispatch": true,
+      "deliver_orders": true,
+      "manage_users": true,
+      "manage_settings": true
+    }
+  },
+  {
+    "id": "management",
+    "label": "Management",
+    "description": "Approve new orders, send them back for changes, reject them, or raise orders.",
+    "isSystem": true,
+    "permissions": {
+      "raise_orders": true,
+      "edit_orders": true,
+      "delete_orders": false,
+      "restore_orders": false,
+      "approve_orders": true,
+      "send_back_orders": true,
+      "reject_orders": true,
+      "verify_payment": false,
+      "hold_payment": false,
+      "pick_pack_dispatch": false,
+      "deliver_orders": false,
+      "manage_users": false,
+      "manage_settings": false
+    }
+  },
+  {
+    "id": "salesperson",
+    "label": "Salesperson",
+    "description": "Raise orders and fix the ones Management sends back.",
+    "isSystem": true,
+    "permissions": {
+      "raise_orders": true,
+      "edit_orders": false,
+      "delete_orders": false,
+      "restore_orders": false,
+      "approve_orders": false,
+      "send_back_orders": false,
+      "reject_orders": false,
+      "verify_payment": false,
+      "hold_payment": false,
+      "pick_pack_dispatch": false,
+      "deliver_orders": false,
+      "manage_users": false,
+      "manage_settings": false
+    }
+  },
+  {
+    "id": "finance",
+    "label": "Finance",
+    "description": "Verify payment on approved orders or put them on hold.",
+    "isSystem": true,
+    "permissions": {
+      "raise_orders": false,
+      "edit_orders": false,
+      "delete_orders": false,
+      "restore_orders": false,
+      "approve_orders": false,
+      "send_back_orders": false,
+      "reject_orders": false,
+      "verify_payment": true,
+      "hold_payment": true,
+      "pick_pack_dispatch": false,
+      "deliver_orders": false,
+      "manage_users": false,
+      "manage_settings": false
+    }
+  },
+  {
+    "id": "dispatch",
+    "label": "Dispatch",
+    "description": "Pick, pack and dispatch paid orders, then mark them delivered.",
+    "isSystem": true,
+    "permissions": {
+      "raise_orders": false,
+      "edit_orders": false,
+      "delete_orders": false,
+      "restore_orders": false,
+      "approve_orders": false,
+      "send_back_orders": false,
+      "reject_orders": false,
+      "verify_payment": false,
+      "hold_payment": false,
+      "pick_pack_dispatch": true,
+      "deliver_orders": true,
+      "manage_users": false,
+      "manage_settings": false
+    }
+  }
+]

@@ -1,0 +1,365 @@
+{
+  "nextId": 37,
+  "users": [
+    {
+      "id": 1,
+      "name": "Test Admin",
+      "email": "admin.test@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$FPTJ3jY5KPkR8Az6bDewKQ==$WgHyoSUHyuM6oWCKDOkPy8JufnGrlMAw6YFpQc53zHpfYvqIrexVKBBsR+7IRx6t3I2o24gWrhj7SG7l8j0Frg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-13T00:25:21.508Z"
+    },
+    {
+      "id": 2,
+      "name": "Test Salesperson",
+      "email": "salesperson.test@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$ac7rwjgnsNAfBqCCRSIXFg==$T3Jn6nj+6w9J4TZFPE1lIeZidnLL5JlJMZ1FvK8fM6C7twmNYl/Mqcuzs7riLdOHsEfDtGHR4TsCdYXCOjIceA==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-13T00:25:21.538Z"
+    },
+    {
+      "id": 3,
+      "name": "Test Management",
+      "email": "management.test@getmeds.ph",
+      "role": "management",
+      "passwordHash": "scrypt$QoA50bArRFiKfvBYtBeX0A==$Wuw/gbb+RxrhZeHQ2E8gWHUbxgQ3FrpAtcpRaud1aIztl5geghzCltbObPmkssd58s0wHBmWQQZZBrnPyjEPsA==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-13T00:25:21.568Z"
+    },
+    {
+      "id": 4,
+      "name": "Test Finance",
+      "email": "finance.test@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$yS04+nx+JLQaHRU0HdpdLA==$K7izgXluCAp0h52q9cF5PnvbUI621iKgTuH7LkT4F5zMI3vRzi0r0uavpfyCXaZq9ba+fGD/xG3nyX31B9opyg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-13T00:25:21.596Z"
+    },
+    {
+      "id": 5,
+      "name": "Test Dispatch",
+      "email": "dispatch.test@getmeds.ph",
+      "role": "dispatch",
+      "passwordHash": "scrypt$M22/Q3474OqH/PfY4F8Uiw==$KM43iSNnFS1mdvXmR4tuwf5bqzM0mn0XGeNeXoeKAKhZEb1HinVED83p1I/6c9bQDC5xFrZvrHMlHL/I8Gts4g==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-13T00:25:21.628Z"
+    },
+    {
+      "id": 6,
+      "name": "Password Test User",
+      "email": "pwtest@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$ghYX7QBBpAdeyime7kNijw==$iuWJnNPcPMl/StRV4qLmN180ncd2o6WMSL9EYLJ3d9SEhNSdlTLjNbvudiOodiHX7w3JOBHNJ7D4UYvQC7SyBg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T18:55:09.317Z"
+    },
+    {
+      "id": 7,
+      "name": "Password Test User",
+      "email": "pwtest_1789412204240@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$n/8KmTvH5GdMBiF3APgWIg==$4geTiueqneof9gNloLgXmlG9mLYJ1SgTP8cWbrbVwMRQ5Qg/guSjchbEQvGTI6o38UofkRX2T+hC6Q02zzYqRw==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T18:56:44.268Z"
+    },
+    {
+      "id": 8,
+      "name": "Password Test User",
+      "email": "pwtest_1789412721852@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$pWzEB95iZC1tQK0drJcNFQ==$1awhGYziTYbeSe+zMu8XJkHCwHs0RcQGHLtIArmhBQLr0Ozjrxc7ds8ko+RgdIi02L8SizmKwsE/Sfhhtkwtpw==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T19:05:21.880Z"
+    },
+    {
+      "id": 9,
+      "name": "Password Test User",
+      "email": "pwtest_1789414023833@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$1I66IfYq2QDOGScplELi4w==$s/S1Tkt3ix5RacZPYj0QXi/blizREy/cvyneRDBC3HsTrkAom5nEPZHXRn5NuwaJvqsJCemQxKFP4rtdaQxMLw==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T19:27:03.866Z"
+    },
+    {
+      "id": 10,
+      "name": "Password Test User",
+      "email": "pwtest_1789414375146@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$m1wue8Bp2cFr1hwVh1cMhA==$KXfczu6XRinnLqmFFq1WuQwfgPakHQSMLc5geuJto89/htVIQnLavtthzK0Yh4KOWWyJ3OuctlR8zXqggQ5+rw==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T19:32:55.179Z"
+    },
+    {
+      "id": 11,
+      "name": "Password Test User",
+      "email": "pwtest_1789415472867@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$/okS9cny/GckjCYwxCtAfg==$rz1YqBNrXo+hsMJ2UbJwg91ywAFtCocjwEsQJxVBSUUXgBiQDkfsp9JwwjtolTkvjNswKhcVVvuFmbJ2IN35Xw==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T19:51:12.897Z"
+    },
+    {
+      "id": 12,
+      "name": "Password Test User",
+      "email": "pwtest_1789415889208@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$WdkVAAXhjo02+ihalHSUBA==$4PaTQbdnYKzvKChL0fc7382mclKSv3tXJMiOKTqi5b62tpj0CLb1lL8TMbTZ2Jrvfvq0dCsrAm+QtXCnkkUQ1w==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T19:58:09.237Z"
+    },
+    {
+      "id": 13,
+      "name": "Password Test User",
+      "email": "pwtest_1789416178718@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$s+30+jgSzldNAW4aOTt//A==$sHx8rEU/1dWcb4JmpDc7CAKuW9C0CsS7ian/XAGANsWreOLgYhZgWIQD3Znf4K5me5Zopgh7tZ50ldsRwBb6Fg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:02:58.746Z"
+    },
+    {
+      "id": 14,
+      "name": "Password Test User",
+      "email": "pwtest_1789416346126@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$r8gNjIwkv9jMGzxCBRSk3g==$xXN7Xz3jxy52eMQ4xB/gcTBtbGKWY5r+3GUgYqu7C7+VDptw2UaZF4HAsBJCZtMdiWDDSdrb1K5xeVcq5o5d4Q==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:05:46.155Z"
+    },
+    {
+      "id": 15,
+      "name": "Password Test User",
+      "email": "pwtest_1789417457616@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$NHvv9dDT5vonJw3peKzjMg==$U4bAEp9l7ATujiOwe1HCau/xIeN+7esJiWILNuHjt2+9jNSpNECalv//43ARh80rSqbNqn/dmmkt/AHYIs2Elg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:24:17.643Z"
+    },
+    {
+      "id": 16,
+      "name": "Password Test User",
+      "email": "pwtest_1789417485248@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$pzxjKdbUuMIgwEQJakdcwA==$fnnYK+wo/QDIHCR/kvCODqb+wqGRxJmLfYxCOJFF8QqkAYdVSXt5nRbGj+elEbvyt78JFol0VP5pSwPnR1iTTg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:24:45.274Z"
+    },
+    {
+      "id": 17,
+      "name": "Password Test User",
+      "email": "pwtest_1789417506200@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$fyUS5cdVZB7JByqAUV9fgQ==$x7ayrQnnZbK8RakmSpqzXYXAi6I5sBRJlCdQg5Wi+QHxymllwIUk42jXFCW2i9ogm4fkC1ArrKQoSMwojIfehg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:25:06.228Z"
+    },
+    {
+      "id": 18,
+      "name": "Sales Rep",
+      "email": "sales_1789418141006@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$0VL1K4d8elYMaOG+za2Gfw==$SSgfYObgaABSuEkwxauxGjh86vFkYg4zlJtdruqmvVihsD9WndOSQO11MQSuxJhCy/agC/X3t5KqZWqCkqlUUA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:35:41.035Z"
+    },
+    {
+      "id": 19,
+      "name": "Admin Boss",
+      "email": "admin_1789418141098@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$C4YWFxxEHJ/lycenkq9kWg==$uD5jFJmoTbqoRj6OXH9+OsQuMoIOdsb0eHoDV2knm1Zk8mDhoKzAgilUBMocuMPMNsDaCWW7Be+WgdED5O0Q+w==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:35:41.124Z"
+    },
+    {
+      "id": 20,
+      "name": "Sales Rep",
+      "email": "sales_1789418174077@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$6iITAn426LqYkwSrKf6kmA==$i6sIP5IZ7+NB8z12O/Hc4mr8gVTFFB4uORer0fPCN4Ifj04P/3t98/iY2tmFDIawbcqfanPZ5RBCBD4NLPYgug==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:36:14.106Z"
+    },
+    {
+      "id": 21,
+      "name": "Admin Boss",
+      "email": "admin_1789418174193@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$AsDiwhR8qppGAEM2gIum3w==$bm86Sdxmbo5XSNjwqbl7DVEQAhj0HJ7CKY1d4wMKeBNKleO+1JMcMrOXdEFT9X/h8HZSYSStLWyh0Js4QEk3DA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:36:14.226Z"
+    },
+    {
+      "id": 22,
+      "name": "Password Test User",
+      "email": "pwtest_1789418191223@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$pVCkE9eicV67ZKuAC/fHXw==$wnwctOZ8eG5ta72tGFj+SJc5k4IJJxlH8iwMczCc4mT4qLIknPozs1oelw75mzVHSmBMZUHBvWRWmeIIciNLWg==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T20:36:31.250Z"
+    },
+    {
+      "id": 23,
+      "name": "Dash Tester",
+      "email": "dash_test_1789419504829@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$3v9QJjV4MF1Gf5QEo+iugA==$LbITuo3jJ+3qw6Rs9ZXnzQ8uyIi+x68ReWX4Te7K0E5N4WTE0JzXkVFdcgfZi4BV+xEneooyqdL3zYI/qClbTA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:58:24.858Z"
+    },
+    {
+      "id": 24,
+      "name": "Sales Rep",
+      "email": "sales_1789419518749@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$GhfcCPgpURYBNJnibDSA3A==$PEUHqH9P3tpH48X2z9U7gPauejPcCj5Sux3UmZLnPxYLbAOyccxFcRJzh7jePVxHUBbQhtHbSsgI6f7ZCplDpw==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:58:38.787Z"
+    },
+    {
+      "id": 25,
+      "name": "Admin Boss",
+      "email": "admin_1789419518882@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$9ga3tNt8oCoHP2nm3oiUBw==$ZgT/riaLt9SK7mPZjVY797GPaL2zjd0e6XgxX+rM4KQRLJgMh4hWLRCLuwqqL/I3rf0CtFYKpr0wWBeywfjFdg==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T20:58:38.909Z"
+    },
+    {
+      "id": 26,
+      "name": "Password Test User",
+      "email": "pwtest_1789419907263@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$02gIOVZmHO7l/wcNf/Wgaw==$kurzqppjVY3RiPSBv4FHvrBhTeVUW5xUbt6eNHEUtM6/PSIWBYdp9lkQB01Oyqb3mDX9uCZ/4HTv4nVwAvD8pQ==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T21:05:07.294Z"
+    },
+    {
+      "id": 27,
+      "name": "Password Test User",
+      "email": "pwtest_1789419927022@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$R/TD26cUVoBEfF1h2U/hjw==$utqMfC6F9/eX25QZZCJZNA4eUPcxIep4bDVvrA+awiVjXh4L5MvZsSsLdWnPxc5hXrweRArV+p43yJqIsDA9og==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T21:05:27.053Z"
+    },
+    {
+      "id": 28,
+      "name": "Sales Rep",
+      "email": "sales_1789419933801@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$KsGSW3YyC9clLjry06n5jw==$rvKZNGlyszU0Yj0s+to3WdkW/ZeAH6ZtgnDoQcUeUuqqcdo3WZpX00fB1kLKi7Of9YiimVj3E/czYEcut5/Xlw==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:05:33.842Z"
+    },
+    {
+      "id": 29,
+      "name": "Admin Boss",
+      "email": "admin_1789419933942@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$/nN+JDCD5G2AYKTERo9mWQ==$vY4OmRbBu13YmbQl3/0SypbYxiTSwDXnR/ZnF3c8vsg2AQyfbper8c1PemOg0Q7vOnOsBBSqfwzVUzuKjil8Uw==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:05:33.975Z"
+    },
+    {
+      "id": 30,
+      "name": "Del Tester",
+      "email": "del_test_1789420027918@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$SDjxwl2fjKq44Xtd919OYA==$VmMMRK9Lz6rcjfwgzI87BvdwljffqiWMZhIkYzM7zMt5qUyWqX8k4xNv3qb2fV2lTCnvvr5OBPnQN/r4hQtYKA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:07:07.962Z"
+    },
+    {
+      "id": 31,
+      "name": "Sales Rep",
+      "email": "sales_1789420032719@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$7t41lGxYXC9unq1uejWCxA==$KgNi4mhufJEqjnhjoaYOTk5u+4KbyNpm/7mLlJSDcaHN6V0jDoTsW/nY1OXRGNenAIKjvEKYf94W2fCMYG4vfA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:07:12.753Z"
+    },
+    {
+      "id": 32,
+      "name": "Admin Boss",
+      "email": "admin_1789420032841@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$4ufDGM3NK/F8ZDTVBKqGrQ==$DQfWKn4PppRAyqj25QfM6u4GdMdyymNdsLjKAEv4cu9ezoOn7OcjITGH8/NiVniRqXKlNxqIdL5H4nekYS5RiA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:07:12.875Z"
+    },
+    {
+      "id": 33,
+      "name": "Password Test User",
+      "email": "pwtest_1789420033273@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$RREhCNxS6q8q1ZvJ3Hbpyw==$M/l/cWWEbllPzfEe6y9aOWuYu78Phgdi1Nh7ajYa49yiDYv6ln8RHvhe6MJefT8NWOdZkGo1p05CBJdu3LsZ4w==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T21:07:13.303Z"
+    },
+    {
+      "id": 34,
+      "name": "Password Test User",
+      "email": "pwtest_1789421196544@getmeds.ph",
+      "role": "finance",
+      "passwordHash": "scrypt$1CnwZpyuprxJySN4OS0dFw==$TFarmT/9lJYrBnBgVMPcDC56VYwGirBVCrLYtwg6lpiX+YUBVHiGr2I+EujkseDvN+FYTanvDG2Zu89eAgsyhQ==",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-09-14T21:26:36.572Z"
+    },
+    {
+      "id": 35,
+      "name": "Sales Rep",
+      "email": "sales_1789421198805@getmeds.ph",
+      "role": "salesperson",
+      "passwordHash": "scrypt$+1gXu7NUSYdmVYiXP3To7Q==$0eR1GyykR8WWcF4RhJhcSgydDhDwAjmprTYa61EKAof42tD3iYNcKi/xozkj62h0unT/WUqKD+Zqsxp1sbYupA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:26:38.836Z"
+    },
+    {
+      "id": 36,
+      "name": "Admin Boss",
+      "email": "admin_1789421198893@getmeds.ph",
+      "role": "admin",
+      "passwordHash": "scrypt$GMULj4KhGhx3ocFduASKaA==$RZDIQ2keRJYRg5UeD1amJhgw1m4ZvxfL0MaN5DODvMiw7MUXl7SDq/SYm4YsNVCkNZzr87tdD2e/Hh6iQjZDEA==",
+      "active": true,
+      "sessionVersion": 0,
+      "createdAt": "2026-09-14T21:26:38.920Z"
+    }
+  ]
+}

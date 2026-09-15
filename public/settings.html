@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings & RBAC · GetMeds Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header class="top" id="site-header"></header>
+
+  <div class="side-head" style="margin-bottom: 18px;">
+    <p class="eyebrow">Administration & Control</p>
+    <h1 style="font-size: 26px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">Settings & RBAC</h1>
+    <p class="sub" style="font-size: 14.5px; color: var(--ink-2);">Manage user accounts, configure role permissions, and maintain master order reference lists.</p>
+  </div>
+
+  <div class="settings-container">
+    <div class="settings-tabs" role="tablist">
+      <button type="button" class="settings-tab-btn active" data-settings-tab="users" role="tab" aria-selected="true">User Accounts</button>
+      <button type="button" class="settings-tab-btn" data-settings-tab="rbac" role="tab" aria-selected="false">Role Permissions (RBAC)</button>
+      <button type="button" class="settings-tab-btn" data-settings-tab="configs" role="tab" aria-selected="false">Master Configurations</button>
+    </div>
+
+    <div id="settings-content">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading configuration settings…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add New Custom Role -->
+<dialog class="modal" id="role-dialog" aria-labelledby="role-dialog-title">
+  <form id="role-form" novalidate>
+    <h2 class="title" id="role-dialog-title">Add Custom Role</h2>
+    <p class="sub" style="font-size: 13px; color: var(--ink-2);">Define a new role with a custom key and permissions.</p>
+    <label class="field" for="role-id-input"><span>Role Identifier (code)</span>
+      <input type="text" id="role-id-input" name="id" placeholder="e.g. auditor" pattern="[a-z0-9_-]+" maxlength="30" required>
+    </label>
+    <label class="field" for="role-label-input"><span>Display Label</span>
+      <input type="text" id="role-label-input" name="label" placeholder="e.g. Internal Auditor" maxlength="50" required>
+    </label>
+    <label class="field" for="role-desc-input"><span>Description</span>
+      <input type="text" id="role-desc-input" name="description" placeholder="Brief summary of duties" maxlength="150">
+    </label>
+    <p class="error" id="role-form-error" role="alert" hidden></p>
+    <div class="actions">
+      <button type="submit" class="btn" id="btn-save-role">Create Role</button>
+      <button type="button" class="btn quiet" data-cancel-role>Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: Add / Edit Division -->
+<dialog class="modal" id="division-dialog" aria-labelledby="division-dialog-title">
+  <form id="division-form" novalidate>
+    <h2 class="title" id="division-dialog-title">Add Division</h2>
+    <label class="field" for="div-name-input"><span>Division Name</span>
+      <input type="text" id="div-name-input" name="name" placeholder="e.g. EXP" maxlength="40" required>
+    </label>
+    <label class="field" for="div-sub-input"><span>Initial Sub-divisions <em>comma separated</em></span>
+      <input type="text" id="div-sub-input" name="subDivisions" placeholder="e.g. Telesales, Direct">
+    </label>
+    <p class="error" id="division-form-error" role="alert" hidden></p>
+    <div class="actions">
+      <button type="submit" class="btn" id="btn-save-div">Save Division</button>
+      <button type="button" class="btn quiet" data-cancel-div>Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/settings.js"></script>
+</body>
+</html>

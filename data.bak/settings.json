@@ -1,0 +1,244 @@
+{
+  "divisions": [
+    {
+      "name": "B2C",
+      "subDivisions": [
+        "MD Telesales"
+      ]
+    },
+    {
+      "name": "STC",
+      "subDivisions": [
+        "MD Telesales"
+      ]
+    },
+    {
+      "name": "URO",
+      "subDivisions": [
+        "MD Telesales"
+      ]
+    },
+    {
+      "name": "B&B",
+      "subDivisions": [
+        "MD Telesales"
+      ]
+    },
+    {
+      "name": "B2B",
+      "subDivisions": [
+        "NBD",
+        "CRR"
+      ]
+    },
+    {
+      "name": "HOS",
+      "subDivisions": [
+        "Hospital",
+        "Telesales"
+      ]
+    },
+    {
+      "name": "BID",
+      "subDivisions": [
+        "Bidding"
+      ]
+    }
+  ],
+  "headquarters": [
+    "QC Central HQ",
+    "Makati Regional HQ",
+    "Cebu Branch",
+    "Davao Branch"
+  ],
+  "invoicingFrom": [
+    "2mg Incorporated",
+    "Getmeds Philippines Inc."
+  ],
+  "paymentMethods": [
+    "Cash on delivery",
+    "Bank transfer",
+    "GCash",
+    "Credit terms",
+    "Check",
+    "Credit Card",
+    "PDC"
+  ],
+  "sources": [
+    "Doctor order",
+    "Patient order referred by doctor",
+    "Patient order referred by patient",
+    "Emergency purchase",
+    "Hospital PO",
+    "Distributor order"
+  ],
+  "paymentTerms": [
+    "Due end of next month",
+    "Due end of the month",
+    "Paid",
+    "Advanced Payment",
+    "Advanced Payment - Partial",
+    "Donation/Charity",
+    "Samples",
+    "Due on Receipt",
+    "60% DP 40% UPON DEL",
+    "CASH",
+    "COD",
+    "Net",
+    "Net 15",
+    "30 days",
+    "45 Day",
+    "BPO WALLET",
+    "60 Day",
+    "DSWD/PCSO",
+    "OP",
+    "90 Day",
+    "INITIAL STOCKING",
+    "120 Day",
+    "180 Day"
+  ],
+  "deliveryMethods": [
+    "Own Rider / Company Vehicle",
+    "LBC Express",
+    "Grab Express",
+    "J&T Express",
+    "Lalamove",
+    "Customer Pick-up",
+    "Distributor Delivery"
+  ],
+  "customers": [
+    {
+      "id": 1,
+      "name": "Customer Alpha",
+      "contactNumber": "09171234567",
+      "address": "123 Main St, Manila",
+      "receiverName": "",
+      "receiverContact": "",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T10:12:17.911Z",
+      "updatedAt": "2026-09-14T10:12:17.914Z"
+    },
+    {
+      "id": 2,
+      "name": "Dr. Roberto Mendoza",
+      "contactNumber": "0917-888-9999",
+      "address": "Suite 405, Medical Arts Bldg, PGH, Manila",
+      "receiverName": "Nurse Elena",
+      "receiverContact": "0918-777-6666",
+      "hasSpecialPrice": true,
+      "createdAt": "2026-09-14T10:12:19.052Z",
+      "updatedAt": "2026-09-14T10:12:19.052Z"
+    },
+    {
+      "id": 3,
+      "name": "Test Hospital Order",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T10:12:44.670Z",
+      "updatedAt": "2026-09-14T10:12:44.670Z"
+    },
+    {
+      "id": 4,
+      "name": "Quick Test Pharmacy",
+      "contactNumber": "09170001122",
+      "address": "123 Test Street, Manila",
+      "receiverName": "",
+      "receiverContact": "",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T13:16:14.164Z",
+      "updatedAt": "2026-09-14T13:16:14.166Z"
+    },
+    {
+      "id": 5,
+      "name": "Sample",
+      "contactNumber": "09171234567",
+      "address": "Sample",
+      "receiverName": "Sample",
+      "receiverContact": "095133166497",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T19:30:11.462Z",
+      "updatedAt": "2026-09-14T21:20:38.536Z"
+    },
+    {
+      "id": 6,
+      "name": "Sam",
+      "contactNumber": "",
+      "address": "",
+      "receiverName": "Sample",
+      "receiverContact": "",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T19:30:26.565Z",
+      "updatedAt": "2026-09-14T19:30:26.565Z"
+    },
+    {
+      "id": 7,
+      "name": "Special Pharmacy Clinic",
+      "contactNumber": "0917-888-9999",
+      "address": "Suite 405, Medical Arts Bldg, Manila",
+      "receiverName": "",
+      "receiverContact": "",
+      "hasSpecialPrice": true,
+      "createdAt": "2026-09-14T21:25:44.014Z",
+      "updatedAt": "2026-09-14T21:49:14.261Z"
+    },
+    {
+      "id": 8,
+      "name": "Recycle Bin Test Customer",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T21:45:44.787Z",
+      "updatedAt": "2026-09-14T21:45:44.787Z"
+    },
+    {
+      "id": 9,
+      "name": "Auto Expire Test Customer",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T21:47:06.730Z",
+      "updatedAt": "2026-09-14T21:47:06.730Z"
+    },
+    {
+      "id": 10,
+      "name": "Bulk Empty 1",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T21:47:31.993Z",
+      "updatedAt": "2026-09-14T21:47:31.993Z"
+    },
+    {
+      "id": 11,
+      "name": "Bulk Empty 2",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T21:47:32.001Z",
+      "updatedAt": "2026-09-14T21:47:32.001Z"
+    },
+    {
+      "id": 12,
+      "name": "Test Hospital Order - Edited",
+      "contactNumber": "0917-123-4567",
+      "address": "123 Health Ave, QC",
+      "receiverName": "Pharmacy Dept",
+      "receiverContact": "0917-123-4567",
+      "hasSpecialPrice": false,
+      "createdAt": "2026-09-14T21:49:48.511Z",
+      "updatedAt": "2026-09-14T21:49:48.511Z"
+    }
+  ],
+  "recycleBin": []
+}

@@ -1,0 +1,4457 @@
+[
+  {
+    "id": "atraget-10mg",
+    "row": 3,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Atracurium",
+    "brandName": "AtraGet 10mg",
+    "dosageStrength": "10mg",
+    "dosageForm": null,
+    "unit": "Ampoule",
+    "packSize": "PACK OF 5'S",
+    "mc": null,
+    "count": 5,
+    "shelfLife": "24 months",
+    "fullName": "AtraGet 10mg (Atracurium) 10mg - PACK OF 5'S",
+    "prices": {
+      "doctor": {
+        "unitPrice": 375.0,
+        "packPrice": 1875.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 425.0,
+        "packPrice": 2125.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 531.25,
+        "packPrice": 2656.25,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 190.0,
+        "packPrice": 950.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 250.0,
+        "packPrice": 1250.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "bupidex",
+    "row": 4,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Bupivacaine Hydrochloride in dextrose",
+    "brandName": "Bupidex",
+    "dosageStrength": "5mg/mL (0.5% w/v)",
+    "dosageForm": "Sol'n for Intrathecal Inj. (IV)",
+    "unit": "Ampoule",
+    "packSize": "Box of 5's",
+    "mc": null,
+    "count": 5,
+    "shelfLife": "24 months",
+    "fullName": "Bupidex (Bupivacaine Hydrochloride in dextrose) 5mg/mL (0.5% w/v) - Box of 5's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 230.0,
+        "packPrice": 1150.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 295.0,
+        "packPrice": 1475.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 295.0,
+        "packPrice": 1475.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 150.0,
+        "packPrice": 750.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 210.0,
+        "packPrice": 1050.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "cisget",
+    "row": 5,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Cisatracurium (As Besilate)",
+    "brandName": "CisGet",
+    "dosageStrength": "2 MG/ML ( 10 MG / 5 ML )",
+    "dosageForm": "Solution for Injection",
+    "unit": "AMPULE",
+    "packSize": "BOX OF 5'S",
+    "mc": null,
+    "count": 5,
+    "shelfLife": "24 months",
+    "fullName": "CisGet (Cisatracurium (As Besilate)) 2 MG/ML ( 10 MG / 5 ML ) - BOX OF 5'S",
+    "prices": {
+      "doctor": {
+        "unitPrice": 543.0,
+        "packPrice": 2715.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 820.0,
+        "packPrice": 4100.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 820.0,
+        "packPrice": 4100.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 418.0,
+        "packPrice": 2090.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 627.0,
+        "packPrice": 3135.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "dexmidoget-100",
+    "row": 6,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Dexmedetomidine",
+    "brandName": "DexmidoGet 100",
+    "dosageStrength": "100 mcg/1 ml",
+    "dosageForm": "Sol'n for Infusion (IV)",
+    "unit": "Ampoule",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "DexmidoGet 100 (Dexmedetomidine) 100 mcg/1 ml - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 320.0,
+        "packPrice": 3200.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 800.0,
+        "packPrice": 8000.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 800.0,
+        "packPrice": 8000.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 320.0,
+        "packPrice": 3200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 500.0,
+        "packPrice": 5000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "dexmidoget-200",
+    "row": 7,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Dexmedetomidine (As Hydrochloride)",
+    "brandName": "DexmidoGet 200",
+    "dosageStrength": "200 mcg/2 ml",
+    "dosageForm": "Sol'n for Infusion (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DexmidoGet 200 (Dexmedetomidine (As Hydrochloride)) 200 mcg/2 ml - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1400.0,
+        "packPrice": 1400.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2000.0,
+        "packPrice": 2000.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 2400.0,
+        "packPrice": 2400.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 900.0,
+        "packPrice": 900.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1200.0,
+        "packPrice": 1200.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "kontra-b2b-bid",
+    "row": 8,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Sugammadex",
+    "brandName": "Kontra [B2B/BID]",
+    "dosageStrength": "100 mg/ml (200 mg/2 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "Kontra [B2B/BID] (Sugammadex) 100 mg/ml (200 mg/2 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3500.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5750.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5750.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2600.0,
+        "packPrice": 2600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3900.0,
+        "packPrice": 3900.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "midaget",
+    "row": 9,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Midazolam",
+    "brandName": "MidaGet",
+    "dosageStrength": "150 mg/3 ml",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Ampoule",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "MidaGet (Midazolam) 150 mg/3 ml - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": null,
+        "packPrice": null,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": null,
+        "packPrice": null,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": null,
+        "packPrice": null,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": null,
+        "packPrice": null,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": null,
+        "packPrice": null,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "kalmafol-20",
+    "row": 10,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Propofol*",
+    "brandName": "Kalmafol 20",
+    "dosageStrength": "10 mg/mL (1% w/v)",
+    "dosageForm": "Emulsion for I.V. Injection",
+    "unit": "Vial",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "Kalmafol 20 (Propofol*) 10 mg/mL (1% w/v) - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 260.0,
+        "packPrice": 2600.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 350.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 350.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 180.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 240.0,
+        "packPrice": 2400.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "kalmafol-50",
+    "row": 11,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Propofol*",
+    "brandName": "Kalmafol 50",
+    "dosageStrength": "10 mg/mL (1% w/v)",
+    "dosageForm": "Emulsion for I.V. Injection",
+    "unit": "Vial",
+    "packSize": "Box of 6's",
+    "mc": null,
+    "count": 6,
+    "shelfLife": "24 months",
+    "fullName": "Kalmafol 50 (Propofol*) 10 mg/mL (1% w/v) - Box of 6's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 630.0,
+        "packPrice": 3780.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 820.0,
+        "packPrice": 4920.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 820.0,
+        "packPrice": 4920.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 425.0,
+        "packPrice": 2550.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 570.0,
+        "packPrice": 3420.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "qprofol",
+    "row": 12,
+    "account": "2MG",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Propofol*",
+    "brandName": "Qprofol",
+    "dosageStrength": "10 mg/ml (200 mg/20 ml)",
+    "dosageForm": "Emulsion for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "Qprofol (Propofol*) 10 mg/ml (200 mg/20 ml) - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 134.4,
+        "packPrice": 1344.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 450.0,
+        "packPrice": 4500.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 450.0,
+        "packPrice": 4500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 108.64,
+        "packPrice": 1086.4,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 280.0,
+        "packPrice": 2800.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "rocuget",
+    "row": 13,
+    "account": "GETMEDS",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Rocuronium [COLD CHAIN]*",
+    "brandName": "RocuGet",
+    "dosageStrength": "10mg/ml (50 mg/5 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "RocuGet (Rocuronium [COLD CHAIN]*) 10mg/ml (50 mg/5 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 236.32,
+        "packPrice": 236.32,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 575.0,
+        "packPrice": 575.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 575.0,
+        "packPrice": 575.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 236.32,
+        "packPrice": 236.32,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 340.0,
+        "packPrice": 340.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "sugamaget-200-field",
+    "row": 14,
+    "account": "GETMEDS",
+    "classification": "ANESTHESIOLOGY",
+    "tax": "VAT",
+    "genericName": "Sugammadex",
+    "brandName": "SugamaGet 200 [FIELD]",
+    "dosageStrength": "100 mg/ml (200 mg/2 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "SugamaGet 200 [FIELD] (Sugammadex) 100 mg/ml (200 mg/2 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3500.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5750.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5750.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2600.0,
+        "packPrice": 2600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3900.0,
+        "packPrice": 3900.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "amiget",
+    "row": 15,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Amikacin",
+    "brandName": "AmiGet",
+    "dosageStrength": "250 mg/ml (500 mg/2 ml)",
+    "dosageForm": "Sol'n for Inj. (IM/IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "AmiGet (Amikacin) 250 mg/ml (500 mg/2 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 38.0,
+        "packPrice": 38.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 120.0,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 120.0,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 30.0,
+        "packPrice": 30.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 60.0,
+        "packPrice": 60.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "cefazoget-1g",
+    "row": 16,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Cefazolin (as sodium)",
+    "brandName": "CefazoGet 1g",
+    "dosageStrength": "1g",
+    "dosageForm": "Powder for Sol'n for Inj. (IM/IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CefazoGet 1g (Cefazolin (as sodium)) 1g - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 225.0,
+        "packPrice": 225.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 265.0,
+        "packPrice": 265.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 331.25,
+        "packPrice": 331.25,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 125.0,
+        "packPrice": 125.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 160.0,
+        "packPrice": 160.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "cefoxiget-1g",
+    "row": 17,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Cefoxitin (as sodium)",
+    "brandName": "CefoxiGet 1g",
+    "dosageStrength": "1g",
+    "dosageForm": "Powder for Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CefoxiGet 1g (Cefoxitin (as sodium)) 1g - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 275.0,
+        "packPrice": 275.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 295.0,
+        "packPrice": 295.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 368.75,
+        "packPrice": 368.75,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 147.0,
+        "packPrice": 147.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 190.0,
+        "packPrice": 190.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "teicoget",
+    "row": 18,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Teicoplanin",
+    "brandName": "TeicoGet",
+    "dosageStrength": "400 mg",
+    "dosageForm": "Sol'n for Inj.",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "TeicoGet (Teicoplanin) 400 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 700.0,
+        "packPrice": 700.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 950.0,
+        "packPrice": 950.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 950.0,
+        "packPrice": 950.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 600.0,
+        "packPrice": 600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 800.0,
+        "packPrice": 800.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "vancoget-1000",
+    "row": 19,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Vancomycin (as hydrochloride)",
+    "brandName": "VancoGet 1000",
+    "dosageStrength": "1 g",
+    "dosageForm": "Powder for Injection (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "VancoGet 1000 (Vancomycin (as hydrochloride)) 1 g - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 325.0,
+        "packPrice": 325.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 475.0,
+        "packPrice": 475.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 475.0,
+        "packPrice": 475.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 275.0,
+        "packPrice": 275.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 375.0,
+        "packPrice": 375.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "vancoget-500",
+    "row": 20,
+    "account": "2MG",
+    "classification": "ANTI-INFECTIVE",
+    "tax": "VAT",
+    "genericName": "Vancomycin",
+    "brandName": "VancoGet 500",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Powder for Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "VancoGet 500 (Vancomycin) 500 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 850.0,
+        "packPrice": 850.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 925.0,
+        "packPrice": 925.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1156.25,
+        "packPrice": 1156.25,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 460.0,
+        "packPrice": 460.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 600.0,
+        "packPrice": 600.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "sondelbay",
+    "row": 21,
+    "account": "GETMEDS",
+    "classification": "BONE FORMATION (BIOSIMILAR)",
+    "tax": "VAT",
+    "genericName": "Teriparatide [COLD CHAIN]",
+    "brandName": "Sondelbay",
+    "dosageStrength": "20 mcg/80 mcL (600 mcg/2.4 ml)",
+    "dosageForm": "Sol'n for Inj. (SC)",
+    "unit": "Pen",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "Sondelbay (Teriparatide [COLD CHAIN]) 20 mcg/80 mcL (600 mcg/2.4 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 20000.0,
+        "packPrice": 20000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 20000.0,
+        "packPrice": 20000.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 25645.0,
+        "packPrice": 25645.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 24000.0,
+        "packPrice": 24000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 16800.0,
+        "packPrice": 16800.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "amloget-5",
+    "row": 22,
+    "account": "2MG",
+    "classification": "CARDIOLOGY",
+    "tax": "VE",
+    "genericName": "Amlodipine",
+    "brandName": "AmloGet 5",
+    "dosageStrength": "5 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "AmloGet 5 (Amlodipine) 5 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1.1,
+        "packPrice": 33.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2.0,
+        "packPrice": 60.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3.0,
+        "packPrice": 90.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 0.87,
+        "packPrice": 26.1,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1.1,
+        "packPrice": 33.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "amloget-10",
+    "row": 23,
+    "account": "2MG",
+    "classification": "CARDIOLOGY",
+    "tax": "VE",
+    "genericName": "Amlodipine",
+    "brandName": "AmloGet 10",
+    "dosageStrength": "10 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "AmloGet 10 (Amlodipine) 10 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1.17,
+        "packPrice": 35.1,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2.5,
+        "packPrice": 75.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 4.0,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 0.92,
+        "packPrice": 27.6,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1.17,
+        "packPrice": 35.1,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "amioget",
+    "row": 24,
+    "account": "2MG",
+    "classification": "CARDIOLOGY",
+    "tax": "VAT",
+    "genericName": "Amiodarone",
+    "brandName": "AmioGet",
+    "dosageStrength": "50 mg/ml (150 mg/3 ml)",
+    "dosageForm": "Conc. for Sol'n for IV Infusion",
+    "unit": "Ampoule",
+    "packSize": "Box of 10'S",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "AmioGet (Amiodarone) 50 mg/ml (150 mg/3 ml) - Box of 10'S",
+    "prices": {
+      "doctor": {
+        "unitPrice": 208.0,
+        "packPrice": 2080.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 327.0,
+        "packPrice": 3270.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 327.0,
+        "packPrice": 3270.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 160.0,
+        "packPrice": 1600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 283.0,
+        "packPrice": 2830.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "superflora-gg-stick",
+    "row": 25,
+    "account": "GETMEDS",
+    "classification": "GASTROENTEROLOGY",
+    "tax": "VAT",
+    "genericName": "Lactobacillus Crispatus, Lactobacillus Rhamnosus, Lactobacillus Gasseri, Lactobacillus Jenserii and Fructo Oligosaccharides Food Suppliment",
+    "brandName": "SuperFlora GG Stick",
+    "dosageStrength": "N/A",
+    "dosageForm": "Drops",
+    "unit": "4ml Amber Bottle",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "SuperFlora GG Stick (Lactobacillus Crispatus, Lactobacillus Rhamnosus, Lactobacillus Gasseri, Lactobacillus Jenserii and Fructo Oligosaccharides Food Suppliment) N/A - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 279.0,
+        "packPrice": 279.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 379.0,
+        "packPrice": 379.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 399.0,
+        "packPrice": 399.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 239.0,
+        "packPrice": 239.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 319.0,
+        "packPrice": 319.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "superflora-gg",
+    "row": 26,
+    "account": "GETMEDS",
+    "classification": "GASTROENTEROLOGY",
+    "tax": "VAT",
+    "genericName": "Bifidobacterium Longum W11 and Fructo Oligosaccharides Food Suppliment Powder",
+    "brandName": "SuperFlora GG",
+    "dosageStrength": "N/A",
+    "dosageForm": "Powder",
+    "unit": "Foil Sachet",
+    "packSize": "Pack of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "SuperFlora GG (Bifidobacterium Longum W11 and Fructo Oligosaccharides Food Suppliment Powder) N/A - Pack of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 25.5,
+        "packPrice": 255.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 35.0,
+        "packPrice": 350.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 45.0,
+        "packPrice": 450.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 21.2,
+        "packPrice": 212.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 30.0,
+        "packPrice": 300.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "superflora-w11",
+    "row": 27,
+    "account": "GETMEDS",
+    "classification": "GASTROENTEROLOGY",
+    "tax": "VAT",
+    "genericName": "Bifidobacterium Longum W11 and Fructo Oligosaccharides Food Suppliment Powder",
+    "brandName": "SuperFlora W11",
+    "dosageStrength": "N/A",
+    "dosageForm": "Powder",
+    "unit": "5g Foil Sachet",
+    "packSize": "Pack of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "SuperFlora W11 (Bifidobacterium Longum W11 and Fructo Oligosaccharides Food Suppliment Powder) N/A - Pack of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 56.0,
+        "packPrice": 560.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 73.0,
+        "packPrice": 730.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 85.0,
+        "packPrice": 850.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 45.0,
+        "packPrice": 450.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 56.0,
+        "packPrice": 560.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "danajoy",
+    "row": 28,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VAT",
+    "genericName": "Danazol*",
+    "brandName": "Danajoy",
+    "dosageStrength": "200 mg",
+    "dosageForm": "Capsule",
+    "unit": "Capsule",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "24 months",
+    "fullName": "Danajoy (Danazol*) 200 mg - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 180.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 180.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 320.0,
+        "packPrice": 3200.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 180.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 180.0,
+        "packPrice": 1800.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "deciget",
+    "row": 29,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Decitabine*",
+    "brandName": "DeciGet",
+    "dosageStrength": "50 mg",
+    "dosageForm": "Lyo. Powder for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DeciGet (Decitabine*) 50 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 8000.0,
+        "packPrice": 8000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 10500.0,
+        "packPrice": 10500.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 10500.0,
+        "packPrice": 10500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 8000.0,
+        "packPrice": 8000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 8250.0,
+        "packPrice": 8250.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "erpoget",
+    "row": 30,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Epoetin Alfa",
+    "brandName": "ErpoGet",
+    "dosageStrength": "4000 IU/ml",
+    "dosageForm": "Sol'n for Inj. (IV/SC)",
+    "unit": "Prefilled syringe",
+    "packSize": "Box of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "36 months",
+    "fullName": "ErpoGet (Epoetin Alfa) 4000 IU/ml - Box of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 350.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 490.0,
+        "packPrice": 4900.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 620.0,
+        "packPrice": 6200.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 330.0,
+        "packPrice": 3300.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 350.0,
+        "packPrice": 3500.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "foliget",
+    "row": 31,
+    "account": "2MG",
+    "classification": "HEMATOLOGY / VITAMIN",
+    "tax": "VAT",
+    "genericName": "Folic acid (Vitamin B9)",
+    "brandName": "FoliGet",
+    "dosageStrength": "5 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "36 months",
+    "fullName": "FoliGet (Folic acid (Vitamin B9)) 5 mg - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1.2,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3.75,
+        "packPrice": 375.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5.0,
+        "packPrice": 500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 0.9,
+        "packPrice": 90.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2.5,
+        "packPrice": 250.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getfil",
+    "row": 32,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Filgrastim [COLD CHAIN]*",
+    "brandName": "GetFil",
+    "dosageStrength": "300 mcg/0.5 ml",
+    "dosageForm": "Sol'n for Inj. (IV/SC)",
+    "unit": "PFS",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "GetFil (Filgrastim [COLD CHAIN]*) 300 mcg/0.5 ml - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1500.0,
+        "packPrice": 1500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3000.0,
+        "packPrice": 3000.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3750.0,
+        "packPrice": 3750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1200.0,
+        "packPrice": 1200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2200.0,
+        "packPrice": 2200.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "epriget-5000-iu",
+    "row": 33,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VAT",
+    "genericName": "Heparin Sodium",
+    "brandName": "EpriGet 5000 IU",
+    "dosageStrength": "1000 IU / ml (25000 IU / 5ml)",
+    "dosageForm": "Sol'n for Inj. (IV/SC)",
+    "unit": "Vial",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "EpriGet 5000 IU (Heparin Sodium) 1000 IU / ml (25000 IU / 5ml) - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 115.0,
+        "packPrice": 115.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 165.0,
+        "packPrice": 165.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 185.0,
+        "packPrice": 185.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 105.0,
+        "packPrice": 105.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 130.0,
+        "packPrice": 130.0,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "epriget-25k-iu",
+    "row": 34,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VAT",
+    "genericName": "Heparin Sodium",
+    "brandName": "EpriGet 25k IU",
+    "dosageStrength": "5000 IU / ml (25000 IU / 5ml)",
+    "dosageForm": "Sol'n for Inj. (IV/SC)",
+    "unit": "Vial",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "EpriGet 25k IU (Heparin Sodium) 5000 IU / ml (25000 IU / 5ml) - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 260.0,
+        "packPrice": 260.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 375.0,
+        "packPrice": 375.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 420.0,
+        "packPrice": 420.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 227.0,
+        "packPrice": 227.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 295.0,
+        "packPrice": 295.0,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "irose",
+    "row": 35,
+    "account": "2MG",
+    "classification": "HEMATOLOGY / VITAMIN",
+    "tax": "VAT",
+    "genericName": "Ferrous sulfate (Iron)",
+    "brandName": "Irose",
+    "dosageStrength": "200 mg (equiv. to 65 mg Fe)",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "36 months",
+    "fullName": "Irose (Ferrous sulfate (Iron)) 200 mg (equiv. to 65 mg Fe) - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1.2,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2.0,
+        "packPrice": 200.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5.0,
+        "packPrice": 500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 0.9,
+        "packPrice": 90.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2.5,
+        "packPrice": 250.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "troynoxa-60",
+    "row": 36,
+    "account": "-",
+    "classification": "HEMATOLOGY",
+    "tax": "-",
+    "genericName": "Enoxaparin sodium*",
+    "brandName": "Troynoxa 60",
+    "dosageStrength": "6000 IU/0.6 mL (60 mg/0.6 ml)",
+    "dosageForm": "Sol'n for Inj. (SC)",
+    "unit": "PFS",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "Troynoxa 60 (Enoxaparin sodium*) 6000 IU/0.6 mL (60 mg/0.6 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 220.0,
+        "packPrice": 220.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 240.0,
+        "packPrice": 240.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 535.0,
+        "packPrice": 535.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 120.0,
+        "packPrice": 120.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 300.0,
+        "packPrice": 300.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "lunazol",
+    "row": 37,
+    "account": "GETMEDS",
+    "classification": "HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Zoledronic Acid (as Monohydrate)",
+    "brandName": "LunaZol",
+    "dosageStrength": "4 mg",
+    "dosageForm": "Lyophilized Powder for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "LunaZol (Zoledronic Acid (as Monohydrate)) 4 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2640.0,
+        "packPrice": 2640.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 4308.48,
+        "packPrice": 4308.48,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5385.6,
+        "packPrice": 5385.6,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2200.0,
+        "packPrice": 2200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3000.0,
+        "packPrice": 3000.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "zologet",
+    "row": 38,
+    "account": "2MG",
+    "classification": "HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Zoledronic Acid",
+    "brandName": "ZoloGet",
+    "dosageStrength": "4 mg",
+    "dosageForm": "Lyo. Powder for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "ZoloGet (Zoledronic Acid) 4 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2640.0,
+        "packPrice": 2640.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 4308.48,
+        "packPrice": 4308.48,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5385.6,
+        "packPrice": 5385.6,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2200.0,
+        "packPrice": 2200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3000.0,
+        "packPrice": 3000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "finmod",
+    "row": 39,
+    "account": "GETMEDS",
+    "classification": "NEUROLOGY / AUTOIMMUNE",
+    "tax": "VAT",
+    "genericName": "Fingolimod*",
+    "brandName": "Finmod",
+    "dosageStrength": "500 mcg",
+    "dosageForm": "Capsule",
+    "unit": "Capsule",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Finmod (Fingolimod*) 500 mcg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 200.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 225.0,
+        "packPrice": 6750.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 300.0,
+        "packPrice": 9000.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 200.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 200.0,
+        "packPrice": 6000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "abiraget",
+    "row": 40,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Abiraterone",
+    "brandName": "AbiraGet",
+    "dosageStrength": "250 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "HDPE Bottle of 120's",
+    "mc": null,
+    "count": 120,
+    "shelfLife": "24 months",
+    "fullName": "AbiraGet (Abiraterone) 250 mg - HDPE Bottle of 120's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 166.67,
+        "packPrice": 20000.4,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 215.59,
+        "packPrice": 25870.54,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 269.48,
+        "packPrice": 32338.17,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 158.33,
+        "packPrice": 18999.6,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 166.6,
+        "packPrice": 19992.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "anagaling",
+    "row": 41,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Anastrozole*",
+    "brandName": "Anagaling",
+    "dosageStrength": "1 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's (Monocarton 10's)",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "Anagaling (Anastrozole*) 1 mg - Box of 100's (Monocarton 10's)",
+    "prices": {
+      "doctor": {
+        "unitPrice": 65.0,
+        "packPrice": 6500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 84.5,
+        "packPrice": 8450.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 105.63,
+        "packPrice": 10562.5,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "bendaget",
+    "row": 42,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Bendamustine",
+    "brandName": "BendaGet",
+    "dosageStrength": "100 mg",
+    "dosageForm": "Lyo. Powder for Conc. for Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "BendaGet (Bendamustine) 100 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 9500.0,
+        "packPrice": 9500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 12500.0,
+        "packPrice": 12500.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 15625.0,
+        "packPrice": 15625.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 9500.0,
+        "packPrice": 9500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 10500.0,
+        "packPrice": 10500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "bleoget",
+    "row": 43,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Bleomycin",
+    "brandName": "BleoGet",
+    "dosageStrength": "-",
+    "dosageForm": "15 Units Lyophilized Powder for Injection",
+    "unit": "VIAL",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "BleoGet (Bleomycin) - - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2018.0,
+        "packPrice": 2018.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2800.0,
+        "packPrice": 2800.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3410.0,
+        "packPrice": 3410.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1750.0,
+        "packPrice": 1750.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2623.0,
+        "packPrice": 2623.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "borteget",
+    "row": 44,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Bortezomib",
+    "brandName": "BorteGet",
+    "dosageStrength": "3.5 mg",
+    "dosageForm": "Lyo. Powder for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "BorteGet (Bortezomib) 3.5 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 6000.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 6375.0,
+        "packPrice": 6375.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 8500.0,
+        "packPrice": 8500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 6000.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 6650.0,
+        "packPrice": 6650.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "brevixel",
+    "row": 45,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Paclitaxel*",
+    "brandName": "Brevixel",
+    "dosageStrength": "6 mg/ml (30 mg/5 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "Brevixel (Paclitaxel*) 6 mg/ml (30 mg/5 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 720.0,
+        "packPrice": 720.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 825.0,
+        "packPrice": 825.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1100.0,
+        "packPrice": 1100.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 720.0,
+        "packPrice": 720.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 845.0,
+        "packPrice": 845.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "capeget",
+    "row": 46,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Capecitabine",
+    "brandName": "CapeGet",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's (Monocarton 10's)",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "CapeGet (Capecitabine) 500 mg - Box of 100's (Monocarton 10's)",
+    "prices": {
+      "doctor": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 66.8,
+        "packPrice": 6680.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 83.5,
+        "packPrice": 8350.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 35.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 55.0,
+        "packPrice": 5500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "capesaya",
+    "row": 47,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Capecitabine",
+    "brandName": "CapeSaya",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's (Monocarton 10's)",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "CapeSaya (Capecitabine) 500 mg - Box of 100's (Monocarton 10's)",
+    "prices": {
+      "doctor": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 66.8,
+        "packPrice": 6680.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 83.5,
+        "packPrice": 8350.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 35.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 45.0,
+        "packPrice": 4500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "carboget-150mg",
+    "row": 48,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Carboplatin",
+    "brandName": "CarboGet 150mg",
+    "dosageStrength": "10 mg/ml (150 mg/15 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CarboGet 150mg (Carboplatin) 10 mg/ml (150 mg/15 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1131.6,
+        "packPrice": 1131.6,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1896.67,
+        "packPrice": 1896.67,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 2370.84,
+        "packPrice": 2370.84,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 943.0,
+        "packPrice": 943.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1265.0,
+        "packPrice": 1265.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "carboget-450mg",
+    "row": 49,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Carboplatin",
+    "brandName": "CarboGet 450mg",
+    "dosageStrength": "10 mg/ml (450 mg/45 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CarboGet 450mg (Carboplatin) 10 mg/ml (450 mg/45 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3450.0,
+        "packPrice": 3450.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5782.54,
+        "packPrice": 5782.54,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 7228.17,
+        "packPrice": 7228.17,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 3450.0,
+        "packPrice": 3450.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3737.5,
+        "packPrice": 3737.5,
+        "note": null
+      }
+    },
+    "statusRemark": "updated (distributor)"
+  },
+  {
+    "id": "cytaget-100mg",
+    "row": 50,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Cytarabine",
+    "brandName": "CytaGet 100mg",
+    "dosageStrength": "100 mg",
+    "dosageForm": "Sol'n for Inj. (IV, SC)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CytaGet 100mg (Cytarabine) 100 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 200.0,
+        "packPrice": 200.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 235.0,
+        "packPrice": 235.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 235.0,
+        "packPrice": 235.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 175.0,
+        "packPrice": 175.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 175.0,
+        "packPrice": 175.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "cytaget-500mg",
+    "row": 51,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Cytarabine",
+    "brandName": "CytaGet 500mg",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Sol'n for Inj. (IV, SC)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "CytaGet 500mg (Cytarabine) 500 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 400.0,
+        "packPrice": 400.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 830.0,
+        "packPrice": 830.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 830.0,
+        "packPrice": 830.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 385.0,
+        "packPrice": 385.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 615.0,
+        "packPrice": 615.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "doseget-20",
+    "row": 52,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Docetaxel (as trihydrate) [COLD CHAIN]",
+    "brandName": "DoseGet-20",
+    "dosageStrength": "20 mg/0.5 mL",
+    "dosageForm": "Conc. Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DoseGet-20 (Docetaxel (as trihydrate) [COLD CHAIN]) 20 mg/0.5 mL - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1800.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2880.0,
+        "packPrice": 2880.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3600.0,
+        "packPrice": 3600.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 650.0,
+        "packPrice": 650.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1000.0,
+        "packPrice": 1000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "doseget-80",
+    "row": 53,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Docetaxel (as trihydrate) [COLD CHAIN]",
+    "brandName": "DoseGet-80",
+    "dosageStrength": "40 mg/mL (80 mg/2 mL)",
+    "dosageForm": "Conc. Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DoseGet-80 (Docetaxel (as trihydrate) [COLD CHAIN]) 40 mg/mL (80 mg/2 mL) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 4500.0,
+        "packPrice": 4500.0,
+        "note": "+1 IV set"
+      },
+      "patient": {
+        "unitPrice": 8640.0,
+        "packPrice": 8640.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 10800.0,
+        "packPrice": 10800.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1250.0,
+        "packPrice": 1250.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1820.0,
+        "packPrice": 1820.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "doseget-120",
+    "row": 54,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Docetaxel (as trihydrate) [COLD CHAIN]",
+    "brandName": "DoseGet-120",
+    "dosageStrength": "120 mg/3 mL",
+    "dosageForm": "Conc. Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DoseGet-120 (Docetaxel (as trihydrate) [COLD CHAIN]) 120 mg/3 mL - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 6500.0,
+        "packPrice": 6500.0,
+        "note": "+ 1 IV set"
+      },
+      "patient": {
+        "unitPrice": 8406.67,
+        "packPrice": 8406.67,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 10508.33,
+        "packPrice": 10508.33,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2000.0,
+        "packPrice": 2000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3200.0,
+        "packPrice": 3200.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "doseget-20mg",
+    "row": 55,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Docetaxel RTU",
+    "brandName": "DoseGet 20mg",
+    "dosageStrength": "20 mg",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DoseGet 20mg (Docetaxel RTU) 20 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2450.0,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3750.0,
+        "packPrice": 3750.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 4500.0,
+        "packPrice": 4500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1850.0,
+        "packPrice": 1850.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2100.0,
+        "packPrice": 2100.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "doseget-80mg",
+    "row": 56,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Docetaxel RTU",
+    "brandName": "DoseGet 80mg",
+    "dosageStrength": "80 mg",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "DoseGet 80mg (Docetaxel RTU) 80 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 5100.0,
+        "packPrice": 5100.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 6250.0,
+        "packPrice": 6250.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 7500.0,
+        "packPrice": 7500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 3800.0,
+        "packPrice": 3800.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 4350.0,
+        "packPrice": 4350.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "idaget-5",
+    "row": 57,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Idarubicin Hydrochloride",
+    "brandName": "IdaGet-5",
+    "dosageStrength": "5 mg",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "IdaGet-5 (Idarubicin Hydrochloride) 5 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 6500.0,
+        "packPrice": 6500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 6520.0,
+        "packPrice": 6520.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 8150.0,
+        "packPrice": 8150.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 6500.0,
+        "packPrice": 6500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 6500.0,
+        "packPrice": 6500.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "fluoroget-500",
+    "row": 58,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Fluorouracil",
+    "brandName": "FluoroGet-500",
+    "dosageStrength": "50 mg/ml (500 mg/10 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "FluoroGet-500 (Fluorouracil) 50 mg/ml (500 mg/10 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 72.0,
+        "packPrice": 72.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 168.0,
+        "packPrice": 168.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 210.0,
+        "packPrice": 210.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 60.0,
+        "packPrice": 60.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 140.0,
+        "packPrice": 140.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "gemalaya-1g",
+    "row": 59,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Gemcitabine",
+    "brandName": "GeMalaya 1g",
+    "dosageStrength": "1 g",
+    "dosageForm": "Lyophilized powder for Injection IV",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "GeMalaya 1g (Gemcitabine) 1 g - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 4800.0,
+        "packPrice": 4800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5316.92,
+        "packPrice": 5316.92,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 6646.15,
+        "packPrice": 6646.15,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2500.0,
+        "packPrice": 2500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3700.0,
+        "packPrice": 3700.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "gemget-1g",
+    "row": 60,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Gemcitabine",
+    "brandName": "GemGet 1g",
+    "dosageStrength": "1 g",
+    "dosageForm": "Conc. for Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "GemGet 1g (Gemcitabine) 1 g - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 4800.0,
+        "packPrice": 4800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5316.92,
+        "packPrice": 5316.92,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 6646.15,
+        "packPrice": 6646.15,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2500.0,
+        "packPrice": 2500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3700.0,
+        "packPrice": 3700.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "gemget-200mg",
+    "row": 61,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Gemcitabine",
+    "brandName": "GemGet 200mg",
+    "dosageStrength": "200 mg",
+    "dosageForm": "Conc. for Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "GemGet 200mg (Gemcitabine) 200 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1560.0,
+        "packPrice": 1560.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1728.0,
+        "packPrice": 1728.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 2160.0,
+        "packPrice": 2160.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1250.0,
+        "packPrice": 1250.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1400.0,
+        "packPrice": 1400.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "hydroxyget",
+    "row": 62,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Hydroxyurea",
+    "brandName": "HydroxyGet",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Capsule",
+    "unit": "Capsule",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "HydroxyGet (Hydroxyurea) 500 mg - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 28.0,
+        "packPrice": 2800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 31.25,
+        "packPrice": 3125.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 40.0,
+        "packPrice": 4000.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 28.0,
+        "packPrice": 2800.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 31.25,
+        "packPrice": 3125.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "ifosfaget",
+    "row": 63,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Ifosfamide",
+    "brandName": "IfosfaGet",
+    "dosageStrength": "1G",
+    "dosageForm": "Powder for Injection (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "IfosfaGet (Ifosfamide) 1G - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1300.0,
+        "packPrice": 1300.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1600.0,
+        "packPrice": 1600.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 2000.0,
+        "packPrice": 2000.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1300.0,
+        "packPrice": 1300.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1400.0,
+        "packPrice": 1400.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "imonib-100",
+    "row": 64,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Imatinib",
+    "brandName": "Imonib-100",
+    "dosageStrength": "100 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "Imonib-100 (Imatinib) 100 mg - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 32.0,
+        "packPrice": 3200.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 65.0,
+        "packPrice": 6500.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 83.5,
+        "packPrice": 8350.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 32.0,
+        "packPrice": 3200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 45.0,
+        "packPrice": 4500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "lapanib",
+    "row": 65,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Lapatinib",
+    "brandName": "Lapanib",
+    "dosageStrength": "250 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "HDPE Bottle of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Lapanib (Lapatinib) 250 mg - HDPE Bottle of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 266.67,
+        "packPrice": 8000.1,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 380.0,
+        "packPrice": 11400.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 475.0,
+        "packPrice": 14250.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 180.0,
+        "packPrice": 5400.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 265.0,
+        "packPrice": 7950.0,
+        "note": null
+      }
+    },
+    "statusRemark": "Updated"
+  },
+  {
+    "id": "letroget",
+    "row": 66,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Letrozole",
+    "brandName": "LetroGet",
+    "dosageStrength": "2.5 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's (Monocarton 10's)",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "LetroGet (Letrozole) 2.5 mg - Box of 100's (Monocarton 10's)",
+    "prices": {
+      "doctor": {
+        "unitPrice": 60.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 80.16,
+        "packPrice": 8016.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 100.2,
+        "packPrice": 10020.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 55.0,
+        "packPrice": 5500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "letrolakas",
+    "row": 67,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Letrozole",
+    "brandName": "LetroLakas",
+    "dosageStrength": "2.5 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's (Monocarton 10's)",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "24 months",
+    "fullName": "LetroLakas (Letrozole) 2.5 mg - Box of 100's (Monocarton 10's)",
+    "prices": {
+      "doctor": {
+        "unitPrice": 60.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 80.16,
+        "packPrice": 8016.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 100.2,
+        "packPrice": 10020.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 50.0,
+        "packPrice": 5000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 55.0,
+        "packPrice": 5500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "methoget-500",
+    "row": 68,
+    "account": "2MG",
+    "classification": "ONCOLOGY / HEMATOLOGY",
+    "tax": "VE",
+    "genericName": "Methotrexate",
+    "brandName": "MethoGet-500",
+    "dosageStrength": "100mg/ml (500mg / 5ml)",
+    "dosageForm": "Solution for Injection (IM/IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "MethoGet-500 (Methotrexate) 100mg/ml (500mg / 5ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 850.0,
+        "packPrice": 850.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1050.0,
+        "packPrice": 1050.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1450.0,
+        "packPrice": 1450.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 700.0,
+        "packPrice": 700.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 900.0,
+        "packPrice": 900.0,
+        "note": null
+      }
+    },
+    "statusRemark": "New Med"
+  },
+  {
+    "id": "myxiget",
+    "row": 69,
+    "account": "2MG",
+    "classification": "ONCOLOGY ADJUVANT",
+    "tax": "VAT",
+    "genericName": "Polymyxin B",
+    "brandName": "MyxiGet",
+    "dosageStrength": "10ml",
+    "dosageForm": null,
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 monłhs",
+    "fullName": "MyxiGet (Polymyxin B) 10ml - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1900.0,
+        "packPrice": 1900.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2200.0,
+        "packPrice": 2200.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 2750.0,
+        "packPrice": 2750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1300.0,
+        "packPrice": 1300.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 1700.0,
+        "packPrice": 1700.0,
+        "note": null
+      }
+    },
+    "statusRemark": "Adjusted"
+  },
+  {
+    "id": "ondaget",
+    "row": 70,
+    "account": "2MG",
+    "classification": "ONCOLOGY ADJUVANT",
+    "tax": "VE",
+    "genericName": "Ondansetron (as HCl)",
+    "brandName": "OndaGet",
+    "dosageStrength": "8 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "OndaGet (Ondansetron (as HCl)) 8 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 60.0,
+        "packPrice": 1800.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 92.16,
+        "packPrice": 2764.8,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 115.2,
+        "packPrice": 3456.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 35.0,
+        "packPrice": 1050.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 50.0,
+        "packPrice": 1500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "ondenget-2",
+    "row": 71,
+    "account": "2MG",
+    "classification": "ONCOLOGY ADJUVANT",
+    "tax": "VE",
+    "genericName": "Ondansetron (as HCl)*",
+    "brandName": "Ondenget 2",
+    "dosageStrength": "2 mg/ml (8 mg/4 ml)",
+    "dosageForm": "Sol'n for Inj. (IM/IV)",
+    "unit": "Ampoule",
+    "packSize": "Box of 5's",
+    "mc": null,
+    "count": 5,
+    "shelfLife": "36 months",
+    "fullName": "Ondenget 2 (Ondansetron (as HCl)*) 2 mg/ml (8 mg/4 ml) - Box of 5's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 270.0,
+        "packPrice": 1350.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 432.0,
+        "packPrice": 2160.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 540.0,
+        "packPrice": 2700.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 90.0,
+        "packPrice": 450.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 225.0,
+        "packPrice": 1125.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "oxaliget-50mg",
+    "row": 72,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Oxaliplatin",
+    "brandName": "OxaliGet 50mg",
+    "dosageStrength": "2 mg/ml (50 mg/25 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "OxaliGet 50mg (Oxaliplatin) 2 mg/ml (50 mg/25 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2300.0,
+        "packPrice": 2300.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3622.28,
+        "packPrice": 3622.28,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 4527.85,
+        "packPrice": 4527.85,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1796.3,
+        "packPrice": 1796.3,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2616.25,
+        "packPrice": 2616.25,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "oxaliget-100mg",
+    "row": 73,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Oxaliplatin",
+    "brandName": "OxaliGet 100mg",
+    "dosageStrength": "2 mg/ml (100 mg/50 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "OxaliGet 100mg (Oxaliplatin) 2 mg/ml (100 mg/50 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3680.0,
+        "packPrice": 3680.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5795.65,
+        "packPrice": 5795.65,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 7244.56,
+        "packPrice": 7244.56,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2802.55,
+        "packPrice": 2802.55,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 4088.25,
+        "packPrice": 4088.25,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "pacliget-100mg",
+    "row": 74,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Paclitaxel",
+    "brandName": "PacliGet 100mg",
+    "dosageStrength": "6 mg/ml (100 mg/16.7 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "PacliGet 100mg (Paclitaxel) 6 mg/ml (100 mg/16.7 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2800.0,
+        "packPrice": 2800.0,
+        "note": "+ 1 IV set every 300mg"
+      },
+      "patient": {
+        "unitPrice": 4462.77,
+        "packPrice": 4462.77,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 5578.46,
+        "packPrice": 5578.46,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1950.0,
+        "packPrice": 1950.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 2600.0,
+        "packPrice": 2600.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "pacliget-260mg",
+    "row": 75,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Paclitaxel*",
+    "brandName": "PacliGet 260mg",
+    "dosageStrength": "6 mg/ml (260 mg/43.4 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "PacliGet 260mg (Paclitaxel*) 6 mg/ml (260 mg/43.4 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3500.0,
+        "packPrice": 3500.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 5578.46,
+        "packPrice": 5578.46,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 6973.08,
+        "packPrice": 6973.08,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2700.0,
+        "packPrice": 2700.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3500.0,
+        "packPrice": 3500.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "pacliget-300mg",
+    "row": 76,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Paclitaxel",
+    "brandName": "PacliGet 300mg",
+    "dosageStrength": "6 mg/ml (300 mg/50 ml)",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "PacliGet 300mg (Paclitaxel) 6 mg/ml (300 mg/50 ml) - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 7200.0,
+        "packPrice": 7200.0,
+        "note": "+1 IV set"
+      },
+      "patient": {
+        "unitPrice": 11475.69,
+        "packPrice": 11475.69,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 14344.62,
+        "packPrice": 14344.62,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 6000.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 5000.0,
+        "packPrice": 5000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "paloget",
+    "row": 77,
+    "account": "GETMEDS",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Palonosetron Hydrochloride",
+    "brandName": "PaloGet",
+    "dosageStrength": "50 MCG/ ML (250 MCG/5 ML)",
+    "dosageForm": "Solution for Intravenous Injection",
+    "unit": "VIAL",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "36 months",
+    "fullName": "PaloGet (Palonosetron Hydrochloride) 50 MCG/ ML (250 MCG/5 ML) - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2670.0,
+        "packPrice": 2670.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 2880.0,
+        "packPrice": 2880.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3600.0,
+        "packPrice": 3600.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2250.0,
+        "packPrice": 2250.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3150.0,
+        "packPrice": 3150.0,
+        "note": null
+      }
+    },
+    "statusRemark": "Updated"
+  },
+  {
+    "id": "pazoget-200",
+    "row": 78,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Pazopanib",
+    "brandName": "PazoGet 200",
+    "dosageStrength": "200 mg",
+    "dosageForm": "Film-Coated Tablet",
+    "unit": "Tablet",
+    "packSize": "HDPE Bottle of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "PazoGet 200 (Pazopanib) 200 mg - HDPE Bottle of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 380.76,
+        "packPrice": 11422.8,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 445.33,
+        "packPrice": 13359.9,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 557.0,
+        "packPrice": 16710.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 380.76,
+        "packPrice": 11422.8,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 400.8,
+        "packPrice": 12024.0,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "pazoget-400",
+    "row": 79,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Pazopanib",
+    "brandName": "PazoGet 400",
+    "dosageStrength": "400 mg",
+    "dosageForm": "Film-Coated Tablet",
+    "unit": "Tablet",
+    "packSize": "HDPE Bottle of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "PazoGet 400 (Pazopanib) 400 mg - HDPE Bottle of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 761.52,
+        "packPrice": 22845.6,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 890.67,
+        "packPrice": 26720.1,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1113.0,
+        "packPrice": 33390.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 761.52,
+        "packPrice": 22845.6,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 801.6,
+        "packPrice": 24048.0,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "pemiget",
+    "row": 80,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Pemetrexed",
+    "brandName": "PemiGet",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Lyo. Powder for Conc. for Sol'n for IV Infusion",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "PemiGet (Pemetrexed) 500 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 8750.0,
+        "packPrice": 8750.0,
+        "note": "+ IV set"
+      },
+      "patient": {
+        "unitPrice": 13400.0,
+        "packPrice": 13400.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 16750.0,
+        "packPrice": 16750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 7200.0,
+        "packPrice": 7200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 9750.0,
+        "packPrice": 9750.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "soraget-200mg",
+    "row": 81,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Sorafenib",
+    "brandName": "Soraget 200mg",
+    "dosageStrength": "200mg",
+    "dosageForm": null,
+    "unit": "Tablets",
+    "packSize": "BOTTLE OF 60'S",
+    "mc": null,
+    "count": 60,
+    "shelfLife": "24 months",
+    "fullName": "Soraget 200mg (Sorafenib) 200mg - BOTTLE OF 60'S",
+    "prices": {
+      "doctor": {
+        "unitPrice": 200.0,
+        "packPrice": 12000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 220.0,
+        "packPrice": 13200.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 275.0,
+        "packPrice": 16500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 120.0,
+        "packPrice": 7200.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 160.0,
+        "packPrice": 9600.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "sykloget",
+    "row": 82,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Cyclophosphamide",
+    "brandName": "SykloGet",
+    "dosageStrength": "500 mg",
+    "dosageForm": "Powder for Inj. (IV) in Vial",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "SykloGet (Cyclophosphamide) 500 mg - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 204.0,
+        "packPrice": 204.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 288.0,
+        "packPrice": 288.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 360.0,
+        "packPrice": 360.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 170.0,
+        "packPrice": 170.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 200.0,
+        "packPrice": 200.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "temoget",
+    "row": 83,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Temozolomide",
+    "brandName": "TemoGet",
+    "dosageStrength": "100 mg",
+    "dosageForm": "Capsule",
+    "unit": "Capsule",
+    "packSize": "HDPE Bottle of 5's",
+    "mc": null,
+    "count": 5,
+    "shelfLife": "24 months",
+    "fullName": "TemoGet (Temozolomide) 100 mg - HDPE Bottle of 5's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 1200.0,
+        "packPrice": 6000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1538.57,
+        "packPrice": 7692.86,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1923.21,
+        "packPrice": 9616.07,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 672.0,
+        "packPrice": 3360.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 850.0,
+        "packPrice": 4250.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "vincriget",
+    "row": 84,
+    "account": "2MG",
+    "classification": "ONCOLOGY",
+    "tax": "VE",
+    "genericName": "Vincristine [COLD CHAIN]",
+    "brandName": "VincriGet",
+    "dosageStrength": "1 mg/ml",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "24 months",
+    "fullName": "VincriGet (Vincristine [COLD CHAIN]) 1 mg/ml - Box of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 352.0,
+        "packPrice": 352.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 464.0,
+        "packPrice": 464.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 580.0,
+        "packPrice": 580.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 312.0,
+        "packPrice": 312.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 446.0,
+        "packPrice": 446.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "etrobax-60",
+    "row": 85,
+    "account": "GETMEDS",
+    "classification": "PAIN MANAGEMENT",
+    "tax": "VAT",
+    "genericName": "Etoricoxib*",
+    "brandName": "Etrobax 60",
+    "dosageStrength": "60 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "Etrobax 60 (Etoricoxib*) 60 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 5.88,
+        "packPrice": 176.4,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 9.38,
+        "packPrice": 281.25,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 12.5,
+        "packPrice": 375.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 5.88,
+        "packPrice": 176.4,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 7.75,
+        "packPrice": 232.5,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "etrobax-90",
+    "row": 86,
+    "account": "GETMEDS",
+    "classification": "PAIN MANAGEMENT",
+    "tax": "VAT",
+    "genericName": "Etoricoxib*",
+    "brandName": "Etrobax 90",
+    "dosageStrength": "90 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "Etrobax 90 (Etoricoxib*) 90 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 7.56,
+        "packPrice": 226.8,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 11.63,
+        "packPrice": 348.75,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 15.5,
+        "packPrice": 465.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 7.56,
+        "packPrice": 226.8,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 10.0,
+        "packPrice": 300.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "etrobax-120",
+    "row": 87,
+    "account": "GETMEDS",
+    "classification": "PAIN MANAGEMENT",
+    "tax": "VAT",
+    "genericName": "Etoricoxib*",
+    "brandName": "Etrobax 120",
+    "dosageStrength": "120 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "Etrobax 120 (Etoricoxib*) 120 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 9.52,
+        "packPrice": 285.6,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 13.88,
+        "packPrice": 416.25,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 18.5,
+        "packPrice": 555.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 9.52,
+        "packPrice": 285.6,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 12.5,
+        "packPrice": 375.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "iohexiget",
+    "row": 88,
+    "account": "2MG",
+    "classification": "RADIOLOGY",
+    "tax": "VAT",
+    "genericName": "Iodine (as Iohexol)",
+    "brandName": "IohexiGet",
+    "dosageStrength": "350mg",
+    "dosageForm": "Sol'n for Inj. (IV)",
+    "unit": "Vial",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "IohexiGet (Iodine (as Iohexol)) 350mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 3500.0,
+        "packPrice": 105000.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3800.0,
+        "packPrice": 114000.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 3800.0,
+        "packPrice": 114000.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 2500.0,
+        "packPrice": 75000.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3000.0,
+        "packPrice": 90000.0,
+        "note": null
+      }
+    },
+    "statusRemark": "Updated"
+  },
+  {
+    "id": "sevelaget",
+    "row": 89,
+    "account": "2MG",
+    "classification": "RENAL / NEPHROLOGY",
+    "tax": "VE",
+    "genericName": "Sevelamer carbonate*",
+    "brandName": "SevelaGet",
+    "dosageStrength": "800 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "HDPE Bottle of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "36 months",
+    "fullName": "SevelaGet (Sevelamer carbonate*) 800 mg - HDPE Bottle of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 20.0,
+        "packPrice": 600.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 29.25,
+        "packPrice": 877.5,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 37.5,
+        "packPrice": 1125.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 20.0,
+        "packPrice": 600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 27.0,
+        "packPrice": 810.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "alislergy",
+    "row": 90,
+    "account": "2MG",
+    "classification": "RESPIRATORY / ALLERGY",
+    "tax": "VAT",
+    "genericName": "Loratadine",
+    "brandName": "AlisLergy",
+    "dosageStrength": "10 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "36 months",
+    "fullName": "AlisLergy (Loratadine) 10 mg - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 9.0,
+        "packPrice": 900.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 12.0,
+        "packPrice": 1200.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 12.0,
+        "packPrice": 1200.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 6.0,
+        "packPrice": 600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 8.5,
+        "packPrice": 850.0,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "cetriget",
+    "row": 91,
+    "account": "2MG",
+    "classification": "RESPIRATORY / ALLERGY / ANTIHISTAMINE",
+    "tax": "VAT",
+    "genericName": "Cetirizine",
+    "brandName": "CetriGet",
+    "dosageStrength": "10 mg",
+    "dosageForm": "Tablet",
+    "unit": "Tablet",
+    "packSize": "Pack of 10's",
+    "mc": null,
+    "count": 10,
+    "shelfLife": "36 months",
+    "fullName": "CetriGet (Cetirizine) 10 mg - Pack of 10's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 2.75,
+        "packPrice": 27.5,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 3.5,
+        "packPrice": 35.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 4.0,
+        "packPrice": 40.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 1.5,
+        "packPrice": 15.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 3.25,
+        "packPrice": 32.5,
+        "note": null
+      }
+    },
+    "statusRemark": "NEW MED"
+  },
+  {
+    "id": "goab-10",
+    "row": 92,
+    "account": "GETMEDS",
+    "classification": "UROLOGY / GENITOURINARY",
+    "tax": "VAT",
+    "genericName": "Solifenacin*",
+    "brandName": "Goab 10",
+    "dosageStrength": "10 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Goab 10 (Solifenacin*) 10 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 27.0,
+        "packPrice": 810.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 43.2,
+        "packPrice": 1296.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 54.0,
+        "packPrice": 1620.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 22.5,
+        "packPrice": 675.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 22.5,
+        "packPrice": 675.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "goab-5",
+    "row": 93,
+    "account": "GETMEDS",
+    "classification": "UROLOGY / GENITOURINARY",
+    "tax": "VAT",
+    "genericName": "Solifenacin*",
+    "brandName": "Goab 5",
+    "dosageStrength": "5 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Goab 5 (Solifenacin*) 5 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 24.0,
+        "packPrice": 720.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 38.4,
+        "packPrice": 1152.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 48.0,
+        "packPrice": 1440.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 20.0,
+        "packPrice": 600.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 20.0,
+        "packPrice": 600.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "tadafil",
+    "row": 94,
+    "account": "GETMEDS",
+    "classification": "UROLOGY / CARDIOLOGY",
+    "tax": "VE",
+    "genericName": "Tadalafil*",
+    "brandName": "Tadafil",
+    "dosageStrength": "10 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Tadafil (Tadalafil*) 10 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 34.8,
+        "packPrice": 1044.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 134.4,
+        "packPrice": 4032.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 168.0,
+        "packPrice": 5040.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 29.0,
+        "packPrice": 870.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 60.0,
+        "packPrice": 1800.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "tadafil-20mg",
+    "row": 95,
+    "account": "GETMEDS",
+    "classification": "UROLOGY / CARDIOLOGY",
+    "tax": "VE",
+    "genericName": "Tadalafil*",
+    "brandName": "Tadafil 20mg",
+    "dosageStrength": "20 mg",
+    "dosageForm": "Film-coated Tablet",
+    "unit": "Tablet",
+    "packSize": "Box of 30's",
+    "mc": null,
+    "count": 30,
+    "shelfLife": "24 months",
+    "fullName": "Tadafil 20mg (Tadalafil*) 20 mg - Box of 30's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 46.8,
+        "packPrice": 1404.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 180.74,
+        "packPrice": 5422.34,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 225.93,
+        "packPrice": 6777.93,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 39.0,
+        "packPrice": 1170.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 80.0,
+        "packPrice": 2400.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds",
+    "row": 96,
+    "account": "2MG",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Blood Transfusion Set",
+    "brandName": "Getmeds",
+    "dosageStrength": "-",
+    "dosageForm": "-",
+    "unit": "Unit",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "60 months",
+    "fullName": "Getmeds (Blood Transfusion Set) - - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 18.0,
+        "packPrice": 18.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 32.0,
+        "packPrice": 32.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 32.0,
+        "packPrice": 32.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 13.5,
+        "packPrice": 13.5,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 20.0,
+        "packPrice": 20.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds-g20-g22",
+    "row": 97,
+    "account": "2MG",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Intravenous Cannula Set",
+    "brandName": "Getmeds / G20, G22",
+    "dosageStrength": "G20, G22",
+    "dosageForm": "w/ Wings and w/ Port",
+    "unit": "Piece",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "60 months",
+    "fullName": "Getmeds / G20, G22 (Intravenous Cannula Set) G20, G22 - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 12.75,
+        "packPrice": 1275.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 5.0,
+        "packPrice": 500.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 8.5,
+        "packPrice": 850.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds-g24",
+    "row": 98,
+    "account": "2MG",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Intravenous Cannula Set",
+    "brandName": "Getmeds / G24",
+    "dosageStrength": "G24",
+    "dosageForm": "w/ Wings and w/ Port",
+    "unit": "Piece",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "60 months",
+    "fullName": "Getmeds / G24 (Intravenous Cannula Set) G24 - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 12.75,
+        "packPrice": 1275.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 5.65,
+        "packPrice": 565.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 9.5,
+        "packPrice": 950.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds-g26",
+    "row": 99,
+    "account": "2MG",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Intravenous Cannula Set",
+    "brandName": "Getmeds / G26",
+    "dosageStrength": "G26",
+    "dosageForm": "w/ Wings and w/ Port",
+    "unit": "Piece",
+    "packSize": "Box of 100's",
+    "mc": null,
+    "count": 100,
+    "shelfLife": "60 months",
+    "fullName": "Getmeds / G26 (Intravenous Cannula Set) G26 - Box of 100's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 12.75,
+        "packPrice": 1275.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 24.5,
+        "packPrice": 2450.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 7.85,
+        "packPrice": 785.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 11.5,
+        "packPrice": 1150.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds-2",
+    "row": 100,
+    "account": "2MG",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Intravenous Infusion Set",
+    "brandName": "Getmeds -",
+    "dosageStrength": "-",
+    "dosageForm": "w/ AirVent and 0.2-micron Filter",
+    "unit": "Unit",
+    "packSize": "Pack of 1's",
+    "mc": null,
+    "count": 1,
+    "shelfLife": "60 months",
+    "fullName": "Getmeds - (Intravenous Infusion Set) - - Pack of 1's",
+    "prices": {
+      "doctor": {
+        "unitPrice": 380.0,
+        "packPrice": 380.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 380.0,
+        "packPrice": 380.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 500.0,
+        "packPrice": 500.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 250.0,
+        "packPrice": 250.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 365.0,
+        "packPrice": 365.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  },
+  {
+    "id": "getmeds-disposable-blood-bags-single",
+    "row": 101,
+    "account": "GETMEDS",
+    "classification": "MEDICAL SUPPLIES",
+    "tax": "VAT",
+    "genericName": "Single Blood Bag",
+    "brandName": "Getmeds Disposable Blood Bags-Single",
+    "dosageStrength": "450 ML",
+    "dosageForm": "Disposable Blood Bag - Single",
+    "unit": "POUCH",
+    "packSize": null,
+    "mc": null,
+    "count": 5,
+    "shelfLife": "36 months",
+    "fullName": "Getmeds Disposable Blood Bags-Single (Single Blood Bag) 450 ML",
+    "prices": {
+      "doctor": {
+        "unitPrice": 225.0,
+        "packPrice": 1125.0,
+        "note": null
+      },
+      "patient": {
+        "unitPrice": 1150.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "srp": {
+        "unitPrice": 1150.0,
+        "packPrice": 5750.0,
+        "note": null
+      },
+      "distributor": {
+        "unitPrice": 180.0,
+        "packPrice": 900.0,
+        "note": null
+      },
+      "hospital": {
+        "unitPrice": 200.0,
+        "packPrice": 1000.0,
+        "note": null
+      }
+    },
+    "statusRemark": null
+  }
+]

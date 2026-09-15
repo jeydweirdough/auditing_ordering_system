@@ -1,0 +1,116 @@
+{
+  "bundles": [
+    {
+      "id": "bnd-1789418141162-l3k4",
+      "name": "Emergency Pack Test",
+      "code": "BND-EMERG-TEST",
+      "description": "First aid emergency package",
+      "items": [
+        {
+          "name": "Betadine 10%",
+          "qty": 2
+        },
+        {
+          "name": "Gauze Bandage 4x4",
+          "qty": 10
+        }
+      ],
+      "bundlePrice": 900,
+      "active": true
+    },
+    {
+      "id": "bnd-starter-pack",
+      "name": "Surgical Prep Bundle",
+      "code": "BND-SURG-PREP",
+      "description": "Essential anesthesia and pain relief starter kit for surgical clinics.",
+      "items": [
+        {
+          "product": "AtraGet 10mg (Atracurium) 10mg - PACK OF 5'S",
+          "qty": 2,
+          "unitType": "pack"
+        },
+        {
+          "product": "TramolGet 50mg/ml (Tramadol) 50mg/ml 2ml - PACK OF 10'S",
+          "qty": 1,
+          "unitType": "pack"
+        }
+      ],
+      "bundlePrice": 4500,
+      "active": true
+    },
+    {
+      "id": "bnd-antibiotic-duo",
+      "name": "Antibiotic Care Duo",
+      "code": "BND-ANTI-DUO",
+      "description": "Combined broad-spectrum antibiotic regimen for hospital wards.",
+      "items": [
+        {
+          "product": "Ceftriaxone (Getaxone) 1g vial",
+          "qty": 5,
+          "unitType": "unit"
+        },
+        {
+          "product": "Cefuroxime (CefuGet) 750mg vial",
+          "qty": 5,
+          "unitType": "unit"
+        }
+      ],
+      "bundlePrice": 2800,
+      "active": true
+    }
+  ],
+  "promos": [
+    {
+      "id": "prm-q3-surge",
+      "name": "Q3 Hospital Surge Promo",
+      "code": "HOSPQ3",
+      "description": "Free cold-chain delivery and special priority packing on bulk hospital orders.",
+      "startDate": "2026-07-01",
+      "endDate": "2026-09-30",
+      "tag": "Priority Shipping",
+      "active": true
+    },
+    {
+      "id": "prm-clinics-launch",
+      "name": "New Clinic Welcome Campaign",
+      "code": "WELCOMECLINIC",
+      "description": "Introductory campaign offering expedited verification for new medical centers.",
+      "startDate": "2026-08-01",
+      "endDate": "2026-10-31",
+      "tag": "Fast-Track",
+      "active": true
+    }
+  ],
+  "discounts": [
+    {
+      "id": "dsc-bulk-5pct",
+      "name": "Bulk Volume 5% Off",
+      "code": "BULK5",
+      "type": "percentage",
+      "value": 5,
+      "minSpend": 25000,
+      "description": "5% discount for orders reaching PHP 25,000 or above.",
+      "active": true
+    },
+    {
+      "id": "dsc-fixed-1000",
+      "name": "Hospital Partner ₱1,000 Off",
+      "code": "HOSP1000",
+      "type": "fixed",
+      "value": 1000,
+      "minSpend": 15000,
+      "description": "Fixed ₱1,000 voucher deduction for partner institutional accounts.",
+      "active": true
+    },
+    {
+      "id": "dsc-loyalty-10pct",
+      "name": "VIP Medical Center 10% Off",
+      "code": "VIP10",
+      "type": "percentage",
+      "value": 10,
+      "minSpend": 50000,
+      "description": "Exclusive 10% discount on high-volume institutional medical procurements.",
+      "active": true
+    }
+  ]
+}

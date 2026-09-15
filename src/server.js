@@ -2,25 +2,40 @@ const path = require('path');
 const express = require('express');
 const accounts = require('./accounts');
 const orders = require('./orders');
+const configStore = require('./configStore');
+const products = require('./products');
 
 const app = express();
 
-// Orders are read back from #order-audit before anything is answered, so new order ids continue
-// after the stored ones. `npm start` waits for it before listening; Vercel imports this file
-// instead of running it, so there the first request waits for it.
+// All records (orders, config/settings, products) are read back from Discord before anything is answered.
+// `npm start` waits for it before listening; Vercel imports this file instead of running it, so there
+// the first request waits for it.
 let loading = null;
-const ready = () => (loading ??= orders.load());
+const ready = () => (loading ??= Promise.all([
+  orders.load(),
+  configStore.loadFromDiscord(),
+  products.loadFromDiscord(),
+]));
 app.use((_req, _res, next) => { ready().then(() => next(), next); });
 
 app.use(express.json({ limit: '5mb' }));   // a new order's files come base64-encoded in the JSON
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// The orders app: sign-in, a dashboard per role, and each order's audit trail, mirrored to its
-// thread in #order-audit (src/orders.js).
-app.get('/app', (_req, res) => {
-  res.set('Content-Security-Policy', "frame-ancestors 'none'");   // no other site can frame the sign-in
-  res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
-});
-app.get('/', (_req, res) => res.redirect('/app'));
+// Multi-page routing
+const servePage = (filename) => (_req, res) => {
+  res.set('Content-Security-Policy', "frame-ancestors 'none'");
+  res.sendFile(path.join(__dirname, '..', 'public', filename));
+};
+
+app.get('/login', servePage('login.html'));
+app.get('/dashboard', servePage('dashboard.html'));
+app.get('/orders', servePage('orders.html'));
+app.get('/order', servePage('order.html'));
+app.get('/new-order', servePage('new-order.html'));
+app.get('/people', servePage('people.html'));
+app.get('/settings', servePage('settings.html'));
+app.get('/promotions', servePage('promotions.html'));
+app.get(['/', '/app'], (_req, res) => res.redirect('/dashboard'));
 app.use('/api', accounts.router);
 app.use('/api/orders', orders.router);
 

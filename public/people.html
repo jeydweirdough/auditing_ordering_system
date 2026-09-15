@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>People · record_database orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top" id="site-header"></header>
+
+  <div class="bar">
+    <div class="bar-left">
+      <p class="role-line">Create, edit, delete and restore any order, and manage who can sign in. Every change is logged in #order-audit.</p>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Order lists">
+        <button type="button" class="tab" onclick="window.location.href='/orders?tab=all'">All orders</button>
+        <button type="button" class="tab" onclick="window.location.href='/orders?tab=discord'">Not in Discord</button>
+        <button type="button" class="tab" onclick="window.location.href='/orders?tab=deleted'">Deleted</button>
+        <button type="button" class="tab" aria-selected="true">People</button>
+      </nav>
+    </div>
+    <button type="button" class="btn" onclick="window.location.href='/new-order'">New order</button>
+  </div>
+
+  <div class="work" style="grid-template-columns: 1fr;">
+    <div class="list-col" id="people-content">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading user accounts…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/people.js"></script>
+</body>
+</html>

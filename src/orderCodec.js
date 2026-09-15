@@ -57,10 +57,10 @@ function merge(target, extra) {
 // Pretty JSON, with each item and each person on one line, so an order fits in one message.
 const STR = '"(?:[^"\\\\]|\\\\.)*"';
 const NUM = '-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?';
-const ITEM = new RegExp(`\\{\\n\\s+"product": (${STR}),\\n\\s+"qty": (${NUM}),\\n\\s+"unitPrice": (${NUM})\\n\\s+\\}`, 'g');
+const ITEM = new RegExp(`\\{\\n\\s+"product": (${STR}),\\n\\s+"qty": (${NUM}),\\n\\s+"unitPrice": (${NUM})(?:,\\n\\s+"priceType": (${STR}))?(?:,\\n\\s+"unitType": (${STR}))?\\n\\s+\\}`, 'g');
 const PERSON = new RegExp(`\\{\\n\\s+"id": (${NUM}),\\n\\s+"name": (${STR}),\\n\\s+"role": (${STR})\\n\\s+\\}`, 'g');
 const tidy = (json) => json
-  .replace(ITEM, '{ "product": $1, "qty": $2, "unitPrice": $3 }')
+  .replace(ITEM, (_m, p, q, u, pt, ut) => `{ "product": ${p}, "qty": ${q}, "unitPrice": ${u}${pt ? `, "priceType": ${pt}` : ''}${ut ? `, "unitType": ${ut}` : ''} }`)
   .replace(PERSON, '{ "id": $1, "name": $2, "role": $3 }');
 
 const fileName = (orderId, seq) => `${orderId}-step-${seq}.json`;

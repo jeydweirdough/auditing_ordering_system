@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New order · record_database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header class="top" id="site-header"></header>
+
+  <div class="bar">
+    <div class="bar-left">
+      <p class="role-line" id="role-line"></p>
+    </div>
+  </div>
+
+  <div class="work" style="grid-template-columns: 1fr; margin-bottom: 40px;">
+    <aside class="side full-page" id="side" aria-label="Order">
+      <!-- Expanded side form rendered here -->
+    </aside>
+  </div>
+</div>
+
+<dialog class="modal" id="for-dialog" aria-labelledby="for-title"></dialog>
+<dialog class="modal" id="customer-dialog" aria-labelledby="cust-dialog-title"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/new-order.js"></script>
+</body>
+</html>
