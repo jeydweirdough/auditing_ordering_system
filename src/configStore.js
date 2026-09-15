@@ -1,258 +1,32 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { createDiscordStore } = require('./discordStore');
+// Config store backed strictly by Discord Database Tables.
+// Table "settings"   -> rows: divisions, headquarters, invoicing_from, payment_methods, sources, payment_terms, delivery_methods, customers, recycle_bin
+// Table "rbac"       -> rows: admin, management, finance, salesperson, dispatch, (and custom roles)
+// Table "promotions" -> rows: bundles, promos, discounts
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const { createDiscordTable } = require('./discordTable');
 
-const DEFAULT_DIVISIONS = [
-  { name: 'B2C', subDivisions: ['MD Telesales'] },
-  { name: 'STC', subDivisions: ['MD Telesales'] },
-  { name: 'URO', subDivisions: ['MD Telesales'] },
-  { name: 'B&B', subDivisions: ['MD Telesales'] },
-  { name: 'B2B', subDivisions: ['NBD', 'CRR'] },
-  { name: 'HOS', subDivisions: ['Hospital', 'Telesales'] },
-  { name: 'BID', subDivisions: ['Bidding'] },
-];
+const env = process.env;
+const botToken = env.DISCORD_BOT_TOKEN || null;
 
-const DEFAULT_HEADQUARTERS = [
-  'QC Central HQ',
-  'Makati Regional HQ',
-  'Cebu Branch',
-  'Davao Branch',
-];
+const settingsTable = createDiscordTable({
+  webhookUrl: env.DISCORD_SETTING_WEBHOOK_TOKEN,
+  botToken,
+  tableName: 'settings',
+});
 
-const DEFAULT_INVOICING_FROM = [
-  '2mg Incorporated',
-  'Getmeds Philippines Inc.',
-];
+const rbacTable = createDiscordTable({
+  webhookUrl: env.DISCORD_RBAC_WEBHOOK_ID,
+  botToken,
+  tableName: 'rbac',
+});
 
-const DEFAULT_PAYMENT_METHODS = [
-  'Cash on delivery',
-  'Bank transfer',
-  'GCash',
-  'Credit terms',
-  'Check',
-  'Credit Card',
-  'PDC',
-];
-
-const DEFAULT_SOURCES = [
-  'Doctor order',
-  'Patient order referred by doctor',
-  'Patient order referred by patient',
-  'Emergency purchase',
-  'Hospital PO',
-  'Distributor order',
-];
-
-const DEFAULT_PAYMENT_TERMS = [
-  'Due end of next month', 'Due end of the month', 'Paid', 'Advanced Payment', 'Advanced Payment - Partial',
-  'Donation/Charity', 'Samples', 'Due on Receipt', '60% DP 40% UPON DEL', 'CASH', 'COD', 'Net', 'Net 15',
-  '30 days', '45 Day', 'BPO WALLET', '60 Day', 'DSWD/PCSO', 'OP', '90 Day', 'INITIAL STOCKING', '120 Day', '180 Day',
-];
-
-const DEFAULT_DELIVERY_METHODS = [
-  'Own Rider / Company Vehicle',
-  'LBC Express',
-  'Grab Express',
-  'J&T Express',
-  'Lalamove',
-  'Customer Pick-up',
-  'Distributor Delivery',
-];
-
-const DEFAULT_PROMOTIONS = {
-  bundles: [
-    {
-      id: 'bnd-starter-pack',
-      name: 'Surgical Prep Bundle',
-      code: 'BND-SURG-PREP',
-      description: 'Essential anesthesia and pain relief starter kit for surgical clinics.',
-      items: [
-        { product: "AtraGet 10mg (Atracurium) 10mg - PACK OF 5'S", qty: 2, unitType: 'pack' },
-        { product: 'TramolGet 50mg/ml (Tramadol) 50mg/ml 2ml - PACK OF 10\'S', qty: 1, unitType: 'pack' }
-      ],
-      bundlePrice: 4500,
-      active: true
-    },
-    {
-      id: 'bnd-antibiotic-duo',
-      name: 'Antibiotic Care Duo',
-      code: 'BND-ANTI-DUO',
-      description: 'Combined broad-spectrum antibiotic regimen for hospital wards.',
-      items: [
-        { product: 'Ceftriaxone (Getaxone) 1g vial', qty: 5, unitType: 'unit' },
-        { product: 'Cefuroxime (CefuGet) 750mg vial', qty: 5, unitType: 'unit' }
-      ],
-      bundlePrice: 2800,
-      active: true
-    }
-  ],
-  promos: [
-    {
-      id: 'prm-q3-surge',
-      name: 'Q3 Hospital Surge Promo',
-      code: 'HOSPQ3',
-      description: 'Free cold-chain delivery and special priority packing on bulk hospital orders.',
-      startDate: '2026-07-01',
-      endDate: '2026-09-30',
-      tag: 'Priority Shipping',
-      active: true
-    },
-    {
-      id: 'prm-clinics-launch',
-      name: 'New Clinic Welcome Campaign',
-      code: 'WELCOMECLINIC',
-      description: 'Introductory campaign offering expedited verification for new medical centers.',
-      startDate: '2026-08-01',
-      endDate: '2026-10-31',
-      tag: 'Fast-Track',
-      active: true
-    }
-  ],
-  discounts: [
-    {
-      id: 'dsc-bulk-5pct',
-      name: 'Bulk Volume 5% Off',
-      code: 'BULK5',
-      type: 'percentage',
-      value: 5,
-      minSpend: 25000,
-      description: '5% discount for orders reaching PHP 25,000 or above.',
-      active: true
-    },
-    {
-      id: 'dsc-fixed-1000',
-      name: 'Hospital Partner ₱1,000 Off',
-      code: 'HOSP1000',
-      type: 'fixed',
-      value: 1000,
-      minSpend: 15000,
-      description: 'Fixed ₱1,000 voucher deduction for partner institutional accounts.',
-      active: true
-    },
-    {
-      id: 'dsc-loyalty-10pct',
-      name: 'VIP Medical Center 10% Off',
-      code: 'VIP10',
-      type: 'percentage',
-      value: 10,
-      minSpend: 50000,
-      description: 'Exclusive 10% discount on high-volume institutional medical procurements.',
-      active: true
-    }
-  ]
-};
-
-const DEFAULT_RBAC = [
-  {
-    id: 'admin',
-    label: 'Administrator',
-    description: 'Full access to create, edit, delete orders, manage users and configure system settings.',
-    isSystem: true,
-    permissions: {
-      raise_orders: true,
-      edit_orders: true,
-      delete_orders: true,
-      restore_orders: true,
-      approve_orders: true,
-      send_back_orders: true,
-      reject_orders: true,
-      verify_payment: true,
-      hold_payment: true,
-      pick_pack_dispatch: true,
-      deliver_orders: true,
-      manage_users: true,
-      manage_settings: true,
-    },
-  },
-  {
-    id: 'management',
-    label: 'Management',
-    description: 'Approve new orders, send them back for changes, reject them, or raise orders.',
-    isSystem: true,
-    permissions: {
-      raise_orders: true,
-      edit_orders: true,
-      delete_orders: false,
-      restore_orders: false,
-      approve_orders: true,
-      send_back_orders: true,
-      reject_orders: true,
-      verify_payment: false,
-      hold_payment: false,
-      pick_pack_dispatch: false,
-      deliver_orders: false,
-      manage_users: false,
-      manage_settings: false,
-    },
-  },
-  {
-    id: 'salesperson',
-    label: 'Salesperson',
-    description: 'Raise orders and fix the ones Management sends back.',
-    isSystem: true,
-    permissions: {
-      raise_orders: true,
-      edit_orders: false,
-      delete_orders: false,
-      restore_orders: false,
-      approve_orders: false,
-      send_back_orders: false,
-      reject_orders: false,
-      verify_payment: false,
-      hold_payment: false,
-      pick_pack_dispatch: false,
-      deliver_orders: false,
-      manage_users: false,
-      manage_settings: false,
-    },
-  },
-  {
-    id: 'finance',
-    label: 'Finance',
-    description: 'Verify payment on approved orders or put them on hold.',
-    isSystem: true,
-    permissions: {
-      raise_orders: false,
-      edit_orders: false,
-      delete_orders: false,
-      restore_orders: false,
-      approve_orders: false,
-      send_back_orders: false,
-      reject_orders: false,
-      verify_payment: true,
-      hold_payment: true,
-      pick_pack_dispatch: false,
-      deliver_orders: false,
-      manage_users: false,
-      manage_settings: false,
-    },
-  },
-  {
-    id: 'dispatch',
-    label: 'Dispatch',
-    description: 'Pick, pack and dispatch paid orders, then mark them delivered.',
-    isSystem: true,
-    permissions: {
-      raise_orders: false,
-      edit_orders: false,
-      delete_orders: false,
-      restore_orders: false,
-      approve_orders: false,
-      send_back_orders: false,
-      reject_orders: false,
-      verify_payment: false,
-      hold_payment: false,
-      pick_pack_dispatch: true,
-      deliver_orders: true,
-      manage_users: false,
-      manage_settings: false,
-    },
-  },
-];
+const promotionsTable = createDiscordTable({
+  webhookUrl: env.DISCORD_PROMOTION_WEBHOOK_TOKEN,
+  botToken,
+  tableName: 'promotions',
+});
 
 const PERMISSION_DEFINITIONS = [
   { key: 'raise_orders', label: 'Raise New Orders', group: 'Orders' },
@@ -270,293 +44,229 @@ const PERMISSION_DEFINITIONS = [
   { key: 'manage_settings', label: 'Manage Reference Configs & RBAC', group: 'Admin' },
 ];
 
-// ---- Legacy file helpers (used only for initial migration/fallback) ----
-
-function readJsonFile(filename, defaultValue) {
-  let filePath = path.join(DATA_DIR, filename);
-  if (!fs.existsSync(filePath)) {
-    const backupPath = path.join(__dirname, '..', 'data.bak', filename);
-    if (fs.existsSync(backupPath)) filePath = backupPath;
-  }
-  try {
-    if (!fs.existsSync(filePath)) return defaultValue;
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error(`[configStore] Error reading ${filename}:`, err.message);
-    return defaultValue;
-  }
-}
-
-// ---- Discord stores for each data category ----
-
-const env = process.env;
-const botToken = env.DISCORD_BOT_TOKEN || null;
-
-const settingsStore = createDiscordStore({
-  webhookUrl: env.DISCORD_SETTING_WEBHOOK_TOKEN,
-  botToken,
-  category: 'setting',
-  threadName: 'Settings',
-});
-
-const promotionsStore = createDiscordStore({
-  webhookUrl: env.DISCORD_PROMOTION_WEBHOOK_TOKEN,
-  botToken,
-  category: 'promotion',
-  threadName: 'Promotions',
-});
-
-const rbacStore = createDiscordStore({
-  webhookUrl: env.DISCORD_RBAC_WEBHOOK_ID,
-  botToken,
-  category: 'rbac',
-  threadName: 'RBAC Roles',
-});
-
-// In-memory settings cache
-let cachedSettings = null;
-let cachedRbac = null;
-let cachedPromotions = null;
-
-// Track whether Discord stores have been loaded
-let discordLoaded = false;
-
-// ---- Load from Discord (called at server startup) ----
-
+// Hydrate from Discord on server startup
 async function loadFromDiscord() {
-  const [settingsData, promosData, rbacData] = await Promise.all([
-    settingsStore.load(),
-    promotionsStore.load(),
-    rbacStore.load(),
+  await Promise.all([
+    settingsTable.loadRows(),
+    rbacTable.loadRows(),
+    promotionsTable.loadRows(),
   ]);
 
-  // Settings
-  if (settingsData && typeof settingsData === 'object') {
-    cachedSettings = {
-      divisions: settingsData.divisions || DEFAULT_DIVISIONS,
-      headquarters: settingsData.headquarters || DEFAULT_HEADQUARTERS,
-      invoicingFrom: settingsData.invoicingFrom || DEFAULT_INVOICING_FROM,
-      paymentMethods: settingsData.paymentMethods || DEFAULT_PAYMENT_METHODS,
-      sources: settingsData.sources || DEFAULT_SOURCES,
-      paymentTerms: settingsData.paymentTerms || DEFAULT_PAYMENT_TERMS,
-      deliveryMethods: settingsData.deliveryMethods || DEFAULT_DELIVERY_METHODS,
-      customers: Array.isArray(settingsData.customers) ? settingsData.customers : (settingsData.customers?.customers || []),
-      recycleBin: Array.isArray(settingsData.recycleBin) ? settingsData.recycleBin : [],
-    };
+  // Support legacy bundle migration if a single "Settings" / "Promotions" / "RBAC Roles" row exists
+  const legacySettings = settingsTable.getRow('Settings');
+  if (legacySettings && typeof legacySettings === 'object') {
+    if (legacySettings.divisions && !settingsTable.getRow('divisions')) settingsTable.setRowData('divisions', legacySettings.divisions);
+    if (legacySettings.headquarters && !settingsTable.getRow('headquarters')) settingsTable.setRowData('headquarters', legacySettings.headquarters);
+    if (legacySettings.invoicingFrom && !settingsTable.getRow('invoicing_from')) settingsTable.setRowData('invoicing_from', legacySettings.invoicingFrom);
+    if (legacySettings.paymentMethods && !settingsTable.getRow('payment_methods')) settingsTable.setRowData('payment_methods', legacySettings.paymentMethods);
+    if (legacySettings.sources && !settingsTable.getRow('sources')) settingsTable.setRowData('sources', legacySettings.sources);
+    if (legacySettings.paymentTerms && !settingsTable.getRow('payment_terms')) settingsTable.setRowData('payment_terms', legacySettings.paymentTerms);
+    if (legacySettings.deliveryMethods && !settingsTable.getRow('delivery_methods')) settingsTable.setRowData('delivery_methods', legacySettings.deliveryMethods);
+    if (legacySettings.customers && !settingsTable.getRow('customers')) settingsTable.setRowData('customers', legacySettings.customers);
+    if (legacySettings.recycleBin && !settingsTable.getRow('recycle_bin')) settingsTable.setRowData('recycle_bin', legacySettings.recycleBin);
   }
 
-  // Promotions
-  if (promosData && typeof promosData === 'object') {
-    cachedPromotions = promosData;
+  const legacyPromos = promotionsTable.getRow('Promotions');
+  if (legacyPromos && typeof legacyPromos === 'object') {
+    if (legacyPromos.bundles && !promotionsTable.getRow('bundles')) promotionsTable.setRowData('bundles', legacyPromos.bundles);
+    if (legacyPromos.promos && !promotionsTable.getRow('promos')) promotionsTable.setRowData('promos', legacyPromos.promos);
+    if (legacyPromos.discounts && !promotionsTable.getRow('discounts')) promotionsTable.setRowData('discounts', legacyPromos.discounts);
   }
 
-  // RBAC
-  if (rbacData && Array.isArray(rbacData)) {
-    cachedRbac = rbacData;
-  }
-
-  // Fallback to local files if Discord had nothing (first run before migration)
-  if (!cachedSettings) {
-    const initial = readJsonFile('settings.json', null);
-    if (initial && typeof initial === 'object') {
-      cachedSettings = {
-        divisions: initial.divisions || DEFAULT_DIVISIONS,
-        headquarters: initial.headquarters || DEFAULT_HEADQUARTERS,
-        invoicingFrom: initial.invoicingFrom || DEFAULT_INVOICING_FROM,
-        paymentMethods: initial.paymentMethods || DEFAULT_PAYMENT_METHODS,
-        sources: initial.sources || DEFAULT_SOURCES,
-        paymentTerms: initial.paymentTerms || DEFAULT_PAYMENT_TERMS,
-        deliveryMethods: initial.deliveryMethods || DEFAULT_DELIVERY_METHODS,
-        customers: Array.isArray(initial.customers) ? initial.customers : (initial.customers?.customers || []),
-        recycleBin: Array.isArray(initial.recycleBin) ? initial.recycleBin : [],
-      };
-    } else {
-      cachedSettings = {
-        divisions: DEFAULT_DIVISIONS,
-        headquarters: DEFAULT_HEADQUARTERS,
-        invoicingFrom: DEFAULT_INVOICING_FROM,
-        paymentMethods: DEFAULT_PAYMENT_METHODS,
-        sources: DEFAULT_SOURCES,
-        paymentTerms: DEFAULT_PAYMENT_TERMS,
-        deliveryMethods: DEFAULT_DELIVERY_METHODS,
-        customers: [],
-        recycleBin: [],
-      };
+  const legacyRbac = rbacTable.getRow('RBAC Roles');
+  if (Array.isArray(legacyRbac)) {
+    for (const role of legacyRbac) {
+      if (role.id && !rbacTable.getRow(role.id)) {
+        rbacTable.setRowData(role.id, role);
+      }
     }
   }
 
-  if (!cachedPromotions) {
-    cachedPromotions = readJsonFile('promotions.json', DEFAULT_PROMOTIONS);
+  // Ensure management and finance roles explicitly have edit_orders enabled
+  const mgmt = rbacTable.getRow('management');
+  if (mgmt && mgmt.permissions && mgmt.permissions.edit_orders !== true) {
+    mgmt.permissions.edit_orders = true;
+    rbacTable.saveRow('management', mgmt).catch(() => {});
+  }
+  const fin = rbacTable.getRow('finance');
+  if (fin && fin.permissions && fin.permissions.edit_orders !== true) {
+    fin.permissions.edit_orders = true;
+    rbacTable.saveRow('finance', fin).catch(() => {});
   }
 
-  if (!cachedRbac) {
-    cachedRbac = readJsonFile('rbac.json', DEFAULT_RBAC);
-  }
-
-  discordLoaded = true;
-  console.log('[configStore] All config data loaded.');
-}
-
-// ---- Synchronous loaders (backwards compatible, use cached data) ----
-
-function loadSettings() {
-  if (cachedSettings) return cachedSettings;
-  // Synchronous fallback for code that calls before Discord load finishes (shouldn't happen
-  // after server.js awaits loadFromDiscord, but safety net).
-  const initial = readJsonFile('settings.json', null);
-  if (initial && typeof initial === 'object') {
-    cachedSettings = {
-      divisions: initial.divisions || DEFAULT_DIVISIONS,
-      headquarters: initial.headquarters || DEFAULT_HEADQUARTERS,
-      invoicingFrom: initial.invoicingFrom || DEFAULT_INVOICING_FROM,
-      paymentMethods: initial.paymentMethods || DEFAULT_PAYMENT_METHODS,
-      sources: initial.sources || DEFAULT_SOURCES,
-      paymentTerms: initial.paymentTerms || DEFAULT_PAYMENT_TERMS,
-      deliveryMethods: initial.deliveryMethods || DEFAULT_DELIVERY_METHODS,
-      customers: Array.isArray(initial.customers) ? initial.customers : (initial.customers?.customers || []),
-      recycleBin: Array.isArray(initial.recycleBin) ? initial.recycleBin : [],
+  // Ensure team_leader role exists with supervisory permissions
+  if (!rbacTable.getRow('team_leader')) {
+    const tlRole = {
+      id: 'team_leader',
+      label: 'Team Leader',
+      description: 'Supervise salespeople, review and endorse orders before management approval.',
+      isSystem: true,
+      permissions: {
+        raise_orders: true,
+        edit_orders: true,
+        delete_orders: false,
+        restore_orders: false,
+        approve_orders: true,
+        send_back_orders: true,
+        reject_orders: true,
+        verify_payment: false,
+        hold_payment: false,
+        pick_pack_dispatch: false,
+        deliver_orders: false,
+        manage_users: false,
+        manage_settings: false,
+      },
     };
-  } else {
-    cachedSettings = {
-      divisions: DEFAULT_DIVISIONS,
-      headquarters: DEFAULT_HEADQUARTERS,
-      invoicingFrom: DEFAULT_INVOICING_FROM,
-      paymentMethods: DEFAULT_PAYMENT_METHODS,
-      sources: DEFAULT_SOURCES,
-      paymentTerms: DEFAULT_PAYMENT_TERMS,
-      deliveryMethods: DEFAULT_DELIVERY_METHODS,
-      customers: [],
-      recycleBin: [],
-    };
+    rbacTable.setRowData('team_leader', tlRole);
+    rbacTable.saveRow('team_leader', tlRole).catch(() => {});
   }
-  return cachedSettings;
+
+  console.log('[configStore] Loaded from Discord tables (settings, rbac, promotions).');
 }
 
-function getSettings() {
-  return loadSettings();
-}
-
-function saveSettings(settings = null) {
-  if (settings) cachedSettings = settings;
-  if (!cachedSettings) return;
-  // Write to Discord asynchronously (fire-and-forget from the caller's perspective)
-  settingsStore.save(cachedSettings).catch((err) => {
-    console.warn(`[configStore] Failed to save settings to Discord: ${err.message}`);
-  });
-}
+// ---------------- Settings Table Getters & Setters ----------------
 
 function getDivisions() {
-  return loadSettings().divisions;
+  return settingsTable.getRow('divisions') || [];
 }
-
 function setDivisions(list) {
-  loadSettings().divisions = list;
-  saveSettings();
+  settingsTable.saveRow('divisions', list);
 }
 
 function getHeadquarters() {
-  return loadSettings().headquarters;
+  return settingsTable.getRow('headquarters') || [];
 }
-
 function setHeadquarters(list) {
-  loadSettings().headquarters = list;
-  saveSettings();
+  settingsTable.saveRow('headquarters', list);
 }
 
 function getInvoicingFrom() {
-  return loadSettings().invoicingFrom;
+  return settingsTable.getRow('invoicing_from') || [];
 }
-
 function setInvoicingFrom(list) {
-  loadSettings().invoicingFrom = list;
-  saveSettings();
+  settingsTable.saveRow('invoicing_from', list);
 }
 
 function getPaymentMethods() {
-  return loadSettings().paymentMethods;
+  return settingsTable.getRow('payment_methods') || [];
 }
-
 function setPaymentMethods(list) {
-  loadSettings().paymentMethods = list;
-  saveSettings();
+  settingsTable.saveRow('payment_methods', list);
 }
 
 function getSources() {
-  return loadSettings().sources;
+  return settingsTable.getRow('sources') || [];
 }
-
 function setSources(list) {
-  loadSettings().sources = list;
-  saveSettings();
+  settingsTable.saveRow('sources', list);
 }
 
 function getPaymentTerms() {
-  return loadSettings().paymentTerms;
+  return settingsTable.getRow('payment_terms') || [];
 }
-
 function setPaymentTerms(list) {
-  loadSettings().paymentTerms = list;
-  saveSettings();
+  settingsTable.saveRow('payment_terms', list);
 }
 
 function getDeliveryMethods() {
-  return loadSettings().deliveryMethods;
+  return settingsTable.getRow('delivery_methods') || [];
 }
-
 function setDeliveryMethods(list) {
-  loadSettings().deliveryMethods = list;
-  saveSettings();
+  settingsTable.saveRow('delivery_methods', list);
 }
 
 function getCustomers() {
-  return loadSettings().customers;
+  const c = settingsTable.getRow('customers');
+  if (Array.isArray(c)) return c;
+  if (c && Array.isArray(c.customers)) return c.customers;
+  return [];
+}
+function setCustomers(list) {
+  settingsTable.saveRow('customers', list);
 }
 
-function setCustomers(list) {
-  loadSettings().customers = list;
-  saveSettings();
+function getSettings() {
+  return {
+    divisions: getDivisions(),
+    headquarters: getHeadquarters(),
+    invoicingFrom: getInvoicingFrom(),
+    paymentMethods: getPaymentMethods(),
+    sources: getSources(),
+    paymentTerms: getPaymentTerms(),
+    deliveryMethods: getDeliveryMethods(),
+    customers: getCustomers(),
+    recycleBin: settingsTable.getRow('recycle_bin') || [],
+  };
 }
+
+function saveSettings(settings = null) {
+  if (!settings) return;
+  if (settings.divisions) setDivisions(settings.divisions);
+  if (settings.headquarters) setHeadquarters(settings.headquarters);
+  if (settings.invoicingFrom) setInvoicingFrom(settings.invoicingFrom);
+  if (settings.paymentMethods) setPaymentMethods(settings.paymentMethods);
+  if (settings.sources) setSources(settings.sources);
+  if (settings.paymentTerms) setPaymentTerms(settings.paymentTerms);
+  if (settings.deliveryMethods) setDeliveryMethods(settings.deliveryMethods);
+  if (settings.customers) setCustomers(settings.customers);
+  if (settings.recycleBin) settingsTable.saveRow('recycle_bin', settings.recycleBin);
+}
+
+// ---------------- RBAC Table Getters & Setters ----------------
 
 function getRbac() {
-  if (!cachedRbac) {
-    cachedRbac = readJsonFile('rbac.json', DEFAULT_RBAC);
-  }
-  return cachedRbac;
+  const roles = rbacTable.getAllRowValues().filter((r) => r && typeof r === 'object' && r.id && r.id !== 'RBAC Roles');
+  if (roles.length > 0) return roles;
+  return [];
 }
 
 function setRbac(list) {
-  cachedRbac = list;
-  rbacStore.save(list).catch((err) => {
-    console.warn(`[configStore] Failed to save RBAC to Discord: ${err.message}`);
-  });
-}
-
-function getPromotions() {
-  if (!cachedPromotions) {
-    cachedPromotions = readJsonFile('promotions.json', DEFAULT_PROMOTIONS);
+  for (const role of list) {
+    if (role.id) {
+      rbacTable.saveRow(role.id, role);
+    }
   }
-  return cachedPromotions;
-}
-
-function setPromotions(promos) {
-  cachedPromotions = promos;
-  promotionsStore.save(promos).catch((err) => {
-    console.warn(`[configStore] Failed to save promotions to Discord: ${err.message}`);
-  });
 }
 
 function hasPermission(roleId, permissionKey) {
   if (roleId === 'admin') return true;
-  const roles = getRbac();
-  const role = roles.find(r => r.id === roleId);
+  const role = rbacTable.getRow(roleId) || getRbac().find((r) => r.id === roleId);
   if (!role) return false;
   return Boolean(role.permissions && role.permissions[permissionKey]);
 }
 
+// ---------------- Promotions Table Getters & Setters ----------------
+
+function getPromotions() {
+  return {
+    bundles: promotionsTable.getRow('bundles') || [],
+    promos: promotionsTable.getRow('promos') || [],
+    discounts: promotionsTable.getRow('discounts') || [],
+  };
+}
+
+function setPromotions(promos) {
+  if (promos.bundles) promotionsTable.saveRow('bundles', promos.bundles);
+  if (promos.promos) promotionsTable.saveRow('promos', promos.promos);
+  if (promos.discounts) promotionsTable.saveRow('discounts', promos.discounts);
+}
+
+// ---------------- Order Fields (Custom Fields) ----------------
+
+function getOrderFields() {
+  const fields = settingsTable.getRow('order_fields');
+  if (Array.isArray(fields)) return fields;
+  if (fields && Array.isArray(fields.fields)) return fields.fields;
+  return [];
+}
+
+function setOrderFields(fields) {
+  settingsTable.saveRow('order_fields', Array.isArray(fields) ? fields : []);
+}
+
 function getAllConfigs() {
   const divisions = getDivisions();
-  const divisionList = divisions.map(d => d.name);
+  const divisionList = divisions.map((d) => d.name);
   const subDivisionMap = {};
   for (const d of divisions) {
     subDivisionMap[d.name] = d.subDivisions || [];
@@ -574,13 +284,10 @@ function getAllConfigs() {
     deliveryMethods: getDeliveryMethods(),
     promotions: getPromotions(),
     rbac: getRbac(),
+    orderFields: getOrderFields(),
     permissionDefinitions: PERMISSION_DEFINITIONS,
   };
 }
-
-// No longer auto-init on require — server.js calls loadFromDiscord() at startup
-// function initStore() { loadSettings(); getPromotions(); getRbac(); }
-// initStore();
 
 module.exports = {
   loadFromDiscord,
@@ -600,6 +307,8 @@ module.exports = {
   setDeliveryMethods,
   getCustomers,
   setCustomers,
+  getOrderFields,
+  setOrderFields,
   getPromotions,
   setPromotions,
   getRbac,
@@ -609,6 +318,5 @@ module.exports = {
   getSettings,
   saveSettings,
   PERMISSION_DEFINITIONS,
-  // Expose stores for migration script
-  _stores: { settingsStore, promotionsStore, rbacStore },
+  _tables: { settingsTable, rbacTable, promotionsTable },
 };
