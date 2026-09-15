@@ -116,6 +116,25 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
     if (!transport.threads) return null;
     order.discord ??= {};
     if (order.discord.threadId) return order.discord.threadId;
+
+    // Check Discord first so ID cannot be duplicated: existing ID will be the basis
+    if (!order.discord.starterMessageId) {
+      try {
+        const { messages } = await transport.live.history();
+        for (const m of messages) {
+          if (m.embeds?.[0]?.title === order.id) {
+            order.discord.starterMessageId = m.id;
+            if (m.thread?.id) {
+              order.discord.threadId = m.thread.id;
+              order.discord.threadError = null;
+              return order.discord.threadId;
+            }
+            break;
+          }
+        }
+      } catch {}
+    }
+
     try {
       // The starter is kept before the thread is started, so a failure between the two retries
       // on the same message rather than posting a second starter.

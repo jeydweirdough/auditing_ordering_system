@@ -30,12 +30,16 @@ if (fs.existsSync(envPath)) {
 
 const configStore = require('../src/configStore');
 const products = require('../src/products');
+const accounts = require('../src/accounts');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const BACKUP_DIR = path.join(__dirname, '..', 'data.bak');
 
 function readJsonSafe(filename) {
-  const file = path.join(DATA_DIR, filename);
+  let file = path.join(DATA_DIR, filename);
+  if (!fs.existsSync(file)) {
+    file = path.join(BACKUP_DIR, filename);
+  }
   if (!fs.existsSync(file)) return null;
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -52,12 +56,14 @@ async function migrate() {
   const productsData = readJsonSafe('products.json');
   const promotionsData = readJsonSafe('promotions.json');
   const rbacData = readJsonSafe('rbac.json');
+  const usersData = readJsonSafe('users.json');
 
   console.log(`Datasets found:`);
   console.log(`- settings.json:   ${settingsData ? 'YES' : 'NO'}`);
   console.log(`- products.json:   ${productsData ? `${productsData.length} items` : 'NO'}`);
   console.log(`- promotions.json: ${promotionsData ? 'YES' : 'NO'}`);
   console.log(`- rbac.json:       ${rbacData ? `${rbacData.length} roles` : 'NO'}`);
+  console.log(`- users.json:      ${usersData ? `${usersData.users?.length ?? 0} users` : 'NO'}`);
   console.log('');
 
   // 1. Settings
@@ -104,6 +110,17 @@ async function migrate() {
     }
   }
 
+  // 5. Users / Accounts
+  if (usersData) {
+    console.log('[migrate] Uploading Users / Accounts to Discord (#user)...');
+    try {
+      await accounts._store.save(usersData);
+      console.log(`  ✓ ${usersData.users?.length ?? 0} Users saved to Discord thread.`);
+    } catch (err) {
+      console.error('  ✗ Failed to save Users:', err.message);
+    }
+  }
+
   console.log('\n=== Upload Complete ===\n');
 
   // Verify by loading back from Discord
@@ -111,6 +128,7 @@ async function migrate() {
   try {
     await configStore.loadFromDiscord();
     await products.loadFromDiscord();
+    await accounts.loadFromDiscord();
     console.log('  ✓ Successfully verified read-back from Discord stores.');
   } catch (err) {
     console.error('  ✗ Verification failed:', err.message);
