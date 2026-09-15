@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders · record_database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<main id="login" class="login">
+  <div class="login-inner">
+    <div>
+      <p class="eyebrow">record_database</p>
+      <h1>Orders</h1>
+      <p class="lede">Salesperson raises the order. Management approves it, Finance verifies payment, and Dispatch picks, packs and ships it. Each step is recorded with who did it, and when.</p>
+      <div class="route-wrap"><ol class="route" id="legend" aria-label="The steps every order goes through"></ol></div>
+    </div>
+    <form id="login-form" class="login-form" novalidate>
+      <label class="field" for="login-email"><span>Email</span><input id="login-email" type="email" autocomplete="username" required autofocus></label>
+      <label class="field" for="login-password"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="login-error" role="alert" hidden></p>
+      <button type="submit" class="btn" id="btn-submit">Sign in</button>
+      <p class="hint">No account yet? Admin adds people on the People screen.</p>
+    </form>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script>
+'use strict';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderRouteLegend($('#legend'));
+
+  // Check URL query parameters for message
+  const params = new URLSearchParams(window.location.search);
+  const msg = params.get('msg');
+  if (msg) {
+    toast(msg, 'bad');
+    history.replaceState(null, '', '/login');
+  }
+
+  // If already logged in, redirect to orders
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) {
+      const me = await res.json();
+      if (me?.user) {
+        window.location.href = '/dashboard';
+        return;
+      }
+    }
+  } catch {
+    // Not logged in, stay on login page
+  }
+
+  const form = $('#login-form');
+  const emailInput = $('#login-email');
+  const passwordInput = $('#login-password');
+  const errorEl = $('#login-error');
+  const submitBtn = $('#btn-submit');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please provide both email and password.';
+      errorEl.hidden = false;
+      return;
+    }
+
+    setButtonLoading(submitBtn, true, 'Signing in…');
+
+    try {
+      await api('POST', '/api/auth/login', { email, password });
+      window.location.href = '/dashboard';
+    } catch (err) {
+      errorEl.textContent = err.message || 'Invalid email or password.';
+      errorEl.hidden = false;
+      setButtonLoading(submitBtn, false);
+    }
+  });
+});
+</script>
+</body>
+</html>

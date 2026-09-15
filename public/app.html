@@ -348,6 +348,34 @@
     .work.split > .list-col { display: none; }
   }
 
+  .order-page {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 24px 30px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+  }
+  .order-page .side-head {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .order-page .title {
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .order-page .sub {
+    font-size: 15px;
+    color: var(--ink-2);
+  }
+  .order-page .block {
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
   .orders { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
   .row {
     display: grid;
@@ -542,11 +570,11 @@
   /* order form */
   .items-edit { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
   .items-edit legend { margin-bottom: 8px; padding: 0; }
-  .item-rows { display: grid; gap: 8px; }
+  .item-rows { display: grid; gap: 12px; }
   .item-row {
     display: grid;
-    grid-template-columns: 74px minmax(0, 1fr) minmax(0, 1fr) 38px;
-    grid-template-areas: "p p p p" "q u a r";
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 100px) 74px minmax(0, 120px) minmax(0, 100px) 38px;
+    grid-template-areas: "p p p p p p" "t k q u a r" "h h h h h h";
     gap: 8px;
     padding: 10px 12px;
     border: 1px solid var(--line-soft);
@@ -554,9 +582,21 @@
     background: var(--sunk);
   }
   .ip { grid-area: p; }
+  .it { grid-area: t; }
+  .ik { grid-area: k; }
   .iq { grid-area: q; }
   .iu { grid-area: u; }
   .ia { grid-area: a; }
+  .ih { grid-area: h; font-size: 12px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: -2px; }
+  .ih .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; background: var(--line-soft); font-weight: 500; font-size: 11px; }
+  .ih .badge.warn-badge { background: #fee2e2; color: #991b1b; }
+  .ih .badge.info-badge { background: #e0e7ff; color: #3730a3; }
+  @media (max-width: 680px) {
+    .item-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas: "p p" "t k" "q u" "a r" "h h";
+    }
+  }
   .line-amt { display: block; min-height: 38px; padding-top: 8px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
   .remove {
     grid-area: r;
@@ -909,6 +949,8 @@ const TONE = {
 };
 const pill = (status, label) => `<span class="pill ${TONE[status] ?? 'stop'}">${esc(label)}</span>`;
 
+const CREATORS = ['salesperson', 'management', 'admin'];
+
 const INTRO = {
   salesperson: 'Raise orders, and fix the ones Management sends back.',
   management: 'Approve new orders, send them back for changes, or reject them. You can raise orders too, for yourself or a salesperson.',
@@ -977,7 +1019,7 @@ const PLACEHOLDERS = {
   address: 'Complete hospital, clinic, or residential shipping address',
   receiverName: 'Who will receive the delivery',
   receiverContact: '09XXXXXXXXX',
-  subDivision: 'e.g. MARIKINA',
+  subDivision: 'e.g. MD Telesales',
   paymentTerms: 'e.g. Net 15, 30 days',
   deliveryMethod: 'e.g. LBC, Grab Express, Own Rider',
   doctorName: 'Referring or prescribing doctor',
@@ -987,7 +1029,8 @@ const PLACEHOLDERS = {
 
 const S = {
   user: null, meta: null, orders: [], tab: null,
-  side: null,        // 'order' | 'new' | 'resubmit'
+  page: null,        // 'new' | null
+  side: null,        // 'order' | 'resubmit' | 'edit'
   openId: null, order: null,
   formFor: null,     // the step whose form is open
   people: null, reveal: null, timer: null,
@@ -1063,7 +1106,8 @@ async function enter(user) {
   document.title = `${user.roleLabel} · Orders`;
   await loadOrders();
   const wanted = decodeURIComponent(location.hash.slice(1));
-  if (/^(?:GM|ORD)-\d{8}-\d{4}$/.test(wanted)) openOrder(wanted);
+  if (location.pathname === '/new-order' || wanted === 'new') openNewOrderPage();
+  else if (/^(?:GM|ORD)-\d{8}-\d{4}$/.test(wanted)) openOrder(wanted);
   else layout();
   schedule();
 }
@@ -1102,7 +1146,7 @@ function renderTabs() {
   if (!tabs.some((t) => t.key === S.tab)) S.tab = tabs[0].key;   // the dashboard, or Dispatch's board
   $('#tabs').innerHTML = tabs.map((t) => {
     const n = t.match ? S.orders.filter(t.match).length : null;
-    const on = t.key === S.tab;
+    const on = !S.page && t.key === S.tab;
     const count = n === null ? '' : `<span class="count${t.needs && n && !on ? ' hot' : ''}">${n}</span>`;
     return `<button type="button" class="tab" role="tab" aria-selected="${on}" data-tab="${t.key}">${esc(t.label)}${count}</button>`;
   }).join('');
@@ -1110,6 +1154,12 @@ function renderTabs() {
 
 function renderMain() {
   renderTabs();
+  if (S.page === 'new') {
+    $('#main').innerHTML = `<div class="order-page">${orderForm(null, 'new')}</div>`;
+    recalc();
+    $('#main [name=customerName]')?.focus();
+    return;
+  }
   const tab = currentTab();
   if (tab.key === 'dashboard') return renderDashboard();
   if (tab.key === 'people') {
@@ -1124,6 +1174,12 @@ function renderMain() {
 }
 
 function layout() {
+  if (S.page === 'new') {
+    $('#work').classList.remove('split');
+    $('#side').hidden = true;
+    renderMain();
+    return;
+  }
   $('#work').classList.toggle('split', Boolean(S.side));
   $('#side').hidden = !S.side;
   renderMain();
@@ -1169,8 +1225,10 @@ function board(list) {
 $('#tabs').addEventListener('click', (e) => {
   const t = e.target.closest('[data-tab]');
   if (!t) return;
+  S.page = null;
   S.tab = t.dataset.tab;
-  renderMain();
+  history.replaceState(null, '', location.pathname === '/new-order' ? '/app' : location.pathname + location.search);
+  layout();
 });
 
 // ---------- dashboards ----------
@@ -1539,7 +1597,9 @@ async function askWhoFor() {
 
 const forLine = () => `<p class="for-line" id="for-line">For <strong>${S.orderFor ? esc(S.orderFor.name) : 'you'}</strong> <button type="button" class="link" data-change-for>Change</button></p>`;
 
-$('#new-order').addEventListener('click', askWhoFor);
+$('#new-order').addEventListener('click', () => {
+  openNewOrderPage();
+});
 
 $('#for-dialog').addEventListener('change', (e) => {
   if (e.target.name === 'for') $('#for-person-field').hidden = e.target.value !== 'other';
@@ -1565,13 +1625,40 @@ $('#for-dialog').addEventListener('submit', (e) => {
     S.orderFor = null;
   }
   $('#for-dialog').close();
-  if (S.side === 'new' && $('#for-line')) $('#for-line').outerHTML = forLine();   // keeps what's typed
-  else openForm('new');
+  if (S.page === 'new' && $('#for-line')) $('#for-line').outerHTML = forLine();   // keeps what's typed
+  else openNewOrderPage();
+});
+
+function openNewOrderPage() {
+  if (!CREATORS.includes(S.user?.role)) return;
+  S.page = 'new';
+  S.side = null;
+  S.openId = null;
+  S.order = null;
+  history.replaceState(null, '', location.pathname === '/new-order' ? '/new-order' : '#new');
+  layout();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeNewOrderPage() {
+  S.page = null;
+  S.staged = [];
+  S.orderFor = null;
+  history.replaceState(null, '', location.pathname === '/new-order' ? '/app' : location.pathname + location.search);
+  layout();
+}
+
+window.addEventListener('hashchange', () => {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h === 'new') openNewOrderPage();
+  else if (/^(?:GM|ORD)-\d{8}-\d{4}$/.test(h)) openOrder(h);
+  else if (!h && S.page === 'new') closeNewOrderPage();
 });
 
 // ---------- the open order ----------
 
 async function openOrder(id) {
+  S.page = null;
   S.side = 'order';
   S.openId = id;
   S.formFor = null;
@@ -1603,6 +1690,7 @@ function closeSide() {
 }
 
 async function openForm(kind) {
+  if (kind === 'new') return openNewOrderPage();
   // Admin's edit can move the order to another salesperson, picked from the People list.
   if (kind === 'edit' && S.user.role === 'admin' && !S.people) {
     try {
@@ -1612,6 +1700,7 @@ async function openForm(kind) {
       return;
     }
   }
+  S.page = null;
   S.side = kind;
   S.formFor = null;
   if (kind === 'new') {
@@ -1757,9 +1846,11 @@ function fieldHtml(f, value, id, placeholder, name = f.name, ctx = null) {
     control = `<input id="${id}" name="${name}" type="text" list="${id}-list"${by} autocomplete="off"${f.max ? ` maxlength="${f.max}"` : ''} value="${esc(v)}"${req}${ph}>`
       + `<datalist id="${id}-list">${suggestions.map((s) => `<option value="${esc(s)}">`).join('')}</datalist>`;
   } else if (f.type === 'select') {
+    const list = f.optionsBy ? (f.optionsBy.lists[ctx?.[f.optionsBy.field] ?? 'B2C'] ?? f.options) : f.options;
+    const by = f.optionsBy ? ` data-options-by="${esc(f.optionsBy.field)}"` : '';
     // Also for a value that's no longer on the list, so the first option isn't picked silently.
-    const choose = f.options.includes(v) ? '' : '<option value="">Choose…</option>';
-    control = `<select id="${id}" name="${name}"${req}>${choose}${f.options.map((opt) => `<option${opt === v ? ' selected' : ''}>${esc(opt)}</option>`).join('')}</select>`;
+    const choose = list.includes(v) ? '' : '<option value="">Choose…</option>';
+    control = `<select id="${id}" name="${name}"${by}${req}>${choose}${list.map((opt) => `<option${opt === v ? ' selected' : ''}>${esc(opt)}</option>`).join('')}</select>`;
   } else if (f.type === 'textarea') {
     control = `<textarea id="${id}" name="${name}" maxlength="${f.max}" rows="3"${req}${ph}>${esc(v)}</textarea>`;
   } else if (f.type === 'number') {
@@ -1784,14 +1875,163 @@ function actionForm(o, a) {
   </form>`;
 }
 
-function itemRow(it = { product: '', qty: 1, unitPrice: '' }) {
-  return `<div class="item-row">
-    <label class="field ip"><span>Product</span><input type="text" name="product" maxlength="120" value="${esc(it.product)}" placeholder="e.g. Paracetamol 500 mg, box of 100"></label>
+function findCatalogProduct(query) {
+  if (!S.meta?.products || !query) return null;
+  const q = String(query).trim().toLowerCase();
+  return S.meta.products.find((p) =>
+    (p.id && p.id.toLowerCase() === q) ||
+    (p.fullName && p.fullName.toLowerCase() === q) ||
+    (p.brandName && p.brandName.toLowerCase() === q) ||
+    (p.genericName && p.genericName.toLowerCase() === q)
+  ) || null;
+}
+
+function getAllowedTiersForDivision(division, hasPrescription = false) {
+  const rule = S.meta?.divisionRules?.[division];
+  const allTiers = S.meta?.priceTiers || {};
+  if (!rule) return [];
+  let keys;
+  if (division === 'B2C') {
+    keys = hasPrescription ? ['doctor'] : ['patient', 'srp'];
+  } else {
+    keys = rule.allowed || [];
+  }
+  return keys.map((k) => allTiers[k]).filter(Boolean);
+}
+
+function itemRow(it = { product: '', qty: 1, unitPrice: '', priceType: '', unitType: 'unit' }, division = null) {
+  const div = division || document.querySelector('#order-form [name=division]')?.value || 'B2C';
+  const p = findCatalogProduct(it.product);
+  const hasPrescription = S.staged?.some((f) => f.kind === 'prescription') || false;
+  const tiers = getAllowedTiersForDivision(div, hasPrescription);
+
+  let selectedTier = it.priceType;
+  if (!selectedTier || !tiers.some((t) => t.key === selectedTier)) {
+    if (div === 'BID') selectedTier = 'bid';
+    else if (div === 'B2B') selectedTier = 'srp';
+    else if (div === 'HOS') selectedTier = 'hospital';
+    else selectedTier = 'patient';
+  }
+
+  const tierOptions = tiers.map((t) => `<option value="${t.key}"${t.key === selectedTier ? ' selected' : ''}>${esc(t.label)}</option>`).join('');
+  const unitType = it.unitType || 'unit';
+
+  let hintBadges = [];
+  if (p) {
+    if (p.classification) hintBadges.push(`<span class="badge info-badge">${esc(p.classification)}</span>`);
+    if (p.dosageStrength) hintBadges.push(`<span class="badge">${esc(p.dosageStrength)}</span>`);
+    if (p.packSize) hintBadges.push(`<span class="badge">${esc(p.packSize)}</span>`);
+    if (p.tax) hintBadges.push(`<span class="badge">${esc(p.tax)}</span>`);
+    const tierNote = p.prices?.[selectedTier]?.note;
+    if (tierNote) hintBadges.push(`<span class="badge warn-badge">Note: ${esc(tierNote)}</span>`);
+  }
+
+  if (selectedTier === 'special' || selectedTier === 'government' || div === 'BID') {
+    hintBadges.push(`<span class="badge warn-badge">⚠️ Notes required</span>`);
+  } else if (div === 'B2C' && selectedTier === 'doctor' && !hasPrescription) {
+    hintBadges.push(`<span class="badge warn-badge">⚠️ Prescription / Rx attachment required</span>`);
+  }
+
+  return `<div class="item-row" data-product-id="${p ? esc(p.id) : ''}">
+    <label class="field ip"><span>Product</span><input type="text" name="product" list="products-catalog-list" maxlength="120" value="${esc(it.product)}" placeholder="Search catalog by brand or generic name..."></label>
+    <label class="field it"><span>Price tier</span><select name="priceType">${tierOptions}</select></label>
+    <label class="field ik"><span>Unit/Pack</span><select name="unitType">
+      <option value="unit"${unitType === 'unit' ? ' selected' : ''}>Unit</option>
+      <option value="pack"${unitType === 'pack' ? ' selected' : ''}>Pack</option>
+    </select></label>
     <label class="field iq"><span>Qty</span><input type="number" name="qty" min="1" step="1" inputmode="numeric" value="${esc(it.qty)}"></label>
-    <label class="field iu"><span>Unit price</span><input type="number" name="unitPrice" min="0" step="0.01" inputmode="decimal" value="${esc(it.unitPrice)}"></label>
+    <label class="field iu"><span>Unit price</span><input type="number" name="unitPrice" min="0" step="0.01" inputmode="decimal" value="${esc(it.unitPrice)}" placeholder="0.00"></label>
     <div class="field ia"><span>Amount</span><output class="line-amt">${peso(0)}</output></div>
     <button type="button" class="remove" data-remove-item aria-label="Remove this item">×</button>
+    <div class="ih">${hintBadges.join(' ')}</div>
   </div>`;
+}
+
+function updateItemRowPrice(row) {
+  const form = row.closest('form');
+  const div = form?.querySelector('[name=division]')?.value || 'B2C';
+  const prodInput = row.querySelector('[name=product]');
+  const tierSelect = row.querySelector('[name=priceType]');
+  const unitSelect = row.querySelector('[name=unitType]');
+  const priceInput = row.querySelector('[name=unitPrice]');
+  const hintEl = row.querySelector('.ih');
+
+  const p = findCatalogProduct(prodInput?.value);
+  const tier = tierSelect?.value;
+  const unitType = unitSelect?.value || 'unit';
+
+  if (p) {
+    row.dataset.productId = p.id;
+    if (tier !== 'special' && tier !== 'government' && tier !== 'bid') {
+      const priceObj = p.prices?.[tier];
+      const val = unitType === 'pack' ? priceObj?.packPrice : priceObj?.unitPrice;
+      if (val != null && !Number.isNaN(Number(val))) {
+        priceInput.value = val;
+      }
+    }
+  }
+
+  let badges = [];
+  if (p) {
+    if (p.classification) badges.push(`<span class="badge info-badge">${esc(p.classification)}</span>`);
+    if (p.dosageStrength) badges.push(`<span class="badge">${esc(p.dosageStrength)}</span>`);
+    if (p.packSize) badges.push(`<span class="badge">${esc(p.packSize)}</span>`);
+    if (p.tax) badges.push(`<span class="badge">${esc(p.tax)}</span>`);
+    const tierNote = p.prices?.[tier]?.note;
+    if (tierNote) badges.push(`<span class="badge warn-badge">Note: ${esc(tierNote)}</span>`);
+  }
+  const hasPrescription = S.staged?.some((f) => f.kind === 'prescription');
+  if (tier === 'special' || tier === 'government' || div === 'BID') {
+    badges.push(`<span class="badge warn-badge">⚠️ Notes required</span>`);
+  } else if (div === 'B2C' && tier === 'doctor' && !hasPrescription) {
+    badges.push(`<span class="badge warn-badge">⚠️ Prescription / Rx attachment required</span>`);
+  }
+  if (hintEl) hintEl.innerHTML = badges.join(' ');
+}
+
+function refreshFormDivision(form) {
+  const div = form.querySelector('[name=division]')?.value || 'B2C';
+  const hasPrescription = S.staged?.some((f) => f.kind === 'prescription');
+  const allowed = getAllowedTiersForDivision(div, hasPrescription);
+
+  const subSelect = form.querySelector('[name=subDivision]');
+  const lists = S.meta?.fields?.subDivision?.optionsBy?.lists || S.meta?.fields?.subDivision?.suggestionsBy?.lists || {};
+  const opts = lists[div] ?? [];
+  if (subSelect) {
+    if (subSelect.tagName === 'SELECT') {
+      const curVal = subSelect.value;
+      subSelect.innerHTML = (opts.includes(curVal) ? '' : '<option value="">Choose…</option>') +
+        opts.map((s) => `<option value="${esc(s)}"${s === curVal ? ' selected' : ''}>${esc(s)}</option>`).join('');
+      if (opts.length === 1) {
+        subSelect.value = opts[0];
+      } else if (opts.includes(curVal)) {
+        subSelect.value = curVal;
+      } else {
+        subSelect.value = opts[0] ?? '';
+      }
+    } else {
+      const defaultSub = opts[0];
+      if (defaultSub && (!subSelect.value || Object.values(lists).flat().includes(subSelect.value))) {
+        subSelect.value = defaultSub;
+      }
+    }
+  }
+
+  for (const row of form.querySelectorAll('.item-row')) {
+    const tierSelect = row.querySelector('[name=priceType]');
+    if (!tierSelect) continue;
+    const curTier = tierSelect.value;
+    tierSelect.innerHTML = allowed.map((t) => `<option value="${t.key}"${t.key === curTier ? ' selected' : ''}>${esc(t.label)}</option>`).join('');
+    if (!allowed.some((t) => t.key === curTier)) {
+      if (div === 'BID') tierSelect.value = 'bid';
+      else if (div === 'B2B') tierSelect.value = 'srp';
+      else if (div === 'HOS') tierSelect.value = 'hospital';
+      else tierSelect.value = 'patient';
+    }
+    updateItemRowPrice(row);
+  }
+  recalc();
+  refreshFiles();
 }
 
 // Admin's edit: which active salesperson the order is for.
@@ -1818,7 +2058,9 @@ function orderForm(o, mode) {
   const notes = fields.find((f) => f.name === 'notes');
   const items = o?.items?.length ? o.items : [undefined];
   const sentBack = mode === 'resubmit' && o.events.findLast((e) => e.type === 'send_back');
-  const back = o ? `<button type="button" class="link" data-reopen>Back to ${esc(o.id)}</button>` : '<button type="button" class="link" data-close>Back to the list</button>';
+  const back = mode === 'new'
+    ? '<button type="button" class="link" data-close-new-order>← Back to orders</button>'
+    : o ? `<button type="button" class="link" data-reopen>Back to ${esc(o.id)}</button>` : '<button type="button" class="link" data-close>Back to the list</button>';
   const [title, intro, submit] = {
     new: ['New order', 'Management approves it next, then Finance verifies payment and Dispatch ships it.', 'Submit for approval'],
     resubmit: [`Fix and resubmit ${esc(o?.id)}`, 'Make the changes Management asked for, then resubmit. It goes back to Management for approval.', 'Resubmit for approval'],
@@ -1831,6 +2073,8 @@ function orderForm(o, mode) {
         <div class="grid2">${keys.map((k) => fieldHtml(S.meta.fields[k], source[k], `e-${prefix}-${k}`, '', `${prefix}.${k}`)).join('')}</div>
       </fieldset>`;
   const shipKeys = mode === 'edit' && o.shipment ? ['courier', 'trackingNumber', 'receivedBy'].filter((k) => o.shipment[k] != null) : [];
+  const catalogDatalist = `<datalist id="products-catalog-list">${(S.meta?.products ?? []).map((p) => `<option value="${esc(p.fullName)}" label="${esc(p.brandName || p.genericName)} · ${esc(p.classification)}">`).join('')}</datalist>`;
+
   return `
     <div class="side-head">
       ${back}
@@ -1838,13 +2082,14 @@ function orderForm(o, mode) {
       <p class="sub">${esc(intro)}</p>
     </div>
     ${sentBack?.note ? `<p class="warn"><strong>${esc(sentBack.actor.name)} sent it back:</strong> ${esc(sentBack.note)}</p>` : ''}
+    ${catalogDatalist}
     <form id="order-form" class="block" data-mode="${mode}" novalidate>
       ${mode === 'new' ? forLine() : ''}
       ${top ? `<div class="grid2">${top}</div>` : ''}
       <div class="grid2">${fields.filter((f) => f !== notes).map((f) => fieldHtml(f, o?.[f.name], `o-${f.name}`, PLACEHOLDERS[f.name], f.name, o)).join('')}</div>
       <fieldset class="items-edit">
         <legend class="label">Items</legend>
-        <div class="item-rows" id="item-rows">${items.map((it) => itemRow(it)).join('')}</div>
+        <div class="item-rows" id="item-rows">${items.map((it) => itemRow(it, o?.division)).join('')}</div>
         <div class="items-foot">
           <button type="button" class="btn quiet small" data-add-item>Add item</button>
           <p>Total <strong id="form-total">${peso(0)}</strong></p>
@@ -1858,7 +2103,7 @@ function orderForm(o, mode) {
       <p class="error" id="order-error" role="alert" hidden></p>
       <div class="actions">
         <button type="submit" class="btn">${submit}</button>
-        <button type="button" class="btn quiet" ${o ? 'data-reopen' : 'data-close'}>${o ? 'Back' : 'Discard'}</button>
+        ${mode === 'new' ? '<button type="button" class="btn quiet" data-close-new-order>Discard</button>' : `<button type="button" class="btn quiet" ${o ? 'data-reopen' : 'data-close'}>${o ? 'Back' : 'Discard'}</button>`}
       </div>
     </form>`;
 }
@@ -1884,6 +2129,11 @@ const bytes = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, M
 function filesBlock() {
   const { max, maxBytes, kinds } = S.meta.files;
   const used = S.staged.reduce((n, f) => n + f.size, 0);
+  const div = document.querySelector('#order-form [name=division]')?.value;
+  const terms = document.querySelector('#order-form [name=paymentTerms]')?.value || '';
+  const isDswdPcso = div !== 'B2B' && (terms.toUpperCase().includes('DSWD') || terms.toUpperCase().includes('PCSO'));
+  const hasGl = S.staged.some((f) => f.kind === 'guarantee_letter');
+
   const rows = S.staged.map((f, i) => `<li class="file-row">
       <span class="file-name">${esc(f.name)} <small>${esc(bytes(f.size))}</small></span>
       <select data-file-kind="${i}" aria-label="What ${esc(f.name)} is">${Object.entries(kinds).map(([k, label]) => `<option value="${k}"${k === f.kind ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select>
@@ -1891,7 +2141,8 @@ function filesBlock() {
     </li>`).join('');
   return `<fieldset class="items-edit" id="files-block">
       <legend class="label">Attachments</legend>
-      <p class="hint">Proof of payment, a purchase order, a prescription: photos, PDF, Word or Excel, up to ${max} files and ${maxBytes / 1e6} MB in all. Big photos are made smaller before they're sent.</p>
+      ${isDswdPcso && !hasGl ? `<p class="warn"><strong>Guarantee letter required:</strong> Orders with DSWD / PCSO payment terms must have an attached file tagged as 'Guarantee letter (DSWD/PCSO)' (applicable to all divisions except B2B).</p>` : ''}
+      <p class="hint">Proof of payment, a purchase order, a prescription, guarantee letter: photos, PDF, Word or Excel, up to ${max} files and ${maxBytes / 1e6} MB in all. Big photos are made smaller before they're sent.</p>
       ${rows ? `<ul class="file-rows">${rows}</ul>` : ''}
       <div class="items-foot">
         <button type="button" class="btn quiet small" data-pick-files>Add files</button>
@@ -2043,8 +2294,38 @@ async function submitOrder(form) {
       product: row.querySelector('[name=product]').value,
       qty: row.querySelector('[name=qty]').value,
       unitPrice: row.querySelector('[name=unitPrice]').value,
+      priceType: row.querySelector('[name=priceType]')?.value || undefined,
+      unitType: row.querySelector('[name=unitType]')?.value || undefined,
     }))
     .filter((it) => it.product.trim() || it.unitPrice !== '');
+
+  const division = body.division;
+  const paymentTerms = String(body.paymentTerms || '').toUpperCase();
+  const source = String(body.source || '').toUpperCase();
+  const notes = String(body.notes || '').trim();
+  const remarks = String(body.remarks || '').trim();
+  const hasPrescription = S.staged.some((f) => f.kind === 'prescription') || S.order?.attachments?.some((f) => f.kind === 'prescription');
+  const hasGuaranteeLetter = S.staged.some((f) => f.kind === 'guarantee_letter') || S.order?.attachments?.some((f) => f.kind === 'guarantee_letter');
+
+  if (division !== 'B2B' && (paymentTerms.includes('DSWD') || paymentTerms.includes('PCSO') || source.includes('DSWD') || source.includes('PCSO'))) {
+    if (!hasGuaranteeLetter) {
+      throw new Error(`Orders with terms or source "${body.paymentTerms || body.source}" require an attached file tagged as 'Guarantee letter (DSWD/PCSO)'.`);
+    }
+  }
+
+  if (division === 'BID' && !notes && !remarks) {
+    throw new Error('Division BID has no standard price list; notes or customer remarks explaining the bidding pricing are required.');
+  }
+
+  for (let i = 0; i < body.items.length; i++) {
+    const it = body.items[i];
+    if ((it.priceType === 'special' || it.priceType === 'government') && !notes) {
+      throw new Error(`Item ${i + 1}: ${it.priceType === 'special' ? 'Special Price' : 'Government Price'} requires an explanation in the Notes field.`);
+    }
+    if (division === 'B2C' && it.priceType === 'doctor' && !hasPrescription) {
+      throw new Error(`Item ${i + 1}: Doctor's Price for B2C requires a Prescription / Rx attachment.`);
+    }
+  }
   if (data.has('ownerId')) body.ownerId = data.get('ownerId');
   if (mode === 'new' && S.orderFor) body.ownerId = S.orderFor.id;
   if (mode === 'new' && S.staged.length) {
@@ -2068,7 +2349,7 @@ async function submitOrder(form) {
     resubmit: `${order.id} resubmitted for approval.`,
     edit: `${order.id} saved. The change is logged in #order-audit.`,
   }[mode]);
-  Object.assign(S, { side: 'order', openId: order.id, order, formFor: null, staged: [], orderFor: null });
+  Object.assign(S, { page: null, side: 'order', openId: order.id, order, formFor: null, staged: [], orderFor: null });
   history.replaceState(null, '', `#${order.id}`);
   const { orders } = await api('GET', '/api/orders');
   S.orders = orders;
@@ -2081,7 +2362,8 @@ async function submitOrder(form) {
   schedule();
 }
 
-$('#side').addEventListener('submit', async (e) => {
+$('#work').addEventListener('submit', async (e) => {
+  if (e.target.id !== 'action-form' && e.target.id !== 'order-form') return;
   e.preventDefault();
   const form = e.target;
   const btn = form.querySelector('[type=submit]');
@@ -2099,9 +2381,12 @@ $('#side').addEventListener('submit', async (e) => {
   }
 });
 
-$('#side').addEventListener('click', async (e) => {
+$('#work').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
   if (!t) return;
+  if (t.matches('[data-close-new-order]')) {
+    return closeNewOrderPage();
+  }
   if (t.matches('[data-close]')) {
     S.staged = [];
     S.orderFor = null;
@@ -2125,7 +2410,8 @@ $('#side').addEventListener('click', async (e) => {
     return renderSide();
   }
   if (t.matches('[data-add-item]')) {
-    $('#item-rows').insertAdjacentHTML('beforeend', itemRow());
+    const div = document.querySelector('#order-form [name=division]')?.value;
+    $('#item-rows').insertAdjacentHTML('beforeend', itemRow(undefined, div));
     recalc();
     $('#item-rows .item-row:last-child input')?.focus();
     return;
@@ -2137,6 +2423,8 @@ $('#side').addEventListener('click', async (e) => {
   if (t.matches('[data-pick-files]')) return $('#file-input').click();
   if (t.matches('[data-remove-file]')) {
     S.staged.splice(Number(t.dataset.removeFile), 1);
+    const form = $('#order-form');
+    if (form) refreshFormDivision(form);
     return refreshFiles();
   }
   if (t.matches('[data-retry]')) {
@@ -2154,16 +2442,34 @@ $('#side').addEventListener('click', async (e) => {
   }
 });
 
-$('#side').addEventListener('input', (e) => {
-  if (e.target.closest('#item-rows')) recalc();
+$('#work').addEventListener('input', (e) => {
+  const row = e.target.closest('#item-rows .item-row');
+  if (row) {
+    if (e.target.name === 'product') {
+      updateItemRowPrice(row);
+    }
+    recalc();
+  }
 });
 
-$('#side').addEventListener('change', async (e) => {
+$('#work').addEventListener('change', async (e) => {
   if (e.target.id === 'file-input') {
     await addFiles([...e.target.files]);
     refreshFiles();   // a fresh input, so a removed file can be picked again
   } else if (e.target.matches('[data-file-kind]')) {
     S.staged[Number(e.target.dataset.fileKind)].kind = e.target.value;
+    const form = $('#order-form');
+    if (form) refreshFormDivision(form);
+  } else if (e.target.name === 'division') {
+    refreshFormDivision(e.target.form);
+  } else if (e.target.name === 'paymentTerms' || e.target.name === 'source') {
+    refreshFiles();
+  } else if (e.target.matches('[name=priceType], [name=unitType]')) {
+    const row = e.target.closest('.item-row');
+    if (row) {
+      updateItemRowPrice(row);
+      recalc();
+    }
   } else if (e.target.form) {
     // Suggestions that follow this field, like Sub-division's follow Division.
     for (const input of e.target.form.querySelectorAll(`[data-suggest-by="${e.target.name}"]`)) {
@@ -2174,6 +2480,7 @@ $('#side').addEventListener('change', async (e) => {
 });
 
 $('#main').addEventListener('click', (e) => {
+  if (S.page === 'new') return;
   const open = e.target.closest('[data-open]');
   if (open) openOrder(open.dataset.open);
 });
@@ -2181,6 +2488,7 @@ $('#main').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   // Escape in the pop-up closes only the pop-up.
   if (e.key === 'Escape' && S.side && !$('#for-dialog').open && !e.target.closest('input, textarea, select')) closeSide();
+  if (e.key === 'Escape' && S.page === 'new' && !$('#for-dialog').open && !e.target.closest('input, textarea, select')) closeNewOrderPage();
 });
 
 // ---------- people (Admin) ----------

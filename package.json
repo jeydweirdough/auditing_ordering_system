@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
+    "import:products": "python scripts/import-products.py",
+    "test:constraints": "node scripts/test-constraints.js",
     "probe:discord": "node --env-file-if-exists=.env scripts/probe-discord.js",
     "accounts": "node --env-file-if-exists=.env scripts/create-accounts.js"
   },

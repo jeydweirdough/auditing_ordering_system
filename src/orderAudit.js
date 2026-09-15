@@ -387,11 +387,42 @@ function createOrderAudit({ transport, codec, getOrder, statusLabel, roleLabel }
     return { orders, ids: [...ids], scanned, locked, unreadable };
   }
 
+  async function purgeOrder(order, actor = null) {
+    if (!order) return { ok: false };
+    const threadId = order.discord?.threadId;
+    const starterMessageId = order.discord?.starterMessageId;
+
+    if (transport.mode === 'mock') {
+      console.log(`[discord:mock] Order ${order.id} permanently purged: thread ${threadId}, starter ${starterMessageId}`);
+    } else if (transport.mode === 'live') {
+      if (threadId && transport.live?.deleteThread) {
+        await transport.live.deleteThread(threadId).catch((err) => {
+          console.warn(`[orders] failed to delete thread ${threadId}: ${err.message}`);
+        });
+      }
+      if (starterMessageId && transport.live?.deleteMessage) {
+        await transport.live.deleteMessage(starterMessageId).catch((err) => {
+          console.warn(`[orders] failed to delete starter message ${starterMessageId}: ${err.message}`);
+        });
+      }
+    }
+
+    await logAdmin({
+      title: `Purged: ${order.id}`,
+      description: `Order ${order.id} was permanently purged and vanished from Discord database.`,
+      actor: actor || { name: 'System', role: 'admin' },
+      at: new Date().toISOString(),
+    });
+
+    return { ok: true, id: order.id };
+  }
+
   return {
     sync,
     retry,
     load,
     logAdmin,
+    purgeOrder,
     fetchFile,
     initialState: () => ({ live: 'queued', mock: 'mocked' }[transport.mode] ?? 'off'),
     describe: () => ({ mode: transport.mode, threads: transport.threads, replies: replyAsBot ? 'bot' : 'webhook' }),

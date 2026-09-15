@@ -6,13 +6,31 @@
 // Every change Admin makes to an account is announced to onAccountChange listeners, which post it
 // to the Admin log in #order-audit. Never passwords.
 const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createJsonStore } = require('./jsonStore');
 const { hashPassword, checkPassword, generatePassword, passwordProblem } = require('./passwords');
+const configStore = require('./configStore');
 
-const ROLES = ['salesperson', 'management', 'finance', 'dispatch', 'admin'];
-const ROLE_LABELS = { salesperson: 'Salesperson', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
+const DEFAULT_ROLE_LABELS = { salesperson: 'Salesperson', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
+const ROLE_LABELS = new Proxy(DEFAULT_ROLE_LABELS, {
+  get(target, prop) {
+    if (typeof prop !== 'string') return target[prop];
+    const roleObj = configStore.getRbac().find((r) => r.id === prop);
+    return roleObj ? roleObj.label : target[prop] || prop;
+  },
+});
+
+const ROLES = new Proxy(['salesperson', 'management', 'finance', 'dispatch', 'admin'], {
+  get(target, prop) {
+    const list = configStore.getRbac().map((r) => r.id);
+    if (prop === 'includes') return (val) => list.includes(val);
+    if (prop === 'length') return list.length;
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    return list[prop];
+  },
+});
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 
@@ -30,9 +48,12 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // and removed by editing ACCOUNTS.
 const FROM_ENV = Boolean(process.env.ACCOUNTS?.trim());
 const ENV_MANAGED = 'Accounts are set in ACCOUNTS on the server. Change them there, then restart the server or redeploy.';
+const inMemoryUsers = { nextId: 1, users: [] };
 const store = FROM_ENV
   ? { data: { users: readAccounts(process.env.ACCOUNTS) }, save: async () => {} }
-  : createJsonStore(path.join(DATA_DIR, 'users.json'), { nextId: 1, users: [] });
+  : fs.existsSync(path.join(DATA_DIR, 'users.json'))
+    ? createJsonStore(path.join(DATA_DIR, 'users.json'), { nextId: 1, users: [] })
+    : { data: inMemoryUsers, save: async () => {} };
 
 // Checked when the email is unknown, so a wrong email takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString('hex'));
@@ -45,7 +66,18 @@ const LOCK_MS = 15 * 60 * 1000;
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
 const findByEmail = (email) => store.data.users.find((u) => u.email === email);
 const findUser = (id) => store.data.users.find((u) => u.id === id);
-const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, roleLabel: ROLE_LABELS[u.role], active: u.active, createdAt: u.createdAt });
+const publicUser = (u) => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  role: u.role,
+  roleLabel: ROLE_LABELS[u.role],
+  active: u.active,
+  createdAt: u.createdAt,
+  canRaiseOrders: u.role === 'admin' || configStore.hasPermission(u.role, 'raise_orders'),
+  canManageSettings: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_settings'),
+  canManageUsers: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_users'),
+});
 
 const accountListeners = [];
 const onAccountChange = (fn) => accountListeners.push(fn);
@@ -210,10 +242,22 @@ function requireRole(...roles) {
     : res.status(403).json({ error: `Only ${roles.map((r) => ROLE_LABELS[r]).join(' or ')} can do that.` }));
 }
 
+function requirePermission(perm) {
+  return (req, res, next) => {
+    if (req.user.role === 'admin' || configStore.hasPermission(req.user.role, perm)) {
+      return next();
+    }
+    return res.status(403).json({ error: 'You do not have permission to perform this action.' });
+  };
+}
+
 // Changes only come as JSON. A form on another website can post to this server, but it cannot
 // send application/json without the browser asking first, so this closes that door.
 function jsonOnly(req, res, next) {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
+  if (req.method === 'DELETE' && (!req.headers['content-length'] || req.headers['content-length'] === '0')) {
+    return next();
+  }
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) {
     return res.status(415).json({ error: 'Send JSON (Content-Type: application/json).' });
   }
@@ -263,12 +307,38 @@ router.post('/auth/logout', jsonOnly, (_req, res) => {
 
 router.get('/auth/me', requireUser, (req, res) => res.json({ user: publicUser(req.user) }));
 
-router.get('/users', requireUser, requireRole('admin'), (_req, res) => {
-  res.json({ users: store.data.users.map(publicUser), roles: ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })) });
+router.post('/auth/change-password', jsonOnly, requireUser, editable, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (!currentPassword) throw bad('Enter your current password.');
+    if (!newPassword) throw bad('Enter a new password.');
+    const user = store.data.users.find((u) => u.id === req.user.id);
+    if (!user) throw bad('Account not found.', 404);
+    if (!checkPassword(String(currentPassword), user.passwordHash ?? DUMMY_HASH)) {
+      throw bad('Current password does not match.');
+    }
+    const problem = passwordProblem(String(newPassword));
+    if (problem) throw bad(problem);
+    user.passwordHash = hashPassword(String(newPassword));
+    user.sessionVersion = (user.sessionVersion ?? 0) + 1;
+    await store.save();
+    setSession(res, user);
+    announce(req.user, `Password changed: ${user.name}`, `${user.email} updated their account password`);
+    res.json({ ok: true, message: 'Password updated successfully' });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
+router.get('/users', requireUser, requirePermission('manage_users'), (_req, res) => {
+  res.json({
+    users: store.data.users.map(publicUser),
+    roles: configStore.getRbac().map((r) => ({ value: r.id, label: r.label, isSystem: r.isSystem, permissions: r.permissions })),
+  });
 });
 
 // A password left blank is generated and returned once, for the admin to hand over.
-router.post('/users', jsonOnly, requireUser, requireRole('admin'), editable, async (req, res, next) => {
+router.post('/users', jsonOnly, requireUser, requirePermission('manage_users'), editable, async (req, res, next) => {
   try {
     const { user, password } = await createAccount(req.body ?? {});
     announce(req.user, 'Account created', `${user.name} (${user.email}) as ${ROLE_LABELS[user.role]}`);
@@ -278,7 +348,7 @@ router.post('/users', jsonOnly, requireUser, requireRole('admin'), editable, asy
   }
 });
 
-router.patch('/users/:id', jsonOnly, requireUser, requireRole('admin'), editable, async (req, res, next) => {
+router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_users'), editable, async (req, res, next) => {
   try {
     const user = findUser(Number(req.params.id));
     if (!user) throw bad('No such account.', 404);
@@ -322,4 +392,4 @@ router.patch('/users/:id', jsonOnly, requireUser, requireRole('admin'), editable
 
 const listUsers = () => store.data.users.map(publicUser);
 
-module.exports = { router, requireUser, requireRole, jsonOnly, createAccount, findUser, listUsers, publicUser, onAccountChange, ROLES, ROLE_LABELS };
+module.exports = { router, requireUser, requireRole, requirePermission, jsonOnly, createAccount, findUser, listUsers, publicUser, onAccountChange, ROLES, ROLE_LABELS };

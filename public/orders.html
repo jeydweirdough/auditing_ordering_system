@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders · record_database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header class="top" id="site-header"></header>
+
+  <div class="bar">
+    <div class="bar-left">
+      <p class="role-line" id="role-line"></p>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Order lists"></nav>
+    </div>
+    <button type="button" class="btn" id="new-order" hidden>New order</button>
+  </div>
+
+  <div class="work" id="work">
+    <div class="list-col" id="main">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading orders…</p>
+      </div>
+    </div>
+    <aside class="side" id="side" aria-label="Order" hidden></aside>
+  </div>
+</div>
+
+<dialog class="modal" id="for-dialog" aria-labelledby="for-title"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="viz-tip" id="viz-tip" role="tooltip" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/orders.js"></script>
+</body>
+</html>

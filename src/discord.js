@@ -116,6 +116,42 @@ class LiveDiscord {
     return result;
   }
 
+  // Deletes a thread permanently via the bot token
+  deleteThread(threadId) {
+    if (!threadId) return Promise.resolve(null);
+    const run = async () => {
+      try {
+        return await request('DELETE', `${this.hook.api}/channels/${threadId}`, this.botToken);
+      } catch (err) {
+        if (err.status === 404) return null;
+        throw err;
+      }
+    };
+    const result = this.botLine.then(run, run);
+    this.botLine = result.catch(() => {});
+    return result;
+  }
+
+  // Deletes a message posted by this webhook or in the thread
+  async deleteMessage(messageId, threadId = null) {
+    if (!messageId) return null;
+    const { api, id, token } = this.hook;
+    const query = threadId ? `?thread_id=${threadId}` : '';
+    try {
+      return await request('DELETE', `${api}/webhooks/${id}/${token}/messages/${messageId}${query}`);
+    } catch (err) {
+      if (err.status === 404) return null;
+      if (this.botToken && threadId) {
+        try {
+          return await request('DELETE', `${api}/channels/${threadId}/messages/${messageId}`, this.botToken);
+        } catch (botErr) {
+          if (botErr.status === 404) return null;
+        }
+      }
+      throw err;
+    }
+  }
+
   // Every message in a thread, oldest first.
   async threadMessages(threadId) {
     const all = [];
@@ -189,7 +225,8 @@ async function request(method, url, botToken, body) {
     if (res.headers.get('x-ratelimit-remaining') === '0') {
       await sleep((Number(res.headers.get('x-ratelimit-reset-after')) || 0) * 1000);
     }
-    return res.json();
+    if (res.status === 204) return null;
+    return res.json().catch(() => null);
   }
 }
 
