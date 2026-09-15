@@ -7,7 +7,7 @@ const products = require('./products');
 
 const app = express();
 
-// All records (orders, config/settings, products) are read back from Discord before anything is answered.
+// All records (orders, config/settings, products, accounts) are read back from Discord before anything is answered.
 // `npm start` waits for it before listening; Vercel imports this file instead of running it, so there
 // the first request waits for it.
 let loading = null;
@@ -15,6 +15,7 @@ const ready = () => (loading ??= Promise.all([
   orders.load(),
   configStore.loadFromDiscord(),
   products.loadFromDiscord(),
+  accounts.loadFromDiscord(),
 ]));
 app.use((_req, _res, next) => { ready().then(() => next(), next); });
 
