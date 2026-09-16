@@ -989,12 +989,12 @@ function adminDashboard(_user, all, r) {
     now: salesFigures(all, r),
     prev: r.prev && salesFigures(all, r.prev),
     trend: trendOf(all, r),
-    roles: ROLES.map((role) => ({
+    roles: Array.from(ROLES).filter(Boolean).map((role) => ({
       role,
-      label: ROLE_LABELS[role],
+      label: ROLE_LABELS[role] || (role ? role.charAt(0).toUpperCase() + role.slice(1) : ''),
       active: users.filter((u) => u.role === role && u.active).length,
       inactive: users.filter((u) => u.role === role && !u.active).length,
-    })),
+    })).filter((r) => r && r.role),
     salespeople: users.filter((u) => u.role === 'salesperson').map((u) => {
       const f = salesFigures(all.filter((o) => o.ownerId === u.id), r);
       return { name: u.name, active: u.active, raised: f.raised, sales: f.sales, deliveredValue: f.deliveredValue, approvalRate: f.approvalRate };

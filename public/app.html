@@ -967,6 +967,13 @@ const TABS = {
     { key: 'active', label: 'In progress', match: (o) => !DONE.has(o.status) && o.status !== 'returned', empty: 'No orders in progress. Raise one with New order.' },
     { key: 'done', label: 'Finished', match: (o) => DONE.has(o.status), empty: 'No finished orders yet.' },
   ],
+  team_leader: [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'tl_approval', label: 'Waiting for review', needs: true, match: (o) => o.status === 'pending_tl_approval', empty: 'No orders waiting for your review.' },
+    { key: 'returned', label: 'Sent back to sales', match: (o) => o.status === 'returned', empty: 'No orders returned.' },
+    { key: 'active', label: 'In progress', match: (o) => !DONE.has(o.status) && o.status !== 'pending_tl_approval' && o.status !== 'returned', empty: 'No orders currently in progress.' },
+    { key: 'done', label: 'Finished', match: (o) => DONE.has(o.status), empty: 'No finished orders yet.' },
+  ],
   management: [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'approval', label: 'Waiting for approval', needs: true, match: (o) => o.status === 'pending_approval', empty: 'Nothing is waiting for approval.' },
@@ -1449,8 +1456,8 @@ function adminDash(d) {
       <thead><tr><th>Manager</th><th class="num">Decisions</th><th class="num">Approved</th><th class="num">Sent back</th><th class="num">Rejected</th><th class="num">Time to decide</th></tr></thead>
       <tbody>${d.managers.map((m) => `<tr><td>${esc(m.name)}${inactive(m)}</td><td class="num">${m.decisions}</td><td class="num">${m.approved}</td><td class="num">${m.sentBack}</td><td class="num">${m.rejected}</td><td class="num">${esc(howLong(m.decideHours))}</td></tr>`).join('')}</tbody>
     </table></div>` : '<p class="quiet-box">No managers yet.</p>';
-  const people = d.roles.map((r) => `<li><span>${esc(r.label)}</span><strong>${r.active}</strong>${r.inactive ? `<small>+${r.inactive} inactive</small>` : ''}</li>`).join('');
-  const active = d.roles.reduce((s, r) => s + r.active, 0);
+  const people = (d.roles || []).filter(Boolean).map((r) => `<li><span>${esc(r.label || r.role)}</span><strong>${r.active || 0}</strong>${r.inactive ? `<small>+${r.inactive} inactive</small>` : ''}</li>`).join('');
+  const active = (d.roles || []).filter(Boolean).reduce((s, r) => s + (r.active || 0), 0);
   const dc = d.discord;
   const [dcValue, dcHint] = dc.kind !== 'discord' ? ['Memory only', "Orders aren't stored in #order-audit, so they're lost when the server stops."]
     : dc.failed ? [plural(dc.failed, 'step'), 'not stored in #order-audit yet.']
@@ -1471,9 +1478,134 @@ function adminDash(d) {
     </div>`;
 }
 
+function dispatchDash(d) {
+  const { pipeline, fulfillment: f, couriers, urgent } = d;
+  const ready = pipeline?.ready || { count: 0, value: 0 };
+  const picking = pipeline?.picking || { count: 0, value: 0 };
+  const packed = pipeline?.packed || { count: 0, value: 0 };
+  const dispatched = pipeline?.dispatched || { count: 0, value: 0 };
+
+  const urgentList = urgent?.length
+    ? `<ul class="mini">${urgent.map((o) => `<li><button type="button" class="mini-row" data-open="${esc(o.id)}">
+        <span class="id">${esc(o.id)}</span><span class="mini-name">${esc(o.customer ?? o.owner)}</span>
+        <span class="pill ${o.status === 'ready_for_dispatch' ? 'wait' : 'ok'}">${esc(o.status === 'ready_for_dispatch' ? 'Ready to Pick' : 'Picking')}</span>
+        <span class="num">${esc(php(o.total))}</span>
+      </button></li>`).join('')}</ul>`
+    : '<p class="quiet-box">No urgent orders awaiting dispatch action.</p>';
+
+  const courierRows = couriers?.length
+    ? `<div class="table-wrap"><table class="dash-table">
+        <thead><tr><th>Courier / Method</th><th class="num">Shipments</th></tr></thead>
+        <tbody>${couriers.map((c) => `<tr><td><strong>${esc(c.courier)}</strong></td><td class="num">${c.count}</td></tr>`).join('')}</tbody>
+      </table></div>`
+    : '<p class="quiet-box">No deliveries in this period.</p>';
+
+  return `
+    ${dashHero({
+      label: `Fulfillment & Deliveries · ${d.period.label}`,
+      value: php(f?.deliveredValue || 0),
+      sub: `${delta(f?.deliveredValue, f?.prevDeliveredValue, php)}<p class="hint">${plural(f?.deliveredCount || 0, 'order')} delivered${f?.turnaroundHours != null ? ` · Median turnaround: ${esc(howLong(f.turnaroundHours))}` : ''}</p>`,
+      body: `<div class="hero-list"><h3 class="label">Priority orders for dispatch</h3>${urgentList}</div>`,
+    })}
+    <div class="dash-cards">
+      ${dashCard({
+        label: 'Ready for dispatch',
+        tag: 'Awaiting picking',
+        value: whole(ready.count),
+        sub: `<p class="hint">${esc(php(ready.value))} total</p>`,
+        foot: '<button type="button" class="link" data-go-tab="board">Go to Dispatch Board</button>',
+      })}
+      ${dashCard({
+        label: 'Picking in progress',
+        tag: 'Warehouse',
+        value: whole(picking.count),
+        sub: `<p class="hint">${esc(php(picking.value))} total</p>`,
+      })}
+      ${dashCard({
+        label: 'Packed & ready',
+        tag: 'Handover',
+        value: whole(packed.count),
+        sub: `<p class="hint">${esc(php(packed.value))} total</p>`,
+      })}
+      ${dashCard({
+        label: 'In transit',
+        tag: 'With courier',
+        value: whole(dispatched.count),
+        sub: `<p class="hint">${esc(php(dispatched.value))} total</p>`,
+      })}
+    </div>
+    <div class="hero-list" style="margin-top: var(--gap, 1.5rem);">
+      <h3 class="label">Courier Breakdown (${d.period.label})</h3>
+      ${courierRows}
+    </div>`;
+}
+
+function teamLeaderDash(d) {
+  const { now: n, prev: p, pendingReview, inProgress, team } = d;
+  const maxSales = Math.max(0, ...(team || []).map((s) => s.sales));
+  const teamRows = team?.length
+    ? `<div class="table-wrap"><table class="dash-table">
+        <thead><tr><th>Salesperson</th><th class="num">Pending review</th><th class="num">Raised</th><th>Sales</th><th class="num">Delivered</th></tr></thead>
+        <tbody>${team.map((s) => `<tr>
+          <td>${esc(s.name)}${s.active ? '' : ' <span class="tag">Inactive</span>'}</td>
+          <td class="num">${s.pending ? `<span class="pill wait">${s.pending}</span>` : '0'}</td>
+          <td class="num">${s.raised}</td>
+          ${barCell(s.sales, maxSales)}
+          <td class="num">${esc(php(s.deliveredValue))}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`
+    : '<p class="quiet-box">No salespeople assigned to your team yet.</p>';
+
+  const pendingList = pendingReview?.items?.length
+    ? `<ul class="mini">${pendingReview.items.map((o) => `<li><button type="button" class="mini-row" data-open="${esc(o.id)}">
+        <span class="id">${esc(o.id)}</span><span class="mini-name">${esc(o.customer ?? o.owner)}</span>
+        <span class="pill wait">Needs Review</span>
+        <span class="num">${esc(php(o.total))}</span>
+      </button></li>`).join('')}</ul>`
+    : '<p class="quiet-box">No orders currently waiting for your review.</p>';
+
+  return `
+    ${dashHero({
+      label: `Team performance · ${d.period.label}`,
+      value: php(n.sales),
+      sub: `${delta(n.sales, p?.sales, php)}<p class="hint">Sales from your supervised salespeople in this period.</p>`,
+      body: `<div class="hero-list"><h3 class="label">Supervised Salespeople</h3>${teamRows}</div>`,
+    })}
+    <div class="dash-cards">
+      ${dashCard({
+        label: 'Waiting for your review',
+        tag: 'Needs action',
+        value: whole(pendingReview?.count || 0),
+        sub: `<p class="hint">${esc(php(pendingReview?.value || 0))} total</p>`,
+        foot: '<button type="button" class="link" data-go-tab="tl_approval">Review orders</button>',
+      })}
+      ${dashCard({
+        label: 'Orders raised',
+        value: whole(n.raised),
+        sub: `${delta(n.raised, p?.raised, whole)}`,
+      })}
+      ${dashCard({
+        label: 'In progress',
+        value: whole(inProgress?.count || 0),
+        sub: `<p class="hint">${esc(php(inProgress?.value || 0))} active</p>`,
+      })}
+      ${dashCard({
+        label: 'Delivered',
+        value: php(n.deliveredValue),
+        sub: `<p class="hint">${plural(n.delivered, 'order')} delivered</p>${delta(n.deliveredValue, p?.deliveredValue, php)}`,
+      })}
+    </div>
+    <div class="hero-list" style="margin-top: var(--gap, 1.5rem);">
+      <h3 class="label">Orders Waiting for Your Review</h3>
+      ${pendingList}
+    </div>`;
+}
+
 function dashboardHtml(d) {
   const periods = Object.entries(d.periods).map(([key, label]) => `<button type="button" class="seg-btn" data-period="${esc(key)}" aria-pressed="${key === d.period.key}">${esc(label)}</button>`).join('');
-  const body = { salesperson: salespersonDash, management: managementDash, finance: financeDash, admin: adminDash }[d.role](d);
+  const dashFns = { salesperson: salespersonDash, management: managementDash, finance: financeDash, admin: adminDash, dispatch: dispatchDash, team_leader: teamLeaderDash };
+  const dashFn = dashFns[d.role] || adminDash;
+  const body = dashFn(d);
   return `<div class="dash">
       <div class="dash-bar">
         <div class="seg-group" role="group" aria-label="Period">${periods}</div>
