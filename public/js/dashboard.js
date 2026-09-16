@@ -193,8 +193,8 @@ function adminDash(d) {
       <thead><tr><th>Manager</th><th class="num">Decisions</th><th class="num">Approved</th><th class="num">Sent back</th><th class="num">Rejected</th><th class="num">Time to decide</th></tr></thead>
       <tbody>${d.managers.map((m) => `<tr><td>${esc(m.name)}${inactive(m)}</td><td class="num">${m.decisions}</td><td class="num">${m.approved}</td><td class="num">${m.sentBack}</td><td class="num">${m.rejected}</td><td class="num">${esc(howLong(m.decideHours))}</td></tr>`).join('')}</tbody>
     </table></div>` : '<p class="quiet-box">No managers yet.</p>';
-  const people = d.roles.map((r) => `<li><span>${esc(r.label)}</span><strong>${r.active}</strong>${r.inactive ? `<small>+${r.inactive} inactive</small>` : ''}</li>`).join('');
-  const active = d.roles.reduce((s, r) => s + r.active, 0);
+  const people = (d.roles || []).filter(Boolean).map((r) => `<li><span>${esc(r.label || r.role)}</span><strong>${r.active || 0}</strong>${r.inactive ? `<small>+${r.inactive} inactive</small>` : ''}</li>`).join('');
+  const active = (d.roles || []).filter(Boolean).reduce((s, r) => s + (r.active || 0), 0);
   const dc = d.discord;
   const [dcValue, dcHint] = dc.kind !== 'discord' ? ['Memory only', "Orders aren't stored in #order-audit, so they're lost when the server stops."]
     : dc.failed ? [plural(dc.failed, 'step'), 'not stored in #order-audit yet.']

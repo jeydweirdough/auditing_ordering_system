@@ -27,10 +27,23 @@ const ROLES = new Proxy(['salesperson', 'team_leader', 'management', 'finance', 
   get(target, prop) {
     const list = configStore.getRbac().map((r) => r.id);
     const active = list.length > 0 ? list : target;
-    if (prop === 'includes') return (val) => active.includes(val);
-    if (prop === 'length') return active.length;
-    if (prop === Symbol.iterator) return active[Symbol.iterator].bind(active);
+    if (typeof active[prop] === 'function') return active[prop].bind(active);
     return active[prop];
+  },
+  has(target, prop) {
+    const list = configStore.getRbac().map((r) => r.id);
+    const active = list.length > 0 ? list : target;
+    return prop in active;
+  },
+  ownKeys(target) {
+    const list = configStore.getRbac().map((r) => r.id);
+    const active = list.length > 0 ? list : target;
+    return Reflect.ownKeys(active);
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    const list = configStore.getRbac().map((r) => r.id);
+    const active = list.length > 0 ? list : target;
+    return Object.getOwnPropertyDescriptor(active, prop);
   },
 });
 
