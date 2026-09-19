@@ -8,6 +8,9 @@ node_modules/
 
 # Accounts (hashed passwords) and orders (customer details), with the store's .tmp files.
 data/
+# Backups of the same (they once reached GitHub; never again).
+data.bak/
+*.bak/
 
 # Vercel CLI project link
 .vercel/
