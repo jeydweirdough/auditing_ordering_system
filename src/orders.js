@@ -207,7 +207,7 @@ const ACTIONS = {
   hold: { label: 'Put on hold', done: 'Put on hold', roles: ['finance'], from: ['awaiting_payment'], to: 'on_hold', fields: ['reason'], danger: true },
   start_picking: { label: 'Start picking', done: 'Picking started', roles: ['dispatch'], from: ['ready_for_dispatch'], to: 'picking' },
   mark_packed: { label: 'Mark packed', done: 'Packed', roles: ['dispatch'], from: ['picking'], to: 'packed', fields: ['packingNotes'] },
-  dispatch: { label: 'Dispatch', done: 'Dispatched', roles: ['dispatch'], from: ['packed'], to: 'dispatched', fields: ['courier', 'trackingNumber'] },
+    dispatch: { label: 'Dispatch', done: 'Dispatched', roles: ['dispatch'], from: ['packed'], to: 'dispatched', fields: ['courier', 'trackingNumber'] },
   deliver: { label: 'Mark delivered', done: 'Delivered', roles: ['dispatch'], from: ['dispatched'], to: 'completed', fields: ['receivedBy'] },
   cancel: { label: 'Cancel order', done: 'Cancelled', roles: ['salesperson', 'team_leader', 'management'], from: ['pending_tl_approval', 'pending_approval', 'returned', 'awaiting_payment', 'on_hold'], to: 'cancelled', owner: true, fields: ['reason'], danger: true },
   edit: { label: 'Edit order', done: 'Edited by Admin', roles: ['admin', 'management', 'finance', 'team_leader'], from: LIVE, to: null, form: 'edit', logged: 'Edited' },
