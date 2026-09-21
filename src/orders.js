@@ -218,10 +218,10 @@ const ACTIONS = {
 for (const [name, spec] of Object.entries(ACTIONS)) spec.name = name;
 
 // Who may raise an order: for themselves, or for an active salesperson.
-const canRaiseOrders = (user) => user && (user.role === 'admin' || configStore.hasPermission(user.role, 'raise_orders'));
+const canRaiseOrders = (user) => user && configStore.hasPermission(user.role, 'raise_orders');
 const CREATORS = new Proxy(['salesperson', 'team_leader', 'management', 'admin'], {
   get(target, prop) {
-    const list = configStore.getRbac().filter((r) => r.id === 'admin' || r.permissions?.raise_orders).map((r) => r.id);
+    const list = configStore.getRbac().filter((r) => r.permissions?.raise_orders).map((r) => r.id);
     if (prop === 'includes') return (val) => list.includes(val);
     if (prop === 'length') return list.length;
     if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
@@ -424,7 +424,8 @@ const ownerName = (order) => order.owner?.name ?? order.createdBy.name;
 // An order is someone's when it's for them or they raised it, e.g. for another salesperson.
 const isMine = (user, order) => order.ownerId === user.id || order.createdBy?.id === user.id;
 const canSee = (user, order) => {
-  if (order.status === 'deleted' && user.role !== 'admin') return false;
+  // The recycle bin is for whoever may restore from it.
+  if (order.status === 'deleted' && !configStore.hasPermission(user.role, 'restore_orders')) return false;
   if (user.role === 'salesperson') return isMine(user, order);
   if (user.role === 'team_leader') {
     if (isMine(user, order)) return true;
@@ -462,18 +463,23 @@ const ACTION_PERMISSIONS = {
 // Why this person may not take this step now, as [status, message], or null when they may.
 function refuse(user, order, spec) {
   const perm = ACTION_PERMISSIONS[spec.name];
-  const hasPerm = perm ? configStore.hasPermission(user.role, perm) : (user.role === 'admin' || spec.roles.includes(user.role));
+  const hasPerm = perm ? configStore.hasPermission(user.role, perm) : spec.roles.includes(user.role);
 
-  if (!hasPerm && user.role !== 'admin') {
+  // Everyone answers to the permission table, admin included. There used to be
+  // two ways past this line for 'admin' — one here and one in hasPermission —
+  // so an Administrator could take all eighteen steps of anybody's order and
+  // nothing on the RBAC screen said so.
+  if (!hasPerm) {
     return [403, `Your role does not have permission to do this step.`];
   }
   if (!spec.from.includes(order.status)) return [409, `This order is ${STATUS[order.status].toLowerCase()}, so this step isn't open.`];
-  // mine: only whoever raised the order or whom it's for (Admin aside). owner: the same, for
+  // mine: only whoever raised the order or whom it's for. owner: the same, for
   // salespeople only, so Management can still cancel anyone's order.
-  if ((spec.mine && user.role !== 'admin') || (spec.owner && user.role === 'salesperson')) {
+  if (spec.mine || (spec.owner && user.role === 'salesperson')) {
     if (!isMine(user, order)) return [403, "Only whoever raised this order, or the salesperson it's for, can do that."];
   }
-  // Team leader supervision: if order owner has a specific team leader assigned, only that team leader (or admin) can take team_leader steps
+  // Team leader supervision: a team leader endorses their own people's orders,
+  // not everyone's. (Orbit does this per team for every role, not just this one.)
   if (user.role === 'team_leader' && spec.roles.includes('team_leader')) {
     const ownerUser = findUser(order.ownerId);
     if (ownerUser?.teamLeaderId && ownerUser.teamLeaderId !== user.id) {
@@ -1141,8 +1147,10 @@ router.get('/meta', (req, res) => res.json({
   priceTiers: products.PRICE_TIERS,
   configs: configStore.getAllConfigs(),
   canRaiseOrders: canRaiseOrders(req.user),
-  canManageSettings: req.user.role === 'admin' || configStore.hasPermission(req.user.role, 'manage_settings'),
-  canManageUsers: req.user.role === 'admin' || configStore.hasPermission(req.user.role, 'manage_users'),
+  canManageSettings: configStore.hasPermission(req.user.role, 'manage_settings'),
+  canManageUsers: configStore.hasPermission(req.user.role, 'manage_users'),
+  canDeleteOrders: configStore.hasPermission(req.user.role, 'delete_orders'),
+  canRestoreOrders: configStore.hasPermission(req.user.role, 'restore_orders'),
 }));
 
 router.get('/products', (_req, res) => res.json({
@@ -1184,348 +1192,44 @@ router.post('/customers/quick', (req, res, next) => {
 });
 
 // Custom Order Fields routes
+
+// --- what moved to Orbit -----------------------------------------------------
+// Roles, the order form's lists and extra fields, and promos are Orbit's. The
+// writes are gone from here; the reads stay for now, because the order form
+// still fills its dropdowns from them and will be re-pointed at Orbit's
+// /orders-api/v1/config in the same step that deletes configStore.js.
+const inOrbitNow = (what, where) => (_req, res) =>
+  res.status(410).json({
+    error: `${what} is managed in Orbit now, not here.`,
+    orbit: `${(process.env.ORBIT_WEB_URL || '').replace(/\/$/, '')}${where}`,
+  });
+
 router.get('/custom-fields', requireUser, (_req, res) => {
   res.json({ fields: configStore.getOrderFields() });
 });
 
-router.post('/custom-fields', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const body = req.body || {};
-    const label = String(body.label || '').trim();
-    if (!label) throw bad('Field label is required.');
-    if (label.length > 80) throw bad('Field label cannot exceed 80 characters.');
+router.post('/custom-fields', inOrbitNow('Extra order fields', '/settings/orders'));
 
-    let id = String(body.id || body.name || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    if (!id) {
-      id = label.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-    }
-    if (!id || id.length < 2) throw bad('Field identifier must be at least 2 characters.');
-    if (id.length > 40) throw bad('Field identifier cannot exceed 40 characters.');
+router.put('/custom-fields/:id', inOrbitNow('Extra order fields', '/settings/orders'));
 
-    if (BASE_ORDER_FIELDS.includes(id) || ['id', 'status', 'items', 'total', 'events', 'ownerId', 'createdBy', 'createdAt', 'updatedAt', 'files', 'payment', 'shipment'].includes(id)) {
-      throw bad(`Field identifier "${id}" is reserved for system use.`);
-    }
-
-    const currentFields = configStore.getOrderFields();
-    if (currentFields.some((f) => f.id.toLowerCase() === id.toLowerCase())) {
-      throw bad(`Field with identifier "${id}" already exists.`);
-    }
-
-    const validTypes = ['text', 'number', 'select', 'textarea', 'date', 'choice'];
-    const type = validTypes.includes(body.type) ? body.type : 'text';
-    const validSections = ['details', 'billing', 'logistics', 'additional'];
-    const section = validSections.includes(body.section) ? body.section : 'additional';
-
-    let options = [];
-    if (type === 'select') {
-      if (Array.isArray(body.options)) {
-        options = body.options.map((o) => String(o).trim()).filter(Boolean);
-      } else if (typeof body.options === 'string') {
-        options = body.options.split(',').map((o) => o.trim()).filter(Boolean);
-      }
-      if (options.length === 0) throw bad('Dropdown (select) fields require at least one option.');
-    } else if (type === 'choice') {
-      options = ['Yes', 'No'];
-    }
-
-    const newField = {
-      id,
-      label,
-      type,
-      section,
-      required: Boolean(body.required),
-      options,
-      helpText: body.helpText ? String(body.helpText).trim() : '',
-      active: body.active !== false,
-      createdAt: new Date().toISOString(),
-    };
-
-    currentFields.push(newField);
-    configStore.setOrderFields(currentFields);
-    res.status(201).json({ ok: true, field: newField });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.put('/custom-fields/:id', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const body = req.body || {};
-    const currentFields = configStore.getOrderFields();
-    const index = currentFields.findIndex((f) => f.id.toLowerCase() === id.toLowerCase());
-    if (index === -1) throw bad(`Custom field "${id}" not found.`, 404);
-
-    const existing = currentFields[index];
-    if (body.label !== undefined) {
-      const label = String(body.label || '').trim();
-      if (!label) throw bad('Field label cannot be blank.');
-      if (label.length > 80) throw bad('Field label cannot exceed 80 characters.');
-      existing.label = label;
-    }
-
-    if (body.section !== undefined) {
-      const validSections = ['details', 'billing', 'logistics', 'additional'];
-      if (!validSections.includes(body.section)) throw bad(`Section must be one of: ${validSections.join(', ')}.`);
-      existing.section = body.section;
-    }
-
-    if (body.required !== undefined) {
-      existing.required = Boolean(body.required);
-    }
-
-    if (body.active !== undefined) {
-      existing.active = Boolean(body.active);
-    }
-
-    if (body.helpText !== undefined) {
-      existing.helpText = String(body.helpText || '').trim();
-    }
-
-    if (existing.type === 'select' && body.options !== undefined) {
-      let options = [];
-      if (Array.isArray(body.options)) {
-        options = body.options.map((o) => String(o).trim()).filter(Boolean);
-      } else if (typeof body.options === 'string') {
-        options = body.options.split(',').map((o) => o.trim()).filter(Boolean);
-      }
-      if (options.length === 0) throw bad('Dropdown (select) fields require at least one option.');
-      existing.options = options;
-    }
-
-    existing.updatedAt = new Date().toISOString();
-    currentFields[index] = existing;
-    configStore.setOrderFields(currentFields);
-    res.json({ ok: true, field: existing });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/custom-fields/:id', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const currentFields = configStore.getOrderFields();
-    const filtered = currentFields.filter((f) => f.id.toLowerCase() !== id.toLowerCase());
-    if (filtered.length === currentFields.length) {
-      throw bad(`Custom field "${id}" not found.`, 404);
-    }
-    configStore.setOrderFields(filtered);
-    res.json({ ok: true, deleted: id });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.delete('/custom-fields/:id', inOrbitNow('Extra order fields', '/settings/orders'));
 
 // Master Reference Data & RBAC routes
 router.get('/configs', (_req, res) => {
   res.json({ configs: configStore.getAllConfigs() });
 });
 
-router.post('/configs/:type', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { type } = req.params;
-    const body = req.body || {};
-    if (type === 'divisions') {
-      const name = String(body.name || '').trim();
-      if (!name) throw bad('Division name is required.');
-      const subDivisions = Array.isArray(body.subDivisions)
-        ? body.subDivisions.map((s) => String(s).trim()).filter(Boolean)
-        : [];
-      const list = configStore.getDivisions();
-      if (list.some((d) => d.name.toLowerCase() === name.toLowerCase())) {
-        throw bad(`Division "${name}" already exists.`);
-      }
-      list.push({ name, subDivisions });
-      configStore.setDivisions(list);
-      return res.status(201).json({ ok: true, divisions: list });
-    }
+router.post('/configs/:type', inOrbitNow("The order form's lists", '/settings/orders'));
 
-    const item = String(body.item || '').trim();
-    if (!item) throw bad('Item text is required.');
+router.put('/configs/:type', inOrbitNow("The order form's lists", '/settings/orders'));
 
-    let setter;
-    let getter;
-    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
-    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
-    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
-    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
-    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
-    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
-    else throw bad(`Unknown configuration type: ${type}`, 404);
+router.delete('/configs/:type/:id', inOrbitNow("The order form's lists", '/settings/orders'));
 
-    const list = getter();
-    if (list.some((i) => i.toLowerCase() === item.toLowerCase())) {
-      throw bad(`"${item}" already exists.`);
-    }
-    list.push(item);
-    setter(list);
-    res.status(201).json({ ok: true, items: list });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.post('/rbac/roles', inOrbitNow('Roles and permissions', '/settings/roles'));
 
-router.put('/configs/:type', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { type } = req.params;
-    const body = req.body || {};
-    if (type === 'divisions') {
-      const oldName = String(body.oldName || '').trim();
-      const name = String(body.name || oldName).trim();
-      const subDivisions = Array.isArray(body.subDivisions)
-        ? body.subDivisions.map((s) => String(s).trim()).filter(Boolean)
-        : undefined;
-      const list = configStore.getDivisions();
-      const idx = list.findIndex((d) => d.name === oldName);
-      if (idx === -1) throw bad(`Division "${oldName}" not found.`, 404);
-      list[idx].name = name;
-      if (subDivisions !== undefined) list[idx].subDivisions = subDivisions;
-      configStore.setDivisions(list);
-      return res.json({ ok: true, divisions: list });
-    }
+router.put('/rbac/roles/:roleId', inOrbitNow('Roles and permissions', '/settings/roles'));
 
-    const oldItem = String(body.oldItem || '').trim();
-    const newItem = String(body.newItem || '').trim();
-    if (!oldItem || !newItem) throw bad('Both oldItem and newItem are required.');
-
-    let setter;
-    let getter;
-    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
-    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
-    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
-    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
-    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
-    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
-    else throw bad(`Unknown configuration type: ${type}`, 404);
-
-    const list = getter();
-    const idx = list.indexOf(oldItem);
-    if (idx === -1) throw bad(`Item "${oldItem}" not found.`, 404);
-    list[idx] = newItem;
-    setter(list);
-    res.json({ ok: true, items: list });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/configs/:type/:id', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { type, id } = req.params;
-    const target = decodeURIComponent(id).trim();
-    if (type === 'divisions') {
-      let list = configStore.getDivisions();
-      list = list.filter((d) => d.name !== target);
-      configStore.setDivisions(list);
-      return res.json({ ok: true, divisions: list });
-    }
-
-    let setter;
-    let getter;
-    if (type === 'headquarters') { getter = configStore.getHeadquarters; setter = configStore.setHeadquarters; }
-    else if (type === 'invoicing_from') { getter = configStore.getInvoicingFrom; setter = configStore.setInvoicingFrom; }
-    else if (type === 'payment_methods') { getter = configStore.getPaymentMethods; setter = configStore.setPaymentMethods; }
-    else if (type === 'sources') { getter = configStore.getSources; setter = configStore.setSources; }
-    else if (type === 'payment_terms') { getter = configStore.getPaymentTerms; setter = configStore.setPaymentTerms; }
-    else if (type === 'delivery_methods') { getter = configStore.getDeliveryMethods; setter = configStore.setDeliveryMethods; }
-    else throw bad(`Unknown configuration type: ${type}`, 404);
-
-    let list = getter();
-    list = list.filter((i) => i !== target);
-    setter(list);
-
-    recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
-      id: `${type}-${target}`,
-      type: 'setting',
-      name: `${type}: ${target}`,
-      data: { type, item: target },
-      user: req.user,
-      discord: { category: 'setting' },
-    }));
-    discordHub.notifyCategory('setting', {
-      title: `🗑️ Moved to Recycle Bin: ${target}`,
-      description: `Setting ${type} "${target}" was deleted and moved to Recycle Bin (30-day retention).`,
-      actor: req.user,
-    }).catch(() => {});
-
-    res.json({ ok: true, items: list });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.post('/rbac/roles', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id, label, description, permissions } = req.body || {};
-    const cleanId = String(id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const cleanLabel = String(label || '').trim();
-    if (!cleanId || !cleanLabel) throw bad('Role ID and Label are required.');
-    const rbac = configStore.getRbac();
-    if (rbac.some((r) => r.id === cleanId)) throw bad(`Role "${cleanId}" already exists.`);
-    const newRole = {
-      id: cleanId,
-      label: cleanLabel,
-      description: String(description || '').trim(),
-      isSystem: false,
-      permissions: typeof permissions === 'object' && permissions ? permissions : {},
-    };
-    rbac.push(newRole);
-    configStore.setRbac(rbac);
-    res.status(201).json({ ok: true, role: newRole, rbac });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.put('/rbac/roles/:roleId', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { roleId } = req.params;
-    const { label, description, permissions } = req.body || {};
-    const rbac = configStore.getRbac();
-    const role = rbac.find((r) => r.id === roleId);
-    if (!role) throw bad(`Role "${roleId}" not found.`, 404);
-    if (label) role.label = String(label).trim();
-    if (description !== undefined) role.description = String(description).trim();
-    if (permissions && typeof permissions === 'object') {
-      role.permissions = { ...role.permissions, ...permissions };
-    }
-    configStore.setRbac(rbac);
-    res.json({ ok: true, role, rbac });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/rbac/roles/:roleId', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { roleId } = req.params;
-    let rbac = configStore.getRbac();
-    const role = rbac.find((r) => r.id === roleId);
-    if (!role) throw bad(`Role "${roleId}" not found.`, 404);
-    if (role.isSystem || role.id === 'admin') throw bad('Cannot delete a system role.');
-    rbac = rbac.filter((r) => r.id !== roleId);
-    configStore.setRbac(rbac);
-
-    recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
-      id: role.id,
-      type: 'role',
-      name: `Role: ${role.label || role.id}`,
-      data: role,
-      user: req.user,
-      discord: { category: 'rbac' },
-    }));
-    discordHub.notifyCategory('rbac', {
-      title: `🗑️ Moved to Recycle Bin: ${role.label || role.id}`,
-      description: `Role "${role.label || role.id}" was deleted and moved to Recycle Bin (30-day retention).`,
-      actor: req.user,
-    }).catch(() => {});
-
-    res.json({ ok: true, rbac });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.delete('/rbac/roles/:roleId', inOrbitNow('Roles and permissions', '/settings/roles'));
 
 // Promotions, Bundles & Discounts API
 router.get('/promotions', (req, res, next) => {
@@ -1538,189 +1242,19 @@ router.get('/promotions', (req, res, next) => {
 });
 
 // Bundles CRUD
-router.post('/promotions/bundle', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id, name, code, description, items, bundlePrice, active } = req.body || {};
-    if (!name || !bundlePrice) throw bad('Bundle name and bundle price are required.');
-    const promos = configStore.getPromotions();
-    promos.bundles = promos.bundles || [];
+router.post('/promotions/bundle', inOrbitNow('Bundles', '/m/inventory/bundles'));
 
-    const cleanId = id || `bnd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const existingIdx = promos.bundles.findIndex((b) => b.id === cleanId);
-    const bundleData = {
-      id: cleanId,
-      name: String(name).trim(),
-      code: String(code || '').trim().toUpperCase(),
-      description: String(description || '').trim(),
-      items: Array.isArray(items) ? items : [],
-      bundlePrice: Number(bundlePrice) || 0,
-      active: active !== undefined ? Boolean(active) : true,
-    };
-
-    if (existingIdx >= 0) {
-      promos.bundles[existingIdx] = bundleData;
-    } else {
-      promos.bundles.unshift(bundleData);
-    }
-
-    configStore.setPromotions(promos);
-    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, bundle: bundleData, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/promotions/bundle/:bundleId', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { bundleId } = req.params;
-    const promos = configStore.getPromotions();
-    const bundle = (promos.bundles || []).find((b) => b.id === bundleId);
-    promos.bundles = (promos.bundles || []).filter((b) => b.id !== bundleId);
-    configStore.setPromotions(promos);
-    if (bundle) {
-      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
-        id: bundle.id,
-        type: 'bundle',
-        name: `Bundle: ${bundle.name}`,
-        data: bundle,
-        user: req.user,
-        discord: { category: 'promotion' },
-      }));
-      discordHub.notifyCategory('promotion', {
-        title: `🗑️ Moved to Recycle Bin: ${bundle.name}`,
-        description: `Bundle "${bundle.name}" was deleted and moved to Recycle Bin (30-day retention).`,
-        actor: req.user,
-      }).catch(() => {});
-    }
-    res.json({ ok: true, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.delete('/promotions/bundle/:bundleId', inOrbitNow('Bundles', '/m/inventory/bundles'));
 
 // Promos / Campaigns CRUD
-router.post('/promotions/promo', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id, name, code, description, startDate, endDate, tag, active } = req.body || {};
-    if (!name) throw bad('Campaign name is required.');
-    const promos = configStore.getPromotions();
-    promos.promos = promos.promos || [];
+router.post('/promotions/promo', inOrbitNow('Promos', '/m/inventory/promos'));
 
-    const cleanId = id || `prm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const existingIdx = promos.promos.findIndex((p) => p.id === cleanId);
-    const promoData = {
-      id: cleanId,
-      name: String(name).trim(),
-      code: String(code || '').trim().toUpperCase(),
-      description: String(description || '').trim(),
-      startDate: startDate || null,
-      endDate: endDate || null,
-      tag: String(tag || '').trim(),
-      active: active !== undefined ? Boolean(active) : true,
-    };
-
-    if (existingIdx >= 0) {
-      promos.promos[existingIdx] = promoData;
-    } else {
-      promos.promos.unshift(promoData);
-    }
-
-    configStore.setPromotions(promos);
-    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, promo: promoData, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/promotions/promo/:promoId', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { promoId } = req.params;
-    const promos = configStore.getPromotions();
-    const promo = (promos.promos || []).find((p) => p.id === promoId);
-    promos.promos = (promos.promos || []).filter((p) => p.id !== promoId);
-    configStore.setPromotions(promos);
-    if (promo) {
-      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
-        id: promo.id,
-        type: 'promo',
-        name: `Promo: ${promo.name}`,
-        data: promo,
-        user: req.user,
-        discord: { category: 'promotion' },
-      }));
-      discordHub.notifyCategory('promotion', {
-        title: `🗑️ Moved to Recycle Bin: ${promo.name}`,
-        description: `Promo "${promo.name}" was deleted and moved to Recycle Bin (30-day retention).`,
-        actor: req.user,
-      }).catch(() => {});
-    }
-    res.json({ ok: true, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.delete('/promotions/promo/:promoId', inOrbitNow('Promos', '/m/inventory/promos'));
 
 // Discounts CRUD
-router.post('/promotions/discount', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { id, name, code, type, value, minSpend, description, active } = req.body || {};
-    if (!name || value == null) throw bad('Discount name and value are required.');
-    const promos = configStore.getPromotions();
-    promos.discounts = promos.discounts || [];
+router.post('/promotions/discount', inOrbitNow('Discounts', '/m/inventory/promos'));
 
-    const cleanId = id || `dsc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const existingIdx = promos.discounts.findIndex((d) => d.id === cleanId);
-    const discountData = {
-      id: cleanId,
-      name: String(name).trim(),
-      code: String(code || '').trim().toUpperCase(),
-      type: type === 'fixed' ? 'fixed' : 'percentage',
-      value: Number(value) || 0,
-      minSpend: Number(minSpend) || 0,
-      description: String(description || '').trim(),
-      active: active !== undefined ? Boolean(active) : true,
-    };
-
-    if (existingIdx >= 0) {
-      promos.discounts[existingIdx] = discountData;
-    } else {
-      promos.discounts.unshift(discountData);
-    }
-
-    configStore.setPromotions(promos);
-    res.status(existingIdx >= 0 ? 200 : 201).json({ ok: true, discount: discountData, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.delete('/promotions/discount/:discountId', requirePermission('manage_settings'), (req, res, next) => {
-  try {
-    const { discountId } = req.params;
-    const promos = configStore.getPromotions();
-    const discount = (promos.discounts || []).find((d) => d.id === discountId);
-    promos.discounts = (promos.discounts || []).filter((d) => d.id !== discountId);
-    configStore.setPromotions(promos);
-    if (discount) {
-      recycleBin.addRecycledItem(recycleBin.createRecycleRecord({
-        id: discount.id,
-        type: 'discount',
-        name: `Discount: ${discount.name}`,
-        data: discount,
-        user: req.user,
-        discord: { category: 'promotion' },
-      }));
-      discordHub.notifyCategory('promotion', {
-        title: `🗑️ Moved to Recycle Bin: ${discount.name}`,
-        description: `Discount "${discount.name}" was deleted and moved to Recycle Bin (30-day retention).`,
-        actor: req.user,
-      }).catch(() => {});
-    }
-    res.json({ ok: true, promotions: promos });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.delete('/promotions/discount/:discountId', inOrbitNow('Discounts', '/m/inventory/promos'));
 
 // The signed-in person's dashboard, for ?period=month (the default), last_month, 90d or all.
 router.get('/dashboard', (req, res, next) => {
@@ -2076,7 +1610,7 @@ router.get('/:id/files/:n', async (req, res, next) => {
 // Sends again whatever isn't stored in #order-audit yet, in order.
 router.post('/:id/audit/retry', (req, res, next) => {
   try {
-    if (!['management', 'admin'].includes(req.user.role)) throw bad('Only Management or Admin can send the audit again.', 403);
+    if (!configStore.hasPermission(req.user.role, 'manage_settings')) throw bad('You do not have permission to send the audit again.', 403);
     const order = visibleOrder(req);
     audit.retry(order.id);
     res.json({ order: fullOrder(order, req.user) });

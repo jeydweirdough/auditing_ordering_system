@@ -121,6 +121,18 @@ async function loadFromDiscord() {
     rbacTable.saveRow('team_leader', tlRole).catch(() => {});
   }
 
+  // 'admin' is a role in the table now, not a way past it. The one thing that
+  // cannot come from the table is reaching the table itself: an Administrator
+  // locked out of the RBAC screen can never be let back in by anybody. So those
+  // two are guaranteed, and every other thing an admin does is a tick you can
+  // see, and untick.
+  const admin = rbacTable.getRow('admin') || { id: 'admin', label: 'Administrator', isSystem: true, permissions: {} };
+  if (!admin.permissions?.manage_users || !admin.permissions?.manage_settings) {
+    admin.permissions = { ...(admin.permissions || {}), manage_users: true, manage_settings: true };
+    rbacTable.setRowData('admin', admin);
+    rbacTable.saveRow('admin', admin).catch(() => {});
+  }
+
   console.log('[configStore] Loaded from Discord tables (settings, rbac, promotions).');
 }
 
@@ -229,7 +241,10 @@ function setRbac(list) {
 }
 
 function hasPermission(roleId, permissionKey) {
-  if (roleId === 'admin') return true;
+  // No role is above the table. 'admin' used to return true here whatever the
+  // RBAC screen said, which made that screen decorative for the one role most
+  // worth being able to read — you could untick everything and nothing changed.
+  // If an admin should take an order step, tick it for them like anyone else.
   const role = rbacTable.getRow(roleId) || getRbac().find((r) => r.id === roleId);
   if (!role) return false;
   return Boolean(role.permissions && role.permissions[permissionKey]);

@@ -366,7 +366,7 @@ function auditView(o) {
     : store?.encrypts ? ' Customer details, notes and reasons in the data are encrypted.'
     : ' RECORD_SECRET is not set, so customer details in the data are readable by everyone in the channel.';
   const failed = o.events.some((e) => e.discord?.state === 'failed');
-  const canRetry = failed && ['management', 'admin'].includes(currentUser.role);
+  const canRetry = failed && Boolean(currentUser.canManageSettings);
   const steps = o.events.map((e) => {
     const [tone, text] = (DISCORD_STATE[e.discord?.state] ?? DISCORD_STATE.off)(e.discord ?? {});
     const change = e.from && e.from !== e.to ? `${currentMeta.statuses[e.from]} → ${currentMeta.statuses[e.to]}` : currentMeta.statuses[e.to];

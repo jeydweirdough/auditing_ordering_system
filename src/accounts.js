@@ -127,6 +127,18 @@ const LOCK_MS = 15 * 60 * 1000;
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
 const findByEmail = (email) => store.data.users.find((u) => u.email === email);
 const findUser = (id) => store.data.users.find((u) => u.id === id);
+// Every permission that is about an order rather than about administering the
+// app. Someone with none of them has no work here.
+const ORDER_PERMISSIONS = [
+  'raise_orders', 'edit_orders', 'delete_orders', 'restore_orders',
+  'approve_orders', 'send_back_orders', 'reject_orders',
+  'verify_payment', 'hold_payment', 'pick_pack_dispatch', 'deliver_orders',
+];
+
+// Administering the system is Orbit's job now, so holding either of these is
+// what makes someone's home the other app.
+const ADMIN_PERMISSIONS = ['manage_users', 'manage_settings'];
+
 const publicUser = (u) => ({
   id: u.id,
   name: u.name,
@@ -136,9 +148,23 @@ const publicUser = (u) => ({
   active: u.active,
   createdAt: u.createdAt,
   teamLeaderId: u.teamLeaderId ?? null,
-  canRaiseOrders: u.role === 'admin' || configStore.hasPermission(u.role, 'raise_orders'),
-  canManageSettings: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_settings'),
-  canManageUsers: u.role === 'admin' || configStore.hasPermission(u.role, 'manage_users'),
+  canRaiseOrders: configStore.hasPermission(u.role, 'raise_orders'),
+  canManageSettings: configStore.hasPermission(u.role, 'manage_settings'),
+  canManageUsers: configStore.hasPermission(u.role, 'manage_users'),
+  canDeleteOrders: configStore.hasPermission(u.role, 'delete_orders'),
+  canRestoreOrders: configStore.hasPermission(u.role, 'restore_orders'),
+  // Whether this person belongs in Orbit rather than here.
+  //
+  // This app does orders; Orbit does everything else. So two kinds of account
+  // are sent there rather than shown a dashboard of other people's work:
+  // someone who administers the system, because there is nothing left here to
+  // administer, and someone who takes no order steps at all, because there is
+  // nothing here they can do. Asked of the permission table, not of a role
+  // name, so it keeps being true as roles are edited.
+  belongsInOrbit:
+    ADMIN_PERMISSIONS.some((perm) => configStore.hasPermission(u.role, perm))
+    || !ORDER_PERMISSIONS.some((perm) => configStore.hasPermission(u.role, perm)),
+  orbitUrl: (process.env.ORBIT_WEB_URL || '').replace(/\/$/, ''),
 });
 
 const accountListeners = [];
@@ -313,7 +339,9 @@ function requireRole(...roles) {
 
 function requirePermission(perm) {
   return (req, res, next) => {
-    if (req.user.role === 'admin' || configStore.hasPermission(req.user.role, perm)) {
+    // No role is waved through. What an Administrator may do is what the RBAC
+    // screen says they may do, the same as everybody else.
+    if (configStore.hasPermission(req.user.role, perm)) {
       return next();
     }
     return res.status(403).json({ error: 'You do not have permission to perform this action.' });
@@ -399,73 +427,22 @@ router.post('/auth/change-password', jsonOnly, requireUser, editable, async (req
   }
 });
 
-router.get('/users', requireUser, requirePermission('manage_users'), (_req, res) => {
-  res.json({
-    users: store.data.users.map(publicUser),
-    roles: configStore.getRbac().map((r) => ({ value: r.id, label: r.label, isSystem: r.isSystem, permissions: r.permissions })),
+// Who can sign in, what they may do, and which team they are on are Orbit's —
+// Settings -> People and Settings -> Roles & permissions. They were kept here
+// too once, which meant the same person could be active in one app and not the
+// other, with nothing to say which was right.
+//
+// These answer rather than disappear: something out there may still call them,
+// and "gone, and here is where it went" is a better answer than a 404.
+const inOrbitNow = (what, where) => (_req, res) =>
+  res.status(410).json({
+    error: `${what} is managed in Orbit now, not here.`,
+    orbit: `${(process.env.ORBIT_WEB_URL || '').replace(/\/$/, '')}${where}`,
   });
-});
 
-// A password left blank is generated and returned once, for the admin to hand over.
-router.post('/users', jsonOnly, requireUser, requirePermission('manage_users'), editable, async (req, res, next) => {
-  try {
-    const { user, password } = await createAccount(req.body ?? {});
-    announce(req.user, 'Account created', `${user.name} (${user.email}) as ${ROLE_LABELS[user.role]}`);
-    res.status(201).json({ user: publicUser(user), password });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
-
-router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_users'), editable, async (req, res, next) => {
-  try {
-    const user = findUser(Number(req.params.id));
-    if (!user) throw bad('No such account.', 404);
-    const { name, role, active, resetPassword, teamLeaderId } = req.body ?? {};
-    const self = user.id === req.user.id;
-    if (self && (active === false || (role && role !== 'admin'))) {
-      throw bad("You can't deactivate your own account or take away your own admin role.");
-    }
-    // Everything is checked before anything changes, so a refused request changes nothing.
-    const newName = name !== undefined ? cleanName(name) : user.name;
-    const newRole = role !== undefined ? checkRole(role) : user.role;
-
-    const changes = [];
-    if (newName !== user.name) {
-      changes.push(`Name: ${user.name} → ${newName}`);
-      user.name = newName;
-    }
-    if (newRole !== user.role) {
-      changes.push(`Role: ${ROLE_LABELS[user.role]} → ${ROLE_LABELS[newRole]}`);
-      user.role = newRole;
-    }
-    if (teamLeaderId !== undefined) {
-      const parsedTl = teamLeaderId != null && teamLeaderId !== '' ? (Number(teamLeaderId) || null) : null;
-      if (parsedTl !== user.teamLeaderId) {
-        const tlUser = parsedTl ? findUser(parsedTl) : null;
-        changes.push(`Team Leader: ${tlUser ? tlUser.name : 'Unassigned'}`);
-        user.teamLeaderId = parsedTl;
-      }
-    }
-    if (typeof active === 'boolean' && active !== user.active) {
-      user.active = active;
-      if (!active) user.sessionVersion = (user.sessionVersion ?? 0) + 1;   // signed out everywhere, now
-      changes.push(active ? 'Reactivated' : 'Deactivated; signed out everywhere');
-    }
-    let password = null;
-    if (resetPassword === true) {
-      password = generatePassword();
-      user.passwordHash = hashPassword(password);
-      user.sessionVersion = (user.sessionVersion ?? 0) + 1;
-      changes.push('Password reset; signed out everywhere');
-    }
-    await store.save();
-    if (changes.length) announce(req.user, `Account changed: ${user.name}`, changes.join('\n'));
-    res.json({ user: publicUser(user), password });
-  } catch (err) {
-    fail(err, res, next);
-  }
-});
+router.get('/users', requireUser, inOrbitNow('Who can sign in', '/settings/people'));
+router.post('/users', requireUser, inOrbitNow('Adding someone', '/settings/people/new'));
+router.patch('/users/:id', requireUser, inOrbitNow('Changing an account', '/settings/people'));
 
 const listUsers = () => store.data.users.map(publicUser);
 

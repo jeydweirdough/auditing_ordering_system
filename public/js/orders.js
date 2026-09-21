@@ -98,7 +98,7 @@ function table(list, empty) {
   if (!list.length) return `<div class="orders"><p class="empty">${esc(empty)}</p></div>`;
   const showOwner = currentUser.role !== 'salesperson';
   const isRecycleBin = S.tab === 'deleted';
-  const emptyBinHeader = (isRecycleBin && currentUser.role === 'admin' && list.length)
+  const emptyBinHeader = (isRecycleBin && currentUser.canDeleteOrders && list.length)
     ? `<div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem;"><button type="button" class="btn danger small" id="empty-recycle-bin-btn">🗑️ Empty Recycle Bin (${list.length})</button></div>`
     : '';
   const rows = list.map((o) => {
@@ -907,7 +907,7 @@ function auditView(o) {
     : store?.encrypts ? ' Customer details, notes and reasons in the data are encrypted.'
     : ' RECORD_SECRET is not set, so customer details in the data are readable by everyone in the channel.';
   const failed = o.events.some((e) => e.discord?.state === 'failed');
-  const canRetry = failed && ['management', 'admin'].includes(currentUser.role);
+  const canRetry = failed && Boolean(currentUser.canManageSettings);
   const steps = o.events.map((e) => {
     const [tone, text] = (DISCORD_STATE[e.discord?.state] ?? DISCORD_STATE.off)(e.discord ?? {});
     const change = e.from && e.from !== e.to ? `${currentMeta.statuses[e.from]} → ${currentMeta.statuses[e.to]}` : currentMeta.statuses[e.to];

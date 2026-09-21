@@ -316,6 +316,25 @@ async function ensureAuth() {
       return null;
     }
     currentUser = data.user;
+
+    // Administration is Orbit’s, and so is anyone who does it. Sent there
+    // before a page is drawn, so nobody lands on a dashboard of work that
+    // isn’t theirs and nothing flashes up first.
+    if (currentUser.belongsInOrbit) {
+      if (currentUser.orbitUrl) {
+        window.location.replace(currentUser.orbitUrl);
+        return null;
+      }
+      document.body.innerHTML = [
+        '<div style="font:16px/1.5 system-ui;margin:3rem;max-width:34rem">',
+        '<h1 style="font-size:1.3rem">This app is for taking orders</h1>',
+        '<p>Accounts, roles and settings are managed in Orbit, so there is nothing here for you.</p>',
+        '<p>Set <code>ORBIT_WEB_URL</code> in this app’s <code>.env</code> and this page will take you straight there.</p>',
+        '</div>',
+      ].join('');
+      return null;
+    }
+
     currentMeta = await api('GET', '/api/orders/meta').catch(() => null);
     return currentUser;
   } catch {
@@ -377,7 +396,10 @@ function renderTopNav(activeTab = 'orders') {
   const canRaise = currentUser.canRaiseOrders !== undefined
     ? Boolean(currentUser.canRaiseOrders)
     : CREATORS.includes(currentUser.role);
-  const canSettings = currentUser.role === 'admin' || Boolean(currentUser.canManageSettings || currentUser.canManageUsers);
+  // Administration lives in Orbit. These are the way there, not a screen here:
+  // the server redirects them, and the arrow says so before you click.
+  const canSettings = Boolean(currentUser.canManageSettings || currentUser.canManageUsers);
+  const OUT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.55"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
 
   sidebar.innerHTML = `
     <div class="sidebar-brand">
@@ -413,14 +435,14 @@ function renderTopNav(activeTab = 'orders') {
         <span>Orders</span>
       </a>
       ${canSettings ? `
-      <span class="nav-heading" style="margin-top: 12px;">Administration</span>
+      <span class="nav-heading" style="margin-top: 12px;">In Orbit</span>
       <a href="/promotions" class="nav-item ${isPromotionsActive ? 'active' : ''}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        <span>Promos & Pricing</span>
+        <span>Promos & Pricing</span>${OUT}
       </a>
       <a href="/settings" class="nav-item ${isSettingsActive ? 'active' : ''}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Settings & RBAC</span>
+        <span>Accounts & settings</span>${OUT}
       </a>` : ''}
     </nav>
 
@@ -454,11 +476,11 @@ function renderTopNav(activeTab = 'orders') {
           ${canSettings ? `
           <a href="/promotions" class="user-dropdown-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>Promos & Pricing</span>
+            <span>Promos & Pricing</span>${OUT}
           </a>
           <a href="/settings" class="user-dropdown-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span>Settings & RBAC</span>
+            <span>Accounts & settings</span>${OUT}
           </a>` : ''}
           <div class="user-dropdown-divider"></div>
           <button type="button" class="user-dropdown-item is-signout" id="btn-sidebar-dropdown-signout">
