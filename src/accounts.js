@@ -399,6 +399,25 @@ router.post('/auth/change-password', jsonOnly, requireUser, editable, async (req
   }
 });
 
+router.patch('/auth/me', jsonOnly, requireUser, editable, async (req, res, next) => {
+  try {
+    const { name } = req.body ?? {};
+    if (name === undefined) throw bad('Give a name to update.');
+    const user = store.data.users.find((u) => u.id === req.user.id);
+    if (!user) throw bad('Account not found.', 404);
+    const newName = cleanName(name);
+    if (newName !== user.name) {
+      const oldName = user.name;
+      user.name = newName;
+      await store.save();
+      announce(req.user, `Name changed: ${oldName} → ${newName}`, `${user.email} updated their own display name`);
+    }
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
 router.get('/users', requireUser, requirePermission('manage_users'), (_req, res) => {
   res.json({
     users: store.data.users.map(publicUser),

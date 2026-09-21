@@ -119,9 +119,19 @@ function renderUsersTab(root) {
 // --------------------------------------------------------------------------
 // Tab 2: Role Permissions (RBAC) Management
 // --------------------------------------------------------------------------
+const RBAC_ROLE_ORDER = ['admin', 'dispatch', 'finance', 'management', 'team_leader', 'salesperson'];
+
 function renderRbacTab(root) {
   if (!configsData) return;
-  const { rbac, permissionDefinitions } = configsData;
+  const { permissionDefinitions } = configsData;
+  const rbac = [...configsData.rbac].sort((a, b) => {
+    const ia = RBAC_ROLE_ORDER.indexOf(a.id);
+    const ib = RBAC_ROLE_ORDER.indexOf(b.id);
+    if (ia === -1 && ib === -1) return 0;
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
   const roleHeaders = rbac.map((r) => `
     <th class="center" style="min-width: 110px;">

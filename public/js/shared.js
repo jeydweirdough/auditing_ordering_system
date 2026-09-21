@@ -634,8 +634,12 @@ function openUserProfileModal() {
       <h5 class="profile-section-title">Personal Information</h5>
       <div class="profile-info-grid">
         <div class="profile-info-item">
-          <label>Full Name</label>
-          <div>${esc(currentUser.name)}</div>
+          <label for="profile-name-input">Full Name</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="profile-name-input" value="${esc(currentUser.name)}" maxlength="80" style="flex:1; min-width:0;">
+            <button type="button" class="btn small" id="btn-save-name">Save</button>
+          </div>
+          <div class="form-feedback" id="profile-name-feedback" hidden style="margin-top:6px;"></div>
         </div>
         <div class="profile-info-item">
           <label>Email Address</label>
@@ -680,6 +684,38 @@ function openUserProfileModal() {
   `;
 
   dialog.querySelector('#btn-close-profile')?.addEventListener('click', () => dialog.close());
+
+  const nameInput = dialog.querySelector('#profile-name-input');
+  const nameFeedback = dialog.querySelector('#profile-name-feedback');
+  const saveNameBtn = dialog.querySelector('#btn-save-name');
+  saveNameBtn?.addEventListener('click', async () => {
+    const newName = nameInput.value.trim();
+    nameFeedback.hidden = true;
+    if (!newName) {
+      nameFeedback.textContent = 'Give a name of up to 80 characters.';
+      nameFeedback.className = 'form-feedback is-error';
+      nameFeedback.hidden = false;
+      return;
+    }
+    if (newName === currentUser.name) return;
+    setButtonLoading(saveNameBtn, true, 'Saving…');
+    try {
+      const { user } = await api('PATCH', '/api/auth/me', { name: newName });
+      currentUser.name = user.name;
+      dialog.querySelector('.profile-user-name').textContent = user.name;
+      const newInitials = (user.name || 'U').split(/\s+/).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+      dialog.querySelector('.profile-big-avatar').textContent = newInitials;
+      $$('.user-name').forEach((el) => { el.textContent = user.name; el.title = user.name; });
+      $$('.user-dropdown-name').forEach((el) => { el.textContent = user.name; });
+      toast('Your name has been updated.', 'ok');
+    } catch (err) {
+      nameFeedback.textContent = err.message;
+      nameFeedback.className = 'form-feedback is-error';
+      nameFeedback.hidden = false;
+    } finally {
+      setButtonLoading(saveNameBtn, false);
+    }
+  });
 
   const form = dialog.querySelector('#profile-change-pw-form');
   const feedback = dialog.querySelector('#profile-pw-feedback');
