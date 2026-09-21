@@ -179,6 +179,15 @@ function fieldHtml(f, value, id, placeholder, name = f.name, ctx = null, locked 
     const clearBtn = locked ? '' : `<button type="button" class="choice-clear-btn" data-clear-choice="${esc(name)}"${v ? '' : ' hidden'} title="Remove selection">Remove selection</button>`;
     return `<fieldset class="field choice" data-choice-field="${esc(name)}"><legend><span>${esc(f.label)}${optional}</span>${clearBtn}</legend><div class="choices">${choices}</div>${help}${hiddenFallback}</fieldset>`;
   }
+  if (f.type === 'checkbox') {
+    return `<div class="field wide">
+      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; margin:0;" for="${id}">
+        <input type="checkbox" id="${id}" name="${name}" value="Yes" style="width:15px; height:15px; margin:0; accent-color:var(--navy);"${v === 'Yes' || v === true ? ' checked' : ''}${lockAttrs}>
+        <span style="font-size:13px; font-weight:600; color:var(--ink);">${esc(f.label)}</span>
+      </label>
+      ${help}${hiddenFallback}
+    </div>`;
+  }
   let control;
   const suggestions = f.suggestions ?? (f.suggestionsBy && (f.suggestionsBy.lists[ctx?.[f.suggestionsBy.field]] ?? []));
   if (suggestions) {
@@ -197,7 +206,17 @@ function fieldHtml(f, value, id, placeholder, name = f.name, ctx = null, locked 
   } else {
     control = `<input id="${id}" name="${name}" type="${f.type}"${f.max ? ` maxlength="${f.max}"` : ''} value="${esc(v)}"${req}${ph}${lockAttrs}>`;
   }
-  return `<label class="field${f.type === 'textarea' ? ' wide' : ''}" for="${id}"><span>${esc(f.label)}${optional}</span>${control}${help}${hiddenFallback}</label>`;
+  const fieldLabel = `<label class="field${f.type === 'textarea' ? ' wide' : ''}" for="${id}"><span>${esc(f.label)}${optional}</span>${control}${help}${hiddenFallback}</label>`;
+  if (name === 'papProvider' || name === 'glNumber') {
+    const papOn = ctx?.isPap === 'Yes' || ctx?.isPap === true;
+    return `<div data-pap-field${papOn ? '' : ' hidden'}>${fieldLabel}</div>`;
+  }
+  return fieldLabel;
+}
+
+function togglePapFields(form) {
+  const on = Boolean(form.querySelector('[name=isPap]')?.checked);
+  form.querySelectorAll('[data-pap-field]').forEach((el) => { el.hidden = !on; });
 }
 
 function actionForm(o, a) {
@@ -703,6 +722,7 @@ function refreshFormDivision(form) {
     updateItemRowPrice(row);
   }
   recalc();
+  togglePapFields(form);
 }
 
 async function shrink(file) {
@@ -776,8 +796,7 @@ function filesBlock(o, mode) {
   const used = (S.staged || []).reduce((n, f) => n + f.size, 0);
   const form = document.querySelector('#order-form');
   const div = form?.querySelector('[name=division]')?.value || o?.division || 'B2C';
-  const terms = form?.querySelector('[name=paymentTerms]')?.value || o?.paymentTerms || '';
-  const isDswdPcso = div !== 'B2B' && (terms.toUpperCase().includes('DSWD') || terms.toUpperCase().includes('PCSO'));
+  const isPap = Boolean(form?.querySelector('[name=isPap]')?.checked ?? (o?.isPap === 'Yes'));
   const hasGl = (S.staged || []).some((f) => f.kind === 'guarantee_letter');
   const hasRx = (S.staged || []).some((f) => f.kind === 'prescription');
 
@@ -826,7 +845,7 @@ function filesBlock(o, mode) {
   return `
     <fieldset class="block" id="files-block">
       <legend class="label">Attachments</legend>
-      ${isDswdPcso && !hasGl ? `<p class="warn" style="margin:6px 0 10px;">⚠️ <strong>Guarantee Letter Required:</strong> ${esc(terms)} requires a Guarantee Letter (GL) attached.</p>` : ''}
+      ${isPap && !hasGl ? `<p class="warn" style="margin:6px 0 10px;">⚠️ <strong>Guarantee Letter Required:</strong> A Patient Assistance Program order must have a Guarantee Letter (GL) attached.</p>` : ''}
       ${div === 'B2C' && hasRx ? `<p class="hint" style="color:var(--navy);font-weight:600;margin:6px 0 10px;">✓ Prescription attached: Doctor price tier is unlocked for B2C items.</p>` : ''}
       <div class="upload-dropzone" id="upload-dropzone" role="button" tabindex="0" aria-label="Drop attachments here or click to browse">
         <input type="file" id="file-input" multiple accept="image/*,application/pdf" hidden>
@@ -1280,6 +1299,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     if (e.target.name === 'paymentTerms') {
+      refreshFiles();
+      return;
+    }
+    if (e.target.name === 'isPap') {
+      const form = $('#order-form');
+      if (form) togglePapFields(form);
       refreshFiles();
       return;
     }

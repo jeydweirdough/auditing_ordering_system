@@ -200,6 +200,7 @@ function refreshFormDivision(form) {
     updateItemRowPrice(row);
   }
   recalc();
+  togglePapFields(form);
   refreshFiles();
 }
 
@@ -213,6 +214,15 @@ function fieldHtml(f, value, id, placeholder, name = f.name, ctx = null) {
     const choices = f.options.map((opt) => `<label class="choice-label"><input type="radio" name="${name}" value="${esc(opt)}"${opt === v ? ' checked' : ''}> <span>${esc(opt)}</span></label>`).join('');
     const clearBtn = `<button type="button" class="choice-clear-btn" data-clear-choice="${esc(name)}"${v ? '' : ' hidden'} title="Remove selection">Remove selection</button>`;
     return `<fieldset class="field choice" data-choice-field="${esc(name)}"><legend><span>${esc(f.label)}${optional}</span>${clearBtn}</legend><div class="choices">${choices}</div>${help}</fieldset>`;
+  }
+  if (f.type === 'checkbox') {
+    return `<div class="field wide">
+      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; margin:0;" for="${id}">
+        <input type="checkbox" id="${id}" name="${name}" value="Yes" style="width:15px; height:15px; margin:0; accent-color:var(--navy);"${v === 'Yes' || v === true ? ' checked' : ''}>
+        <span style="font-size:13px; font-weight:600; color:var(--ink);">${esc(f.label)}</span>
+      </label>
+      ${help}
+    </div>`;
   }
   let control;
   const suggestions = f.suggestions ?? (f.suggestionsBy && (f.suggestionsBy.lists[ctx?.[f.suggestionsBy.field]] ?? []));
@@ -241,7 +251,17 @@ function fieldHtml(f, value, id, placeholder, name = f.name, ctx = null) {
     </div>`;
     extraFeedback = `<div id="customer-search-feedback" class="cust-feedback"></div>`;
   }
-  return `<label class="field${f.type === 'textarea' ? ' wide' : ''}" for="${id}"><span>${esc(f.label)}${optional}</span>${control}${extraFeedback}${help}</label>`;
+  const fieldLabel = `<label class="field${f.type === 'textarea' ? ' wide' : ''}" for="${id}"><span>${esc(f.label)}${optional}</span>${control}${extraFeedback}${help}</label>`;
+  if (name === 'papProvider' || name === 'glNumber') {
+    const papOn = ctx?.isPap === 'Yes' || ctx?.isPap === true;
+    return `<div data-pap-field${papOn ? '' : ' hidden'}>${fieldLabel}</div>`;
+  }
+  return fieldLabel;
+}
+
+function togglePapFields(form) {
+  const on = Boolean(form.querySelector('[name=isPap]')?.checked);
+  form.querySelectorAll('[data-pap-field]').forEach((el) => { el.hidden = !on; });
 }
 
 function autofillCustomer(c) {
@@ -534,9 +554,7 @@ function isImageFile(name, type) {
 function filesBlock() {
   const { max, maxBytes, kinds } = S.meta.files;
   const used = S.staged.reduce((n, f) => n + f.size, 0);
-  const div = document.querySelector('#order-form [name=division]')?.value;
-  const terms = document.querySelector('#order-form [name=paymentTerms]')?.value || '';
-  const isDswdPcso = div !== 'B2B' && (terms.toUpperCase().includes('DSWD') || terms.toUpperCase().includes('PCSO'));
+  const isPap = Boolean(document.querySelector('#order-form [name=isPap]')?.checked);
   const hasGl = S.staged.some((f) => f.kind === 'guarantee_letter');
 
   const rows = S.staged.map((f, i) => {
@@ -579,7 +597,7 @@ function filesBlock() {
   }).join('');
   return `<fieldset class="items-edit" id="files-block">
       <legend class="label">Attachments</legend>
-      ${isDswdPcso && !hasGl ? `<p class="warn"><strong>Guarantee letter required:</strong> Orders with DSWD / PCSO payment terms must have an attached file tagged as 'Guarantee letter (DSWD/PCSO)' (applicable to all divisions except B2B).</p>` : ''}
+      ${isPap && !hasGl ? `<p class="warn"><strong>Guarantee letter required:</strong> A Patient Assistance Program order must have an attached file tagged as 'Guarantee letter (DSWD/PCSO/OP)'.</p>` : ''}
       <div class="upload-dropzone" id="upload-dropzone" role="button" tabindex="0" aria-label="Drop attachments here or click to browse">
         <input type="file" id="file-input" multiple accept="${esc(S.meta.files.accept)}" hidden>
         <div class="upload-dropzone-inner">
@@ -736,17 +754,19 @@ async function submitOrder(form) {
     .filter((it) => it.product.trim() || it.unitPrice !== '');
 
   const division = body.division;
-  const paymentTerms = String(body.paymentTerms || '').toUpperCase();
-  const source = String(body.source || '').toUpperCase();
   const notes = String(body.notes || '').trim();
   const remarks = String(body.remarks || '').trim();
   const hasPrescription = S.staged.some((f) => f.kind === 'prescription');
   const hasGuaranteeLetter = S.staged.some((f) => f.kind === 'guarantee_letter');
 
-  if (division !== 'B2B' && (paymentTerms.includes('DSWD') || paymentTerms.includes('PCSO') || source.includes('DSWD') || source.includes('PCSO'))) {
-    if (!hasGuaranteeLetter) {
-      throw new Error(`Orders with terms or source "${body.paymentTerms || body.source}" require an attached file tagged as 'Guarantee letter (DSWD/PCSO)'.`);
-    }
+  const isPap = body.isPap === 'Yes' || body.isPap === 'on';
+  if (isPap) {
+    if (!body.papProvider) throw new Error('Choose the PAP provider (DSWD, PCSO or OP).');
+    if (!String(body.glNumber || '').trim()) throw new Error('GL Number is required for a Patient Assistance Program order.');
+    if (!hasGuaranteeLetter) throw new Error("Attach the Guarantee Letter (GL), tagged 'Guarantee letter (DSWD/PCSO/OP)'.");
+  } else {
+    body.papProvider = '';
+    body.glNumber = '';
   }
 
   if (division === 'BID' && !notes && !remarks) {
@@ -1009,6 +1029,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     if (e.target.name === 'paymentTerms') {
+      refreshFiles();
+      return;
+    }
+    if (e.target.name === 'isPap') {
+      togglePapFields($('#order-form'));
       refreshFiles();
       return;
     }

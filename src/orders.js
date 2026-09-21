@@ -90,6 +90,9 @@ function getFreshFields() {
     headQuarter: { label: 'Head quarter', type: 'text', max: 120, suggestions: configs.headquarters },
     invoicingFrom: { label: 'Invoicing from', type: 'select', options: configs.invoicingFrom, required: true, help: 'Which entity this order is invoiced under.' },
     source: { label: 'Source', type: 'select', options: configs.sources, required: true },
+    isPap: { label: 'Patient Assistance Program (PAP)', type: 'checkbox', help: 'Check if this order is covered by DSWD, PCSO or the Office of the President.' },
+    papProvider: { label: 'PAP provider', type: 'select', options: ['DSWD', 'PCSO', 'OP'], help: 'Required once Patient Assistance Program is checked.' },
+    glNumber: { label: 'GL Number', type: 'text', max: 60, help: 'The Guarantee Letter number from the PAP provider.' },
     paymentMethod: { label: 'Payment method', type: 'select', options: configs.paymentMethods, required: true },
     paymentTerms: { label: 'Payment terms', type: 'select', options: configs.paymentTerms, required: true },
     deliveryMethod: { label: 'Delivery method', type: 'text', max: 60, suggestions: configs.deliveryMethods, help: 'Type to see suggestions, or enter your own.' },
@@ -147,7 +150,7 @@ const FIELDS = new Proxy({}, {
 
 const BASE_ORDER_FIELDS = [
   'customerName', 'contactNumber', 'address', 'receiverName', 'receiverContact',
-  'division', 'subDivision', 'headQuarter', 'invoicingFrom', 'source', 'paymentMethod', 'paymentTerms', 'deliveryMethod',
+  'division', 'subDivision', 'headQuarter', 'invoicingFrom', 'source', 'isPap', 'papProvider', 'glNumber', 'paymentMethod', 'paymentTerms', 'deliveryMethod',
   'customerIsDoctor', 'doctorName', 'remarks', 'notes',
 ];
 
@@ -178,7 +181,7 @@ const FILE_TYPES = {
 const FILE_KINDS = {
   payment_proof: 'Proof of payment',
   purchase_order: 'Purchase order',
-  guarantee_letter: 'Guarantee letter (DSWD/PCSO)',
+  guarantee_letter: 'Guarantee letter (DSWD/PCSO/OP)',
   prescription: 'Prescription / Rx',
   packing_proof: 'Proof of packing',
   dispatch_proof: 'Proof of dispatch / waybill',
@@ -334,6 +337,21 @@ const totalOf = (items) => round2(items.reduce((sum, it) => sum + it.qty * it.un
 
 function readOrderForm(body, attachments = [], role = null) {
   const values = readFields(ORDER_FIELDS, body);
+
+  // Patient Assistance Program: checking it requires a provider, a GL number, and the GL itself attached.
+  const isPap = values.isPap === 'Yes' || values.isPap === 'on' || values.isPap === true;
+  values.isPap = isPap ? 'Yes' : null;
+  if (isPap) {
+    if (!values.papProvider) throw bad('Choose the PAP provider (DSWD, PCSO or OP).');
+    if (!values.glNumber) throw bad('GL Number is required for a Patient Assistance Program order.');
+    if (!attachments.some((f) => f.kind === 'guarantee_letter')) {
+      throw bad("Attach the Guarantee Letter (GL), tagged 'Guarantee letter (DSWD/PCSO/OP)'.");
+    }
+  } else {
+    values.papProvider = null;
+    values.glNumber = null;
+  }
+
   const items = readItems(body?.items);
   const customerRecord = customers.findCustomer(values.customerName);
   const customerHasSpecialPrice = Boolean(
