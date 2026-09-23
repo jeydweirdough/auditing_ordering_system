@@ -74,6 +74,34 @@ function addCustomer(data) {
   return customer;
 }
 
+// Every client, for the admin directory — searchCustomers() caps at 15 for the order form's
+// autocomplete, which is the wrong shape for a full listing.
+function listAll() {
+  return [...(configStore.getCustomers() || [])].sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
+}
+
+// Mocks the correction a real Zoho contact sync would apply on its own (see the sandbox's
+// README, "What maps onto the real backend"): here it's a plain edit against the local list.
+function updateCustomer(id, patch = {}) {
+  const list = [...(configStore.getCustomers() || [])];
+  const idx = list.findIndex((c) => Number(c.id) === Number(id));
+  if (idx === -1) throw new Error('No such client.');
+  const current = list[idx];
+  const name = patch.name !== undefined ? clean(patch.name) : current.name;
+  if (!name) throw new Error('Customer name is required.');
+
+  const updated = { ...current, name };
+  for (const field of ['contactNumber', 'address', 'receiverName', 'receiverContact']) {
+    if (patch[field] !== undefined) updated[field] = clean(patch[field]);
+  }
+  if (patch.hasSpecialPrice !== undefined) updated.hasSpecialPrice = Boolean(patch.hasSpecialPrice);
+  updated.updatedAt = new Date().toISOString();
+
+  list[idx] = updated;
+  configStore.setCustomers(list);
+  return updated;
+}
+
 function seedFromOrders(ordersList = []) {
   if (!Array.isArray(ordersList) || ordersList.length === 0) return;
   for (const o of ordersList) {
@@ -95,5 +123,7 @@ module.exports = {
   findCustomerByName,
   findCustomer: findCustomerByName,
   addCustomer,
+  updateCustomer,
+  listAll,
   seedFromOrders,
 };

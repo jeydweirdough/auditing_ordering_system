@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client Directory · GetMeds Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header class="top" id="site-header"></header>
+
+  <div class="side-head" style="margin-bottom: 18px;">
+    <p class="eyebrow">Administration & Control</p>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <h1 style="font-size: 26px; font-weight: 700; color: var(--navy); margin-bottom: 6px;">Client Directory</h1>
+        <p class="sub" style="font-size: 14.5px; color: var(--ink-2);">Every customer this app knows about. In production this list is Zoho's own contacts; here it's mocked from orders raised so far and anything added below.</p>
+      </div>
+      <div class="actions" style="margin:0;">
+        <button type="button" class="btn" id="btn-add-client">+ Add Client</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-container">
+    <div class="panel" style="padding: 16px 18px;">
+      <label class="field" for="client-search" style="max-width:360px; margin:0;">
+        <span>Search</span>
+        <input type="text" id="client-search" placeholder="Name, contact number or address…" autocomplete="off">
+      </label>
+    </div>
+
+    <div id="clients-content">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading client directory…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add / Edit Client -->
+<dialog class="modal" id="client-dialog" aria-labelledby="client-dialog-title">
+  <form id="client-form" novalidate>
+    <h2 class="title" id="client-dialog-title">Add Client</h2>
+    <p class="sub" style="font-size: 13px; color: var(--ink-2);">Mocked locally — a real Zoho contact sync would fill this in instead.</p>
+
+    <input type="hidden" id="cli-id" name="id">
+
+    <label class="field" for="cli-name">
+      <span>Client / Institution Name <em>*</em></span>
+      <input type="text" id="cli-name" name="name" placeholder="e.g. Rizal Medical Center" maxlength="120" required>
+    </label>
+
+    <div class="grid2">
+      <label class="field" for="cli-contact">
+        <span>Contact Number</span>
+        <input type="text" id="cli-contact" name="contactNumber" placeholder="e.g. 09171234567" maxlength="30">
+      </label>
+      <label class="field" for="cli-special" style="display:flex; flex-direction:column; justify-content:center;">
+        <span>Pricing</span>
+        <label style="display:inline-flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer;">
+          <input type="checkbox" id="cli-special" name="hasSpecialPrice" style="width:18px; height:18px;">
+          <span style="font-size:14px; font-weight:600; color:var(--ink);">Eligible for Special Price</span>
+        </label>
+      </label>
+    </div>
+
+    <label class="field" for="cli-address">
+      <span>Delivery Address</span>
+      <textarea id="cli-address" name="address" rows="2" maxlength="300" placeholder="Street, city…"></textarea>
+    </label>
+
+    <div class="grid2">
+      <label class="field" for="cli-receiver">
+        <span>Usual Receiver</span>
+        <input type="text" id="cli-receiver" name="receiverName" placeholder="Name" maxlength="120">
+      </label>
+      <label class="field" for="cli-receiver-contact">
+        <span>Receiver Contact</span>
+        <input type="tel" id="cli-receiver-contact" name="receiverContact" placeholder="Contact number" maxlength="30">
+      </label>
+    </div>
+
+    <p class="error" id="client-form-error" role="alert" hidden></p>
+    <div class="actions" style="margin-top:16px;">
+      <button type="submit" class="btn" id="btn-save-client">Save Client</button>
+      <button type="button" class="btn quiet" data-cancel-modal>Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/clients.js"></script>
+</body>
+</html>

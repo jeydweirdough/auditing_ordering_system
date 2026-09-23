@@ -62,7 +62,7 @@ function renderUsersTab(root) {
   const rows = users.map((u) => {
     const isSelf = u.id === currentUser.id;
     return `<tr data-user="${u.id}" data-name="${esc(u.name)}" class="${u.active ? '' : 'inactive'}">
-      <td><strong>${esc(u.name)}</strong>${isSelf ? ' <small style="color:var(--ink-3);">(you)</small>' : ''}</td>
+      <td><strong>${esc(u.name)}</strong>${isSelf ? ' <small style="color:var(--ink-3);">(you)</small>' : ''} <button type="button" class="link" data-edit-name style="font-size:12px;">Edit</button></td>
       <td class="mono">${esc(u.email)}</td>
       <td><select data-user-role aria-label="Role for ${esc(u.name)}"${isSelf ? ' disabled' : ''}>${roleOptions(u.role)}</select></td>
       <td>
@@ -548,6 +548,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await api('PATCH', `/api/users/${userId}`, { active: turnOn });
         toast(`User ${turnOn ? 'reactivated' : 'deactivated'}.`, 'ok');
+        await loadAllData();
+      } catch (err) {
+        toast(err.message, 'bad');
+      }
+      return;
+    }
+
+    // Rename a user
+    const editNameBtn = e.target.closest('[data-edit-name]');
+    if (editNameBtn) {
+      const row = editNameBtn.closest('tr');
+      const userId = row.dataset.user;
+      const currentName = row.dataset.name;
+      const newName = prompt('New name:', currentName);
+      if (newName == null) return;   // cancelled
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed === currentName) return;
+      try {
+        await api('PATCH', `/api/users/${userId}`, { name: trimmed });
+        toast(`Renamed to "${trimmed}".`, 'ok');
         await loadAllData();
       } catch (err) {
         toast(err.message, 'bad');

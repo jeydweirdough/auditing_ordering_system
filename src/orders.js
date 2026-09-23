@@ -1183,6 +1183,30 @@ router.post('/customers', (req, res, next) => {
   }
 });
 
+// The Client Directory: every client, for Admin/Management. In the real backend these come
+// from Zoho's contact list (see the sandbox's README, "What maps onto the real backend"); here
+// they're mocked from whatever customers.addCustomer has collected off orders raised so far,
+// plus anything added directly on this screen.
+router.get('/customers/all', requirePermission('manage_settings'), (req, res) => {
+  const list = customers.listAll();
+  const counts = new Map();
+  for (const o of Object.values(state.orders)) {
+    if (o.status === 'deleted' || !o.customerName) continue;
+    const key = o.customerName.trim().toLowerCase();
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  res.json({ clients: list.map((c) => ({ ...c, orderCount: counts.get(c.name.trim().toLowerCase()) || 0 })) });
+});
+
+router.patch('/customers/:id', requirePermission('manage_settings'), (req, res, next) => {
+  try {
+    const customer = customers.updateCustomer(req.params.id, req.body ?? {});
+    res.json({ customer });
+  } catch (err) {
+    fail(err, res, next);
+  }
+});
+
 router.post('/customers/quick', (req, res, next) => {
   try {
     const name = String(req.body?.name || req.body?.customerName || '').trim();

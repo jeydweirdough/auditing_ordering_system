@@ -74,6 +74,32 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // and removed by editing ACCOUNTS.
 const FROM_ENV = Boolean(process.env.ACCOUNTS?.trim());
 const ENV_MANAGED = 'Accounts are set in ACCOUNTS on the server. Change them there, then restart the server or redeploy.';
+const ENV_PATH = path.join(__dirname, '..', '.env');
+
+// The one write the People screen may still make while ACCOUNTS is set: a display name is
+// cosmetic, unlike role, status or a password, so it's safe to let this rewrite the matching
+// line's name segment in .env directly rather than sending someone to edit it by hand. Every
+// other field on that line (id, email, password hash, role, teamLeaderId) is left untouched.
+function renameInAccountsEnv(id, newName) {
+  if (!fs.existsSync(ENV_PATH)) throw bad("Can't find .env to save this in.", 500);
+  const text = fs.readFileSync(ENV_PATH, 'utf8');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text.split(/\r?\n/);
+  let changed = false;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const parts = trimmed.split('|').map((s) => s.trim());
+    if (parts.length < 5 || Number(parts[0]) !== id) continue;
+    const hasTeamLeader = parts.length >= 6 && /^\d+$/.test(parts.at(-1));
+    parts[hasTeamLeader ? parts.length - 2 : parts.length - 1] = newName;
+    lines[i] = parts.join(' | ');
+    changed = true;
+    break;
+  }
+  if (!changed) throw bad("Could not find this account's line in ACCOUNTS to rename it.", 500);
+  fs.writeFileSync(ENV_PATH, lines.join(eol));
+}
 
 function loadInitialUsers() {
   if (fs.existsSync(path.join(DATA_DIR, 'users.json'))) {
@@ -436,11 +462,26 @@ router.post('/users', jsonOnly, requireUser, requirePermission('manage_users'), 
   }
 });
 
-router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_users'), editable, async (req, res, next) => {
+router.patch('/users/:id', jsonOnly, requireUser, requirePermission('manage_users'), async (req, res, next) => {
   try {
     const user = findUser(Number(req.params.id));
     if (!user) throw bad('No such account.', 404);
     const { name, role, active, resetPassword, teamLeaderId } = req.body ?? {};
+
+    if (FROM_ENV) {
+      const onlyRename = name !== undefined && role === undefined && active === undefined
+        && !resetPassword && teamLeaderId === undefined;
+      if (!onlyRename) throw bad(ENV_MANAGED, 409);
+      const newName = cleanName(name);
+      if (newName !== user.name) {
+        const oldName = user.name;
+        user.name = newName;
+        renameInAccountsEnv(user.id, newName);
+        announce(req.user, `Name changed: ${oldName} → ${newName}`, `${user.email}'s display name was updated`);
+      }
+      return res.json({ user: publicUser(user), password: null });
+    }
+
     const self = user.id === req.user.id;
     if (self && (active === false || (role && role !== 'admin'))) {
       throw bad("You can't deactivate your own account or take away your own admin role.");

@@ -36,6 +36,7 @@ app.get('/new-order', servePage('new-order.html'));
 app.get('/people', servePage('people.html'));
 app.get('/settings', servePage('settings.html'));
 app.get('/promotions', servePage('promotions.html'));
+app.get('/clients', servePage('clients.html'));
 app.get(['/', '/app'], (_req, res) => res.redirect('/dashboard'));
 app.use('/api', accounts.router);
 app.use('/api/orders', orders.router);
