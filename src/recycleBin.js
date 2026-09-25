@@ -1,6 +1,7 @@
-// Recycle Bin manager: 30-day retention and persistent Discord database deletion.
+// Recycle Bin for settings items (customers, bundles, promos, discounts, roles from the Orbit era):
+// 30-day retention. Deleted ORDERS are not here: they stay in the orders table at status 'deleted'
+// (src/orders.js), and the daily cron purges them after 30 days.
 const configStore = require('./configStore');
-const discordHub = require('./discordHub');
 
 const RETENTION_DAYS = 30;
 const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
@@ -76,31 +77,10 @@ function findRecycledItem(id, type = null) {
   return list.find((it) => it.id === String(id) && (!type || it.type === type)) || null;
 }
 
-// Persistently purges a recycled record from the Discord database and storage
+// Removes a recycled record for good.
 async function permanentlyPurgeRecycledItem(item) {
   if (!item) return { ok: false, error: 'Item not found' };
-
-  // 1. Purge from Discord database
-  if (item.discord?.threadId || item.discord?.starterMessageId) {
-    await discordHub.purgeRecordFromDiscord({
-      threadId: item.discord.threadId,
-      starterMessageId: item.discord.starterMessageId,
-      category: item.discord.category || 'audit',
-    });
-  }
-
-  // 2. Remove from recycle bin store
   removeRecycledItem(item.id, item.type);
-
-  // 3. Notify category channel in Discord that item was permanently purged
-  const category = item.discord?.category || (item.type === 'order' ? 'audit' : item.type === 'role' ? 'rbac' : item.type === 'customer' ? 'setting' : 'promotion');
-  await discordHub.notifyCategory(category, {
-    title: `🗑️ Permanently Purged from Discord: ${item.name}`,
-    description: `Item **${item.name}** (${item.type}) has been permanently purged and vanished from the Discord database.`,
-    color: 0xcc0000,
-    actor: item.deletedBy || { name: 'System', role: 'admin' },
-  }).catch(() => {});
-
   return { ok: true, id: item.id };
 }
 

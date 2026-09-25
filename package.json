@@ -2,20 +2,35 @@
   "name": "record-database",
   "version": "0.1.0",
   "private": true,
-  "description": "Getmeds orders app: a sign-in and dashboard per role, with every order kept in its own thread in #order-audit",
+  "description": "Getmeds orders app: raise, approve, pay for and dispatch orders, on the shared Getmeds database, with Zoho through getmeds-system's own integration",
   "main": "src/server.js",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "dev": "node --env-file-if-exists=.env --no-wasm-tier-up --watch src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
-    "import:products": "python scripts/import-products.py",
-    "test:constraints": "node scripts/test-constraints.js",
-    "probe:discord": "node --env-file-if-exists=.env scripts/probe-discord.js",
-    "accounts": "node --env-file-if-exists=.env scripts/create-accounts.js"
+    "migrate": "node --env-file-if-exists=.env src/db/migrate.js",
+    "migrate:app-only": "node --env-file-if-exists=.env src/db/migrate.js --app-only",
+    "dev-db": "node --no-wasm-tier-up scripts/dev-db.js",
+    "seed": "node --env-file-if-exists=.env scripts/seed-dev.js",
+    "test": "node --no-wasm-tier-up --test-concurrency=1 --test-reporter=spec test/flow.test.js test/rules.test.js",
+    "import:discord": "node --env-file-if-exists=.env scripts/import-from-discord.js",
+    "import:products": "python scripts/import-products.py"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "@supabase/supabase-js": "^2.117.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.1.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11"
   }
 }

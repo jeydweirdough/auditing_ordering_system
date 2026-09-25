@@ -1,18 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const { createDiscordStore } = require('./discordStore');
+// The price list: each product with its five price tiers (doctor, patient,
+// SRP, distributor, hospital), by unit and by pack. Kept in the database
+// (app_config, table "catalog", row "products"); until Sep 25, 2026 it was a
+// Discord thread.
+//
+// Each entry may carry `productId`, the id of the matching row in the shared
+// `products` table (the Zoho item). An order line has to point at one of those,
+// because that is what becomes the line on the Zoho Sales Order;
+// scripts/import-from-discord.js links them, by name.
+const db = require('./db');
+const { createDbTable } = require('./dbTable');
 
-const PRODUCTS_FILE = path.join(__dirname, '..', 'data', 'products.json');
-
-const env = process.env;
-const botToken = env.DISCORD_BOT_TOKEN || null;
-
-const productStore = createDiscordStore({
-  webhookUrl: env.DISCORD_PRODUCT_WEBHOOK_TOKEN,
-  botToken,
-  category: 'product',
-  threadName: 'Products',
-});
+const catalogTable = createDbTable({ tableName: 'catalog' });
 
 let cachedProducts = null;
 let productsById = null;
@@ -33,41 +31,42 @@ function initIndexes(products) {
   }
 }
 
-async function loadFromDiscord() {
-  const data = await productStore.load();
-  if (data && Array.isArray(data)) {
-    initIndexes(data);
-    console.log(`[products] Loaded ${cachedProducts.length} products from Discord.`);
-  } else if (!cachedProducts) {
-    loadProductsFromFile();
-  }
+// Read the price list from the database: on start, and again when src/server.js
+// finds the copy older than a minute.
+async function load() {
+  await catalogTable.loadRows();
+  initIndexes(catalogTable.getRow('products') || []);
   return cachedProducts;
 }
+const loadedAt = () => catalogTable.loadedAt();
 
-function loadProductsFromFile() {
-  let file = PRODUCTS_FILE;
-  if (!fs.existsSync(file)) {
-    const backup = path.join(__dirname, '..', 'data.bak', 'products.json');
-    if (fs.existsSync(backup)) file = backup;
-  }
-  if (fs.existsSync(file)) {
-    try {
-      const raw = fs.readFileSync(file, 'utf8');
-      initIndexes(JSON.parse(raw));
-      return cachedProducts;
-    } catch (err) {
-      console.error(`[products] Failed to load ${file}:`, err.message);
-    }
-  }
-  initIndexes([]);
-  return cachedProducts;
+// Replace the whole price list (the import scripts).
+async function saveCatalog(list) {
+  await catalogTable.saveRow('products', list);
+  initIndexes(list);
 }
 
 function loadProducts() {
-  if (!cachedProducts) {
-    loadProductsFromFile();
-  }
+  if (!cachedProducts) initIndexes([]);
   return cachedProducts;
+}
+
+// The `products` row (Zoho item) an order line is for: the price-list entry's
+// linked productId, else a product with exactly that name or SKU. BID can sell
+// what isn't on the price list, but it still has to be a Zoho item to reach
+// the Sales Order. Returns null when nothing matches.
+async function resolveProductRow(label) {
+  const entry = findProduct(label);
+  if (entry?.productId) {
+    const row = await db.prepare('SELECT id, name, sku, unit_price, stock, zoho_item_id FROM products WHERE id = ?').get(entry.productId);
+    if (row) return row;
+  }
+  const names = [label, entry?.fullName, entry?.brandName].filter(Boolean).map((s) => String(s).trim().toLowerCase());
+  return (await db.prepare(
+    `SELECT id, name, sku, unit_price, stock, zoho_item_id FROM products
+      WHERE is_active = 1 AND (LOWER(name) = ANY(?) OR LOWER(sku) = ANY(?))
+      ORDER BY id LIMIT 1`,
+  ).get(names, names)) || null;
 }
 
 const DIVISIONS = ['B2C', 'STC', 'URO', 'B&B', 'B2B', 'HOS', 'BID'];
@@ -184,14 +183,8 @@ function validateOrderConstraints(order, attachments = []) {
   const hasPrescription = attachments.some((f) => f.kind === 'prescription');
   const hasGuaranteeLetter = attachments.some((f) => f.kind === 'guarantee_letter');
 
-  let customerHasSpecialPrice = Boolean(order.customerHasSpecialPrice || order.hasSpecialPrice);
-  if (!customerHasSpecialPrice && order.customerName) {
-    try {
-      const customers = require('./customers');
-      const cust = customers.findCustomerByName(order.customerName);
-      if (cust?.hasSpecialPrice) customerHasSpecialPrice = true;
-    } catch {}
-  }
+  // The caller looks the customer up (src/customers.js) and passes the flag in.
+  const customerHasSpecialPrice = Boolean(order.customerHasSpecialPrice || order.hasSpecialPrice);
 
   // 1. DSWD & PCSO Guarantee letter constraint (applicable to all division, but not in B2B)
   if (isGuaranteeLetterRequired(order)) {
@@ -278,6 +271,8 @@ module.exports = {
   getAllowedPriceTiers,
   isGuaranteeLetterRequired,
   validateOrderConstraints,
-  loadFromDiscord,
-  _store: productStore,
+  resolveProductRow,
+  load,
+  loadedAt,
+  saveCatalog,
 };

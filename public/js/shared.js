@@ -50,31 +50,43 @@ function ago(iso) {
   return stamp(iso);
 }
 
+// Status names are the shared database's (src/workflow/statuses.js). Until Sep 25, 2026 three
+// were this app's own: pending_approval, awaiting_payment and picking.
 const DONE = new Set(['completed', 'cancelled', 'rejected']);
-const IN_DISPATCH = ['ready_for_dispatch', 'picking', 'packed', 'dispatched'];
+// Finance has cleared these; Dispatch may start picking any of the first three.
+const READY_FOR_DISPATCH = ['ready_for_dispatch', 'ready_for_draft_invoice', 'ready_for_invoice_sent'];
+const IN_DISPATCH = [...READY_FOR_DISPATCH, 'picking_packing', 'packed', 'dispatched', 'tracking_shared'];
+// Before approval: still the salesperson's and their reviewers'.
+const IN_REVIEW = ['draft', 'pending_tl_approval', 'pending_management_approval', 'returned'];
 const TONE = {
-  pending_approval: 'wait', returned: 'wait', awaiting_payment: 'wait', on_hold: 'bad',
-  ready_for_dispatch: 'move', picking: 'move', packed: 'move', dispatched: 'move',
+  draft: 'wait', pending_tl_approval: 'wait', pending_management_approval: 'wait', returned: 'wait',
+  submitted: 'wait', validating: 'wait', so_pending: 'wait', so_created: 'wait',
+  ready_for_finance_verified: 'wait', on_hold: 'bad', exception: 'bad',
+  ready_for_draft_invoice: 'move', ready_for_invoice_sent: 'move', ready_for_dispatch: 'move',
+  picking_packing: 'move', packed: 'move', dispatched: 'move', tracking_shared: 'move',
   completed: 'ok', rejected: 'stop', cancelled: 'stop', deleted: 'stop',
 };
 const pill = (status, label) => `<span class="pill ${TONE[status] ?? 'stop'}">${esc(label || status)}</span>`;
 
-const CREATORS = ['salesperson', 'management', 'admin'];
+const CREATORS = ['salesperson', 'team_leader', 'management', 'admin'];
 
 const INTRO = {
-  salesperson: 'Raise orders, and fix the ones Management sends back.',
-  management: 'Approve new orders, send them back for changes, or reject them. You can raise orders too, for yourself or a salesperson.',
-  finance: 'Verify payment on approved orders, or put them on hold.',
-  dispatch: 'Pick, pack and dispatch paid orders, then mark them delivered.',
-  admin: 'Create, edit, delete and restore any order, and manage who can sign in. Every change is logged in #order-audit.',
+  salesperson: 'Raise orders, and fix the ones your Team Leader or Management sends back.',
+  team_leader: 'Endorse your team’s orders to Management, or send them back for changes. You can raise orders too.',
+  management: 'Approve new orders — approving creates the Sales Order in Zoho — send them back for changes, or reject them. You can raise orders too, for yourself or a salesperson.',
+  finance: 'Verify payment on approved orders — verifying confirms the Sales Order in Zoho — or put them on hold.',
+  dispatch: 'Check prescriptions, then pick, pack and dispatch paid orders and mark them delivered.',
+  admin: 'Edit, delete and restore any order, and keep an eye on orders that didn’t reach Zoho.',
 };
 
 const LANES = [
   ['ready_for_dispatch', 'Ready for dispatch'],
-  ['picking', 'Picking'],
+  ['picking_packing', 'Picking'],
   ['packed', 'Packed'],
   ['dispatched', 'Dispatched'],
 ];
+// Which lane an order is in: the invoice stages wait with Ready, tracking shared with Dispatched.
+const laneOf = (status) => (READY_FOR_DISPATCH.includes(status) ? 'ready_for_dispatch' : status === 'tracking_shared' ? 'dispatched' : status);
 
 const ROUTE = [
   { type: 'created', label: 'Raised', who: 'Salesperson' },
@@ -87,8 +99,10 @@ const ROUTE = [
 ];
 
 const REACHED = {
-  pending_approval: 1, returned: 1, rejected: 1, awaiting_payment: 2, on_hold: 2,
-  ready_for_dispatch: 3, picking: 4, packed: 5, dispatched: 6, completed: 7,
+  draft: 1, pending_tl_approval: 1, pending_management_approval: 1, returned: 1, rejected: 1,
+  submitted: 2, validating: 2, so_pending: 2, so_created: 2, ready_for_finance_verified: 2, on_hold: 2, exception: 2,
+  ready_for_draft_invoice: 3, ready_for_invoice_sent: 3, ready_for_dispatch: 3,
+  picking_packing: 4, packed: 5, dispatched: 6, tracking_shared: 6, completed: 7,
 };
 
 const PLACEHOLDERS = {
@@ -179,9 +193,73 @@ async function api(method, url, body) {
     }
     throw new SignedOut();
   }
-  if (res.status === 413 && !data.error) throw new Error('The files are too large to send. Keep them under 3 MB in all.');
+  if (res.status === 413 && !data.error) throw new Error('That request is too large.');
   if (!res.ok) throw new Error(data.error || `The server answered ${res.status}.`);
   return data;
+}
+
+// ==========================================================================
+// Files: straight from the browser to storage, one at a time
+// ==========================================================================
+//
+// A file never passes through the server (Vercel caps a request at 4.5 MB, and a phone photo is
+// often bigger): ask for an upload link, PUT the file there, then tell the server it landed.
+// Photos over 1 MB are shrunk first.
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+async function shrinkPhoto(file) {
+  if (!IMAGE_TYPES.includes(file.type) || file.size <= 1_000_000 || !window.createImageBitmap) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
+// Uploads one file to an order and resolves with the order as it now stands.
+async function uploadOrderFile(orderId, file, kind) {
+  const small = await shrinkPhoto(file);
+  const base = `/api/orders/${encodeURIComponent(orderId)}/files`;
+  const { signedUrl, storagePath } = await api('POST', `${base}/upload-url`, {
+    fileName: small.name, contentType: small.type, fileSize: small.size, kind,
+  });
+  let put;
+  try {
+    put = await fetch(signedUrl, { method: 'PUT', body: small, headers: { 'Content-Type': small.type || 'application/octet-stream', 'x-upsert': 'false' } });
+  } catch {
+    throw new Error(`${file.name} couldn't be uploaded. Check the connection and try again.`);
+  }
+  if (!put.ok) throw new Error(`${file.name} couldn't be uploaded (${put.status}). Try again.`);
+  const res = await api('POST', base, { storagePath, fileName: small.name, contentType: small.type, fileSize: small.size, kind });
+  return res.order;
+}
+
+// Uploads several, in order; stops at the first that fails. `onEach(i)` reports progress.
+async function uploadOrderFiles(orderId, staged, onEach) {
+  let order = null;
+  for (const [i, f] of staged.entries()) {
+    onEach?.(i, staged.length);
+    order = await uploadOrderFile(orderId, f.file, f.kind);
+  }
+  return order;
+}
+
+// The files on an order, each with a signed link to open it.
+async function orderFileLinks(orderId) {
+  const { files } = await api('GET', `/api/orders/${encodeURIComponent(orderId)}/files`);
+  return new Map(files.map((f) => [f.id, f]));
 }
 
 function toast(message, kind = '') {
@@ -398,7 +476,11 @@ function renderTopNav(activeTab = 'orders') {
     : CREATORS.includes(currentUser.role);
   // Administration lives in Orbit. These are the way there, not a screen here:
   // the server redirects them, and the arrow says so before you click.
-  const canSettings = Boolean(currentUser.canManageSettings || currentUser.canManageUsers);
+  const canSettings = Boolean(currentUser.orbitUrl) && Boolean(currentUser.canManageSettings || currentUser.canManageUsers);
+  const role = currentUser.role;
+  const canPharmacy = ['dispatch', 'management', 'admin'].includes(role);
+  const canStock = ['dispatch', 'management', 'admin'].includes(role);
+  const canZoho = role === 'admin';
   const OUT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.55"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`;
 
   sidebar.innerHTML = `
@@ -411,6 +493,18 @@ function renderTopNav(activeTab = 'orders') {
         </div>
       </a>
       <span class="live-status-dot" title="System online"></span>
+    </div>
+
+    <div class="sidebar-tools">
+      <div class="gsearch" id="gsearch">
+        <input type="search" id="gsearch-input" placeholder="Search orders, customers…" autocomplete="off" aria-label="Search orders, customers and products">
+        <div class="gsearch-results" id="gsearch-results" hidden></div>
+      </div>
+      <button type="button" class="bell" id="bell-btn" title="Notifications" aria-haspopup="true" aria-expanded="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="bell-count" id="bell-count" hidden></span>
+      </button>
+      <div class="bell-panel" id="bell-panel" hidden></div>
     </div>
 
     ${canRaise ? `
@@ -434,6 +528,21 @@ function renderTopNav(activeTab = 'orders') {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
         <span>Orders</span>
       </a>
+      ${canPharmacy ? `
+      <a href="/pharmacy" class="nav-item ${activeTab === 'pharmacy' ? 'active' : ''}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+        <span>Prescriptions</span>
+      </a>` : ''}
+      ${canStock ? `
+      <a href="/stock" class="nav-item ${activeTab === 'stock' ? 'active' : ''}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        <span>Stock notices</span>
+      </a>` : ''}
+      ${canZoho ? `
+      <a href="/zoho-sync" class="nav-item ${activeTab === 'zoho-sync' ? 'active' : ''}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        <span>Zoho sync</span>
+      </a>` : ''}
       ${canSettings ? `
       <span class="nav-heading" style="margin-top: 12px;">In Orbit</span>
       <a href="/promotions" class="nav-item ${isPromotionsActive ? 'active' : ''}">
@@ -588,6 +697,10 @@ function renderTopNav(activeTab = 'orders') {
   $('#btn-mobile-signout')?.addEventListener('click', signOut);
   $('#btn-sign-out')?.addEventListener('click', signOut);
 
+  initGlobalSearch();
+  initBell();
+  renderStockBanner();
+
   // If on orders page and askWhoFor is available, clicking New Order can trigger askWhoFor directly
   const newOrderBtn = $('#sidebar-new-order-btn') || $('#sidebar-new-order-link');
   if (newOrderBtn && typeof window.askWhoFor === 'function') {
@@ -741,6 +854,348 @@ function openUserProfileModal() {
 
   dialog.showModal();
 }
+
+// ==========================================================================
+// Search box, notification bell, stock banner (every page)
+// ==========================================================================
+
+const orderLink = (id) => `/order?id=${encodeURIComponent(id)}`;
+
+// Orders by number, customer, Zoho SO number, receiver or phone; customers; products.
+function initGlobalSearch() {
+  const input = $('#gsearch-input');
+  const box = $('#gsearch-results');
+  if (!input || !box) return;
+  let timer = null;
+  let seq = 0;
+  const close = () => { box.hidden = true; };
+  const section = (title, rows) => (rows.length ? `<div class="gs-head">${esc(title)}</div>${rows.join('')}` : '');
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) return close();
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      try {
+        const r = await api('GET', `/api/search?q=${encodeURIComponent(q)}`);
+        if (mine !== seq) return;
+        const html = [
+          section('Orders', r.orders.map((o) => `<a class="gs-row" href="${orderLink(o.id)}"><b>${esc(o.id)}</b> ${pill(o.status, o.statusLabel)}<small>${esc(o.customer || '')}${o.zohoSo ? ` · ${esc(o.zohoSo)}` : ''} · ${php(o.total)}${o.imported ? ' · from Zoho' : ''}</small></a>`)),
+          section('Customers', r.customers.map((c) => `<div class="gs-row"><b>${esc(c.name)}</b>${c.inZoho ? '' : ' <span class="tag warn">not in Zoho yet</span>'}<small>${esc(c.contactNumber || '')} ${esc(c.address || '')}</small></div>`)),
+          section('Products', r.products.map((p) => `<div class="gs-row"><b>${esc(p.name)}</b><small>${esc(p.sku || '')} · ${php(p.price)} · stock ${whole(p.stock)}</small></div>`)),
+        ].join('');
+        box.innerHTML = html || `<div class="gs-empty">Nothing matches “${esc(q)}”.</div>`;
+        box.hidden = false;
+      } catch (err) {
+        if (!(err instanceof SignedOut)) {
+          box.innerHTML = `<div class="gs-empty">${esc(err.message)}</div>`;
+          box.hidden = false;
+        }
+      }
+    }, 250);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { input.value = ''; close(); }
+    if (e.key === 'Enter') $('a.gs-row', box)?.click();
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#gsearch')) close(); });
+}
+
+// The bell: unread count every 30 seconds, the latest 50 when opened.
+function initBell() {
+  const btn = $('#bell-btn');
+  const count = $('#bell-count');
+  const panel = $('#bell-panel');
+  if (!btn || !panel) return;
+  async function refresh() {
+    try {
+      const { data } = await api('GET', '/api/notifications/unread-count');
+      count.textContent = data.count > 99 ? '99+' : String(data.count);
+      count.hidden = !data.count;
+    } catch { /* the next tick tries again */ }
+  }
+  async function open() {
+    panel.innerHTML = '<div class="gs-empty">Loading…</div>';
+    panel.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    try {
+      const { data } = await api('GET', '/api/notifications');
+      const list = data.notifications;
+      panel.innerHTML = `
+        <div class="bell-top"><b>Notifications</b>${list.some((n) => !n.is_read) ? '<button type="button" class="btn quiet small" id="bell-all-read">Mark all read</button>' : ''}</div>
+        ${list.length ? list.map((n) => `
+          <a class="bell-row ${n.is_read ? '' : 'unread'}" data-id="${n.id}" href="${n.getmeds_order_id ? orderLink(n.getmeds_order_id) : '#'}">
+            <span>${esc(n.message)}</span><small>${esc(ago(n.sent_at))}</small>
+          </a>`).join('') : '<div class="gs-empty">Nothing yet.</div>'}`;
+      $('#bell-all-read', panel)?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await api('PATCH', '/api/notifications/mark-all-read', {});
+        $$('.bell-row.unread', panel).forEach((r) => r.classList.remove('unread'));
+        refresh();
+      });
+      $$('.bell-row', panel).forEach((row) => row.addEventListener('click', () => {
+        if (row.classList.contains('unread')) api('PATCH', `/api/notifications/${row.dataset.id}/read`, {}).catch(() => {});
+      }));
+    } catch (err) {
+      panel.innerHTML = `<div class="gs-empty">${esc(err.message)}</div>`;
+    }
+  }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (panel.hidden) open(); else { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.hidden && !e.target.closest('#bell-panel')) { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  });
+  refresh();
+  setInterval(() => { if (!document.hidden) refresh(); }, 30_000);
+}
+
+// Dispatch's open stock notices, at the top of the page for everyone who raises or approves orders.
+const STOCK_KIND = { out_of_stock: 'Out of stock', back_in_stock: 'Back in stock', low_stock: 'Low stock', stock_update: 'Stock update' };
+let stockNotices = null;
+async function loadStockNotices() {
+  if (stockNotices) return stockNotices;
+  try {
+    const { data } = await api('GET', '/api/stock-announcements');
+    stockNotices = data.announcements || [];
+  } catch {
+    stockNotices = [];
+  }
+  return stockNotices;
+}
+async function renderStockBanner() {
+  if (!['salesperson', 'team_leader', 'management', 'admin'].includes(currentUser?.role)) return;
+  const main = $('#app') || $('main') || document.body;
+  const list = (await loadStockNotices()).filter((a) => a.kind !== 'back_in_stock');
+  if (!list.length || $('#stock-banner')) return;
+  const el = document.createElement('div');
+  el.id = 'stock-banner';
+  el.className = 'stock-banner';
+  el.innerHTML = `<b>Stock</b> ${list.slice(0, 4).map((a) => `<span class="stock-note ${a.kind}"><b>${esc(a.product_name)}</b> — ${esc(STOCK_KIND[a.kind])}${a.message ? `: ${esc(a.message)}` : ''}</span>`).join('')}${list.length > 4 ? `<span class="stock-note">and ${list.length - 4} more</span>` : ''}`;
+  main.insertBefore(el, main.firstChild);
+}
+// The open notice about one product (the order form warns when one is added), or null.
+async function stockNoticeFor(productId) {
+  if (!productId) return null;
+  return (await loadStockNotices()).find((a) => a.product_id === productId && a.kind !== 'back_in_stock') || null;
+}
+
+// ==========================================================================
+// The order panel's shared parts (the Orders page's side panel and /order)
+// ==========================================================================
+
+// Signed links to an order's files, fetched once per opening.
+const FILE_LINKS = new Map();
+async function loadFileLinks(orderId) {
+  FILE_LINKS.clear();
+  try {
+    for (const [id, f] of await orderFileLinks(orderId)) FILE_LINKS.set(id, f);
+  } catch { /* files show without a link */ }
+}
+const fileUrl = (f) => FILE_LINKS.get(f.id)?.viewUrl || '';
+
+// A short text answer (a hold reason), in a dialog: resolves with the text, or null if cancelled.
+function askText({ title, label, placeholder = '', confirmText = 'Save', required = true } = {}) {
+  return new Promise((resolve) => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'confirm-dialog';
+    dlg.innerHTML = `<form method="dialog" class="confirm-card" novalidate>
+      <div class="confirm-head"><h3 class="confirm-title">${esc(title)}</h3></div>
+      <label class="field wide"><span>${esc(label)}</span><textarea rows="3" maxlength="500" placeholder="${esc(placeholder)}"></textarea></label>
+      <p class="error" hidden></p>
+      <div class="confirm-actions"><button type="button" class="btn quiet" value="cancel">Cancel</button><button type="submit" class="btn">${esc(confirmText)}</button></div>
+    </form>`;
+    document.body.appendChild(dlg);
+    const ta = $('textarea', dlg);
+    const done = (v) => { dlg.close(); dlg.remove(); resolve(v); };
+    $('button[value=cancel]', dlg).addEventListener('click', () => done(null));
+    dlg.addEventListener('cancel', () => done(null));
+    $('form', dlg).addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = ta.value.trim();
+      if (required && !v) {
+        const err = $('.error', dlg);
+        err.textContent = `${label} is required.`;
+        err.hidden = false;
+        return;
+      }
+      done(v);
+    });
+    dlg.showModal();
+    ta.focus();
+  });
+}
+
+const ZOHO_SYNC_TEXT = { synced: ['ok', 'In Zoho'], skipped: ['info', 'Dry run — not sent to Zoho'], failed: ['bad', 'Not in Zoho yet'], pending: ['', 'Not sent yet'] };
+
+// Where the order stands in Zoho, with Sync / Retry.
+function zohoPanelHtml(o) {
+  const z = o.zoho || {};
+  if (!z.soId && ['draft', 'pending_tl_approval', 'pending_management_approval', 'returned', 'rejected', 'cancelled'].includes(o.status)) {
+    return z.customerInZoho === false
+      ? `<div class="flag-box warn"><b>${esc(o.customerName)} isn’t in Zoho yet.</b> Management can’t approve the order until an admin pushes or links the customer on getmeds-system’s Pending Customers page.</div>`
+      : '';
+  }
+  const [tone, text] = ZOHO_SYNC_TEXT[z.syncStatus] || ['', z.syncStatus || '—'];
+  const canRetry = z.syncStatus === 'failed' && !z.soId && (['management', 'admin'].includes(currentUser.role) || o.ownerId === currentUser.id);
+  const axes = [z.orderStatus && `order ${z.orderStatus}`, z.invoicedStatus && z.invoicedStatus.replace(/_/g, ' '), z.paidStatus && z.paidStatus.replace(/_/g, ' '), z.shippedStatus && z.shippedStatus.replace(/_/g, ' ')].filter(Boolean);
+  return `<section class="block">
+    <h3 class="label">Zoho</h3>
+    <div class="zoho-line">
+      <span class="tag ${tone}">${esc(text)}</span>
+      ${z.soNumber ? `<span>Sales Order <b>${esc(z.soNumber)}</b>${z.soStatus ? ` · ${esc(z.soStatus)}` : ''}</span>` : ''}
+      ${z.invoiceNumber ? `<span>Invoice <b>${esc(z.invoiceNumber)}</b></span>` : ''}
+      ${axes.length ? `<small class="hint">${esc(axes.join(' · '))}</small>` : ''}
+    </div>
+    ${z.lastReconciledAt ? `<p class="hint">Last checked against Zoho ${esc(ago(z.lastReconciledAt))}.</p>` : ''}
+    <div class="flag-actions" style="display:flex;gap:8px;margin-top:8px;">
+      ${z.soId ? '<button type="button" class="btn quiet small" data-zoho-sync>Sync from Zoho</button>' : ''}
+      ${canRetry ? '<button type="button" class="btn small" data-zoho-retry>Try Zoho again</button>' : ''}
+    </div>
+  </section>`;
+}
+
+// Prescription, Dispatch's hold, the tracking-number hold, a claim in progress.
+function flagsHtml(o) {
+  const out = [];
+  const isDispatch = ['dispatch', 'management', 'admin'].includes(currentUser.role);
+  const rx = o.rx?.state;
+  if (rx && rx !== 'none') {
+    const [cls, text] = { pending: ['warn', 'Prescription waiting for the pharmacist'], rejected: ['bad', 'Prescription rejected — waiting for a replacement'], verified: ['', 'Prescription verified'] }[rx] || ['', rx];
+    const rejected = o.rx.prescriptions?.findLast?.((p) => p.status === 'rejected' && !p.superseded);
+    out.push(`<div class="flag-box ${cls}"><b>${esc(text)}</b>${rejected?.rejection_reason ? `: ${esc(rejected.rejection_reason)}` : ''}${rx !== 'verified' && isDispatch ? ' <a class="link" href="/pharmacy">Open the prescription queue</a>' : ''}${rx !== 'verified' ? '<br><small>It can’t be picked or dispatched until the prescription is verified.</small>' : ''}</div>`);
+  }
+  if (o.holds?.dispatch) {
+    out.push(`<div class="flag-box bad"><b>On hold by Dispatch</b> (${esc(o.holds.dispatch.by)}, ${esc(ago(o.holds.dispatch.at))}): ${esc(o.holds.dispatch.reason || '')}
+      ${isDispatch ? '<div class="flag-actions"><button type="button" class="btn small" data-flag="dispatch-hold/lift">Lift the hold</button></div>' : ''}</div>`);
+  }
+  if (o.holds?.tracking) {
+    out.push(`<div class="flag-box warn"><b>Tracking number on hold</b> (${esc(o.holds.tracking.by)}): ${esc(o.holds.tracking.reason || '')}
+      ${isDispatch ? '<div class="flag-actions"><button type="button" class="btn quiet small" data-flag="tracking-hold/release">Release</button></div>' : ''}</div>`);
+  }
+  if (o.claim) out.push(`<div class="flag-box"><b>${esc(o.claim.by)}</b> is working on this order right now.</div>`);
+  if (isDispatch && IN_DISPATCH.includes(o.status)) {
+    const btns = [];
+    if (!o.holds?.dispatch) btns.push('<button type="button" class="btn quiet small" data-flag="dispatch-hold">Put on hold (Dispatch)</button>');
+    if (!o.holds?.tracking && !o.shipment?.trackingNumber) btns.push('<button type="button" class="btn quiet small" data-flag="tracking-hold">Tracking number not ready</button>');
+    if (btns.length) out.push(`<div class="flag-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;">${btns.join('')}</div>`);
+  }
+  if (['management', 'admin'].includes(currentUser.role) && o.customerId && !DONE.has(o.status)) {
+    out.push(`<p class="hint" style="margin:6px 0;">${o.customerHasSpecialPrice ? `${esc(o.customerName)} may be given Special Price.` : `${esc(o.customerName)} isn’t cleared for Special Price.`}
+      <button type="button" class="link" data-special-price="${o.customerHasSpecialPrice ? '0' : '1'}">${o.customerHasSpecialPrice ? 'Withdraw' : 'Clear them for it'}</button></p>`);
+  }
+  return out.join('');
+}
+
+// The ten-stage pipeline (Created → … → Completed), drawn into #pipeline once fetched.
+async function loadPipeline(orderId) {
+  const el = $('#pipeline');
+  if (!el) return;
+  try {
+    const t = await api('GET', `/api/orders/${encodeURIComponent(orderId)}/timeline`);
+    el.innerHTML = `<div class="pipeline">${t.stages.map((s) => {
+      const cls = s.state === 'done' ? (s.evidence === 'state' ? 'done state' : 'done') : s.state;
+      const when = s.at ? `${s.by ? `${s.by.split(' ')[0]} · ` : ''}${s.at_exact === false ? briefDay.format(new Date(s.at)) : brief(s.at)}` : s.state === 'not_applicable' ? 'n/a' : s.evidence === 'state' ? 'per Zoho' : '';
+      return `<div class="stage ${esc(cls)}" title="${esc(s.note || s.label)}"><b>${esc(s.label)}</b><small>${esc(when || '—')}</small></div>`;
+    }).join('')}</div>`;
+  } catch {
+    el.innerHTML = '';
+  }
+}
+
+function orderExtrasHtml(o) {
+  return `<div id="pipeline" aria-label="Where this order is, stage by stage"></div>${flagsHtml(o)}${zohoPanelHtml(o)}`;
+}
+
+// The buttons orderExtrasHtml draws. `reload(order)` redraws the panel with the order as it now is.
+function bindOrderExtras(root, getOrder, reload) {
+  if (root.dataset.extrasBound) return;
+  root.dataset.extrasBound = '1';
+  root.addEventListener('click', async (e) => {
+    const o = getOrder();
+    if (!o) return;
+    const btn = e.target.closest('[data-zoho-sync],[data-zoho-retry],[data-flag],[data-special-price]');
+    if (!btn) return;
+    e.preventDefault();
+    const base = `/api/orders/${encodeURIComponent(o.id)}`;
+    try {
+      let res;
+      if (btn.matches('[data-zoho-sync]')) {
+        setButtonLoading(btn, true, 'Syncing…');
+        res = await api('POST', `${base}/zoho/sync`, {});
+        toast('Up to date with Zoho.', 'ok');
+      } else if (btn.matches('[data-zoho-retry]')) {
+        setButtonLoading(btn, true, 'Trying…');
+        res = await api('POST', `${base}/zoho/retry`, {});
+        toast(res.order?.zoho?.soNumber ? `Sales Order ${res.order.zoho.soNumber} created.` : 'Tried again. Zoho still refused it: see the trail.', res.order?.zoho?.soNumber ? 'ok' : 'bad');
+      } else if (btn.matches('[data-special-price]')) {
+        const allow = btn.dataset.specialPrice === '1';
+        await api('PATCH', `/api/orders/customers/${o.customerId}/special-price`, { hasSpecialPrice: allow });
+        res = await api('GET', base);
+        toast(allow ? 'Cleared for Special Price.' : 'Special Price withdrawn.', 'ok');
+      } else {
+        const flag = btn.dataset.flag;
+        let body = {};
+        if (flag === 'dispatch-hold') {
+          const reason = await askText({ title: 'Put on hold (Dispatch)', label: 'Why', placeholder: 'e.g. PacliGet 260 out of stock — please update items', confirmText: 'Put on hold' });
+          if (reason == null) return;
+          body = { reason };
+        } else if (flag === 'tracking-hold') {
+          const reason = await askText({ title: 'Tracking number not ready', label: 'Why', placeholder: 'e.g. Waiting for the waybill from Lalamove', confirmText: 'Save' });
+          if (reason == null) return;
+          body = { reason };
+        }
+        setButtonLoading(btn, true);
+        res = await api('POST', `${base}/${flag}`, body);
+        if (res.message) toast(res.message, 'ok');
+      }
+      if (res?.order) reload(res.order);
+    } catch (err) {
+      if (!(err instanceof SignedOut)) toast(err.message, 'bad');
+      setButtonLoading(btn, false);
+    }
+  });
+}
+
+// The order's trail: every step, by whom and when, from both apps and from Zoho.
+function trailHtml(o) {
+  const steps = [...o.events].reverse().map((e) => {
+    const change = e.from && e.to && e.from !== e.to
+      ? `${currentMeta.statuses[e.from] ?? e.from} → ${currentMeta.statuses[e.to] ?? e.to}`
+      : (e.to && !e.from ? currentMeta.statuses[e.to] ?? e.to : '');
+    const zohoish = /^ZOHO_|^STATUS_CHANGE$/.test(e.eventType);
+    const bad = /FAILED|REJECTED|HOLD$|ON_HOLD|CANCELLED|DELETED/.test(e.eventType);
+    return `<li>
+      <span class="tick${bad ? ' bad' : ''}" aria-hidden="true"></span>
+      <div>
+        <p class="what">${esc(e.label)} ${change ? `<span class="change">${esc(change)}</span>` : ''}</p>
+        <p class="by">${esc(e.actor.name)}${e.actor.role ? ` · ${esc(currentMeta.roles[e.actor.role] ?? e.actor.role)}` : ''} · <time datetime="${esc(e.at)}">${esc(e.exact === false ? briefDay.format(new Date(e.at)) : stamp(e.at))}</time>${zohoish ? ' · <span class="tag">Zoho</span>' : ''}</p>
+        ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
+        ${e.details ? `<p class="details">${esc(detailsText(e.details))}</p>` : ''}
+      </div>
+    </li>`;
+  }).join('');
+  return `
+    <div class="audit-head"><h3 class="label">Audit trail</h3></div>
+    <p class="hint">Every step, newest first: from this app, from getmeds-system, and from Zoho.</p>
+    <ol class="trail">${steps}</ol>`;
+}
+
+function detailsText(details) {
+  return Object.entries(details).map(([k, v]) => {
+    if (k === 'changed') return `Changed: ${v.join(', ')}`;
+    if (k === 'before') return `Before: ${Object.entries(v).map(([field, old]) => `${field}: ${old}`).join(' · ')}`;
+    const value = k === 'amount' || k === 'total' ? peso(v) : k === 'paidOn' ? day(v) : v;
+    return `${currentMeta.fieldLabels?.[k] ?? k}: ${value}`;
+  }).join(' · ');
+}
+
+const recycleNote = (o) => {
+  const purge = new Date(o.purgeAt || (Date.parse(o.deletedAt || o.updatedAt) + 30 * 86400000));
+  const days = Math.max(0, Math.ceil((purge.getTime() - Date.now()) / 86400000));
+  return `<div class="flag-box warn"><b>🗑️ In the Recycle Bin.</b> ${o.zoho?.soId && !String(o.zoho.soId).startsWith('DRYRUN') ? 'It has a Sales Order in Zoho, so it stays on record.' : `Removed for good in ${plural(days, 'day')} (${briefDay.format(purge)}) unless restored.`}</div>`;
+};
 
 // Render Route stations (used in login and order audit)
 function renderRouteLegend(container) {

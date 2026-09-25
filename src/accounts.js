@@ -1,17 +1,19 @@
-// Sign-in for the orders app. Accounts live in data/users.json with scrypt-hashed passwords, or in
-// the ACCOUNTS setting on hosts without a disk (Vercel); a signed cookie keeps someone signed in
-// for 8 hours. The role on the account decides which
-// dashboard they see and which order steps they may take (src/orders.js).
+// Sign-in for the orders app. Accounts are the shared `users` table, the same
+// ones getmeds-system signs people into; a signed cookie keeps someone signed
+// in for 8 hours. The role on the account decides which dashboard they see and
+// which order steps they may take (src/orders.js).
 //
-// Every change Admin makes to an account is announced to onAccountChange listeners, which post it
-// to the Admin log in #order-audit. Never passwords.
+// Two of the database's role names differ from this app's: a 'medrep' there is
+// a Salesperson here, and a 'team_lead' is a Team Leader. They are translated at
+// this boundary (fromDbRole / toDbRole) and nowhere else, so the rest of the app
+// and its pages keep their own names.
+//
+// Adding people and changing roles is done where it always was for this table:
+// getmeds-system's Users screen, until that screen moves here.
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
-const { createJsonStore } = require('./jsonStore');
-const { createDiscordStore } = require('./discordStore');
-const { hashPassword, checkPassword, generatePassword, passwordProblem } = require('./passwords');
+const db = require('./db');
+const { hashPassword, checkPassword, passwordProblem } = require('./passwords');
 const configStore = require('./configStore');
 
 const DEFAULT_ROLE_LABELS = { salesperson: 'Salesperson', team_leader: 'Team Leader', management: 'Management', finance: 'Finance', dispatch: 'Dispatch', admin: 'Admin' };
@@ -32,89 +34,64 @@ const ROLES = new Proxy(['salesperson', 'team_leader', 'management', 'finance', 
   },
   has(target, prop) {
     const list = configStore.getRbac().map((r) => r.id);
-    const active = list.length > 0 ? list : target;
-    return prop in active;
+    return prop in (list.length > 0 ? list : target);
   },
   ownKeys(target) {
     const list = configStore.getRbac().map((r) => r.id);
-    const active = list.length > 0 ? list : target;
-    return Reflect.ownKeys(active);
+    return Reflect.ownKeys(list.length > 0 ? list : target);
   },
   getOwnPropertyDescriptor(target, prop) {
     const list = configStore.getRbac().map((r) => r.id);
-    const active = list.length > 0 ? list : target;
-    return Object.getOwnPropertyDescriptor(active, prop);
+    return Object.getOwnPropertyDescriptor(list.length > 0 ? list : target, prop);
   },
 });
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
-const BACKUP_DIR = path.join(__dirname, '..', 'data.bak');
+// The database's role names <-> this app's.
+const FROM_DB = { medrep: 'salesperson', team_lead: 'team_leader' };
+const TO_DB = { salesperson: 'medrep', team_leader: 'team_lead' };
+const fromDbRole = (r) => FROM_DB[r] || r;
+const toDbRole = (r) => TO_DB[r] || r;
 
 const COOKIE = 'rd_session';
 const SESSION_MS = 8 * 60 * 60 * 1000;
 const SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('base64');
 if (!process.env.SESSION_SECRET) {
-  console.warn('[auth] SESSION_SECRET is not set, so sign-ins last only until the server restarts. `npm run accounts` adds one to .env.');
+  console.warn('[auth] SESSION_SECRET is not set, so sign-ins last only until the server restarts.');
 }
 
-const env = process.env;
-const botToken = env.DISCORD_BOT_TOKEN || null;
+const USER_COLUMNS = `id, name, email, role, is_active, approval_status, team_lead_id, salesperson,
+  division, sub_division, password_hash, session_version, created_at`;
 
-const userStore = createDiscordStore({
-  webhookUrl: env.DISCORD_USER_WEBHOOK_TOKEN,
-  botToken,
-  category: 'user',
-  threadName: 'Users',
-});
-
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-// With ACCOUNTS set, accounts come from it instead of users.json, so a host without a disk has
-// them too. They're read-only then: the People screen lists them, and people are added, changed
-// and removed by editing ACCOUNTS.
-const FROM_ENV = Boolean(process.env.ACCOUNTS?.trim());
-const ENV_MANAGED = 'Accounts are set in ACCOUNTS on the server. Change them there, then restart the server or redeploy.';
-
-function loadInitialUsers() {
-  if (fs.existsSync(path.join(DATA_DIR, 'users.json'))) {
-    try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'users.json'), 'utf8')); } catch {}
-  }
-  if (fs.existsSync(path.join(BACKUP_DIR, 'users.json'))) {
-    try { return JSON.parse(fs.readFileSync(path.join(BACKUP_DIR, 'users.json'), 'utf8')); } catch {}
-  }
-  return { nextId: 1, users: [] };
+// A users row as this app sees it. `db` keeps the row's own fields, which the
+// core services (src/core) expect when they act as this person.
+function fromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: fromDbRole(row.role),
+    active: Number(row.is_active) === 1 && (!row.approval_status || row.approval_status === 'approved'),
+    teamLeaderId: row.team_lead_id ?? null,
+    salesperson: row.salesperson ?? null,
+    division: row.division ?? null,
+    subDivision: row.sub_division ?? null,
+    passwordHash: row.password_hash,
+    sessionVersion: row.session_version ?? 0,
+    createdAt: row.created_at ?? null,
+    db: {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      is_active: row.is_active,
+      approval_status: row.approval_status,
+      salesperson: row.salesperson,
+      division: row.division,
+      sub_division: row.sub_division,
+    },
+  };
 }
-
-const inMemoryUsers = loadInitialUsers();
-
-async function saveStore() {
-  if (FROM_ENV) return;
-  try {
-    await userStore.save(store.data);
-  } catch (err) {
-    console.warn(`[accounts] Failed to save users to Discord: ${err.message}`);
-  }
-}
-
-async function loadFromDiscord() {
-  try {
-    const data = await userStore.load();
-    if (data && Array.isArray(data.users)) {
-      if (!FROM_ENV) {
-        store.data = data;
-      }
-      console.log(`[accounts] Loaded ${data.users.length} accounts from Discord.`);
-      return data;
-    }
-  } catch (err) {
-    console.warn(`[accounts] Failed to load users from Discord: ${err.message}`);
-  }
-  return store.data;
-}
-
-const store = FROM_ENV
-  ? { data: { users: readAccounts(process.env.ACCOUNTS) }, save: async () => {} }
-  : { data: inMemoryUsers, save: saveStore };
 
 // Checked when the email is unknown, so a wrong email takes as long as a wrong password.
 const DUMMY_HASH = hashPassword(crypto.randomBytes(16).toString('hex'));
@@ -125,8 +102,24 @@ const LOCK_AFTER = 10;
 const LOCK_MS = 15 * 60 * 1000;
 
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
-const findByEmail = (email) => store.data.users.find((u) => u.email === email);
-const findUser = (id) => store.data.users.find((u) => u.id === id);
+
+async function findByEmail(email) {
+  return fromRow(await db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE LOWER(email) = LOWER(?)`).get(email));
+}
+
+async function findUser(id) {
+  if (!Number.isInteger(Number(id))) return null;
+  return fromRow(await db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`).get(Number(id)));
+}
+
+// Everyone, or everyone with one of these roles (this app's names).
+async function listUsers({ roles = null } = {}) {
+  const rows = roles
+    ? await db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE role = ANY(?) ORDER BY name`).all(roles.map(toDbRole))
+    : await db.prepare(`SELECT ${USER_COLUMNS} FROM users ORDER BY name`).all();
+  return rows.map(fromRow).map(publicUser);
+}
+
 // Every permission that is about an order rather than about administering the
 // app. Someone with none of them has no work here.
 const ORDER_PERMISSIONS = [
@@ -134,10 +127,8 @@ const ORDER_PERMISSIONS = [
   'approve_orders', 'send_back_orders', 'reject_orders',
   'verify_payment', 'hold_payment', 'pick_pack_dispatch', 'deliver_orders',
 ];
-
-// Administering the system is Orbit's job now, so holding either of these is
-// what makes someone's home the other app.
 const ADMIN_PERMISSIONS = ['manage_users', 'manage_settings'];
+const ORBIT_WEB = () => (process.env.ORBIT_WEB_URL || '').replace(/\/$/, '');
 
 const publicUser = (u) => ({
   id: u.id,
@@ -148,23 +139,20 @@ const publicUser = (u) => ({
   active: u.active,
   createdAt: u.createdAt,
   teamLeaderId: u.teamLeaderId ?? null,
+  division: u.division ?? null,
   canRaiseOrders: configStore.hasPermission(u.role, 'raise_orders'),
   canManageSettings: configStore.hasPermission(u.role, 'manage_settings'),
   canManageUsers: configStore.hasPermission(u.role, 'manage_users'),
   canDeleteOrders: configStore.hasPermission(u.role, 'delete_orders'),
   canRestoreOrders: configStore.hasPermission(u.role, 'restore_orders'),
-  // Whether this person belongs in Orbit rather than here.
-  //
-  // This app does orders; Orbit does everything else. So two kinds of account
-  // are sent there rather than shown a dashboard of other people's work:
-  // someone who administers the system, because there is nothing left here to
-  // administer, and someone who takes no order steps at all, because there is
-  // nothing here they can do. Asked of the permission table, not of a role
-  // name, so it keeps being true as roles are edited.
-  belongsInOrbit:
+  // Whether this person's home is Orbit rather than here: only once Orbit is
+  // actually set up (ORBIT_WEB_URL). Until then an administrator works here,
+  // where the recycle bin and the Zoho sync screen are.
+  belongsInOrbit: Boolean(ORBIT_WEB()) && (
     ADMIN_PERMISSIONS.some((perm) => configStore.hasPermission(u.role, perm))
-    || !ORDER_PERMISSIONS.some((perm) => configStore.hasPermission(u.role, perm)),
-  orbitUrl: (process.env.ORBIT_WEB_URL || '').replace(/\/$/, ''),
+    || !ORDER_PERMISSIONS.some((perm) => configStore.hasPermission(u.role, perm))
+  ),
+  orbitUrl: ORBIT_WEB(),
 });
 
 const accountListeners = [];
@@ -179,105 +167,6 @@ function announce(actor, title, description) {
       console.warn(`[auth] couldn't log "${title}": ${err.message}`);
     }
   }
-}
-
-function cleanName(name) {
-  const clean = String(name ?? '').trim();
-  if (!clean || clean.length > 80) throw bad('Give a name of up to 80 characters.');
-  return clean;
-}
-
-function checkRole(role) {
-  if (!ROLES.includes(role)) throw bad(`Role must be one of: ${ROLES.join(', ')}.`);
-  return role;
-}
-
-function isHash(password) {
-  return /^scrypt\$[^$]+\$[^$]+$/.test(password);
-}
-
-// ACCOUNTS: one account per line, id | email | password | role | name. The password is plain text
-// or a "scrypt$..." hash like users.json keeps; lines starting with # are skipped. A line that
-// doesn't make sense is left out and logged by its line number, never its contents, so a typo
-// locks out one person rather than everyone.
-function readAccounts(text) {
-  const users = [];
-  text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
-    if (line.startsWith('#')) return;
-    const rawParts = line.split('|').map((s) => s.trim());
-    let teamLeaderId = null;
-    if (rawParts.length >= 6 && /^\d+$/.test(rawParts.at(-1))) {
-      teamLeaderId = Number(rawParts.pop());
-    }
-    const account = rawParts.length < 5 ? null : {
-      id: rawParts[0],
-      email: rawParts[1].toLowerCase(),
-      password: rawParts.slice(2, -2).join('|').trim(),   // a password may contain |
-      role: rawParts.at(-2),
-      name: rawParts.at(-1),
-      teamLeaderId,
-    };
-    const problem = account ? lineProblem(account, users) : 'write it as id | email | password | role | name [| teamLeaderId]';
-    if (problem) {
-      console.error(`[auth] ACCOUNTS line ${i + 1} was left out: ${problem}`);
-      return;
-    }
-    const { id, email, password, role, name } = account;
-    users.push({
-      id: Number(id),
-      name,
-      email,
-      role,
-      teamLeaderId,
-      passwordHash: isHash(password) ? password : hashPassword(password),
-      active: true,
-      // Changes with the line's email or password, which signs that person out everywhere.
-      sessionVersion: crypto.createHmac('sha256', SECRET).update(`${id}\n${email}\n${password}`).digest('base64url').slice(0, 16),
-      createdAt: null,
-    });
-  });
-  console.log(`[auth] ${users.length} account(s) from ACCOUNTS`);
-  return users;
-}
-
-// The id never changes: orders point at their salesperson by it.
-function lineProblem({ id, email, password, role, name }, users) {
-  if (!/^[1-9]\d*$/.test(id)) return 'the id must be a whole number, 1 or more';
-  if (users.some((u) => u.id === Number(id))) return `id ${id} is already used above`;
-  if (!EMAIL.test(email)) return "the email isn't an email address";
-  if (users.some((u) => u.email === email)) return 'the email is already used above';
-  if (!ROLES.includes(role)) return `the role must be one of: ${ROLES.join(', ')}`;
-  if (!name || name.length > 80) return 'give a name of up to 80 characters';
-  return isHash(password) ? null : passwordProblem(password);
-}
-
-async function createAccount({ name, email, role, password, teamLeaderId } = {}) {
-  if (FROM_ENV) throw bad(ENV_MANAGED, 409);
-  const clean = cleanName(name);
-  const cleanEmail = String(email ?? '').trim().toLowerCase();
-  if (!EMAIL.test(cleanEmail)) throw bad(`"${cleanEmail}" is not an email address.`);
-  checkRole(role);
-  if (findByEmail(cleanEmail)) throw bad(`${cleanEmail} already has an account.`, 409);
-
-  const generated = password == null || password === '';
-  const pw = generated ? generatePassword() : String(password);
-  const problem = passwordProblem(pw);
-  if (problem) throw bad(problem);
-
-  const user = {
-    id: store.data.nextId++,
-    name: clean,
-    email: cleanEmail,
-    role,
-    teamLeaderId: teamLeaderId != null && teamLeaderId !== '' ? (Number(teamLeaderId) || null) : null,
-    passwordHash: hashPassword(pw),
-    active: true,
-    sessionVersion: 0,   // raised to sign someone out everywhere: deactivation, password reset
-    createdAt: new Date().toISOString(),
-  };
-  store.data.users.push(user);
-  await store.save();
-  return { user, password: generated ? pw : null };
 }
 
 // ---------- sessions ----------
@@ -309,26 +198,33 @@ function readCookie(req, name) {
   return null;
 }
 
-function currentUser(req) {
+// The signed-in person, read fresh from the database on every request: a role
+// change, a deactivation or a password change elsewhere takes effect at once.
+async function currentUser(req) {
   const session = verify(readCookie(req, COOKIE));
   if (!session) return null;
-  const user = findUser(session.uid);
+  const user = await findUser(session.uid);
   if (!user || !user.active || (user.sessionVersion ?? 0) !== session.v) return null;
   return user;
 }
 
 function setSession(res, user) {
   const token = sign({ uid: user.id, v: user.sessionVersion ?? 0, exp: Date.now() + SESSION_MS });
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MS / 1000}`);
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MS / 1000}${secure}`);
 }
 
 // ---------- middleware ----------
 
-function requireUser(req, res, next) {
-  const user = currentUser(req);
-  if (!user) return res.status(401).json({ error: 'Sign in first.' });
-  req.user = user;
-  next();
+async function requireUser(req, res, next) {
+  try {
+    const user = await currentUser(req);
+    if (!user) return res.status(401).json({ error: 'Sign in first.' });
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 function requireRole(...roles) {
@@ -341,9 +237,7 @@ function requirePermission(perm) {
   return (req, res, next) => {
     // No role is waved through. What an Administrator may do is what the RBAC
     // screen says they may do, the same as everybody else.
-    if (configStore.hasPermission(req.user.role, perm)) {
-      return next();
-    }
+    if (configStore.hasPermission(req.user.role, perm)) return next();
     return res.status(403).json({ error: 'You do not have permission to perform this action.' });
   };
 }
@@ -361,12 +255,6 @@ function jsonOnly(req, res, next) {
   next();
 }
 
-// With ACCOUNTS set, the People screen can look but not change.
-function editable(_req, res, next) {
-  if (FROM_ENV) return res.status(409).json({ error: ENV_MANAGED });
-  next();
-}
-
 function fail(err, res, next) {
   if (err.status) return res.status(err.status).json({ error: err.message });
   next(err);
@@ -376,25 +264,29 @@ function fail(err, res, next) {
 
 const router = express.Router();
 
-router.post('/auth/login', jsonOnly, (req, res) => {
-  const email = String(req.body?.email ?? '').trim().toLowerCase();
-  const password = String(req.body?.password ?? '');
-  const record = failures.get(email);
-  if (record && record.count >= LOCK_AFTER && Date.now() - record.first < LOCK_MS) {
-    return res.status(429).json({ error: 'Too many failed sign-ins for this email. Try again in 15 minutes.' });
-  }
+router.post('/auth/login', jsonOnly, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '');
+    const record = failures.get(email);
+    if (record && record.count >= LOCK_AFTER && Date.now() - record.first < LOCK_MS) {
+      return res.status(429).json({ error: 'Too many failed sign-ins for this email. Try again in 15 minutes.' });
+    }
 
-  const user = findByEmail(email);
-  const matches = checkPassword(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !matches || !user.active) {
-    const fresh = !record || Date.now() - record.first >= LOCK_MS;
-    failures.set(email, fresh ? { count: 1, first: Date.now() } : { ...record, count: record.count + 1 });
-    return res.status(401).json({ error: "That email and password don't match an active account." });
-  }
+    const user = await findByEmail(email);
+    const matches = checkPassword(password, user?.passwordHash ?? DUMMY_HASH);
+    if (!user || !matches || !user.active) {
+      const fresh = !record || Date.now() - record.first >= LOCK_MS;
+      failures.set(email, fresh ? { count: 1, first: Date.now() } : { ...record, count: record.count + 1 });
+      return res.status(401).json({ error: "That email and password don't match an active account." });
+    }
 
-  failures.delete(email);
-  setSession(res, user);
-  res.json({ user: publicUser(user) });
+    failures.delete(email);
+    setSession(res, user);
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/auth/logout', jsonOnly, (_req, res) => {
@@ -404,47 +296,37 @@ router.post('/auth/logout', jsonOnly, (_req, res) => {
 
 router.get('/auth/me', requireUser, (req, res) => res.json({ user: publicUser(req.user) }));
 
-router.post('/auth/change-password', jsonOnly, requireUser, editable, async (req, res, next) => {
+router.post('/auth/change-password', jsonOnly, requireUser, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body ?? {};
     if (!currentPassword) throw bad('Enter your current password.');
     if (!newPassword) throw bad('Enter a new password.');
-    const user = store.data.users.find((u) => u.id === req.user.id);
-    if (!user) throw bad('Account not found.', 404);
-    if (!checkPassword(String(currentPassword), user.passwordHash ?? DUMMY_HASH)) {
+    if (!checkPassword(String(currentPassword), req.user.passwordHash ?? DUMMY_HASH)) {
       throw bad('Current password does not match.');
     }
     const problem = passwordProblem(String(newPassword));
     if (problem) throw bad(problem);
-    user.passwordHash = hashPassword(String(newPassword));
-    user.sessionVersion = (user.sessionVersion ?? 0) + 1;
-    await store.save();
-    setSession(res, user);
-    announce(req.user, `Password changed: ${user.name}`, `${user.email} updated their account password`);
+    // bcrypt, so getmeds-system accepts the new password too. Raising the
+    // session version signs this person out everywhere else.
+    await db.prepare('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?')
+      .run(hashPassword(String(newPassword)), req.user.id);
+    setSession(res, await findUser(req.user.id));
+    announce(req.user, `Password changed: ${req.user.name}`, `${req.user.email} updated their account password`);
     res.json({ ok: true, message: 'Password updated successfully' });
   } catch (err) {
     fail(err, res, next);
   }
 });
 
-// Who can sign in, what they may do, and which team they are on are Orbit's —
-// Settings -> People and Settings -> Roles & permissions. They were kept here
-// too once, which meant the same person could be active in one app and not the
-// other, with nothing to say which was right.
-//
-// These answer rather than disappear: something out there may still call them,
-// and "gone, and here is where it went" is a better answer than a 404.
-const inOrbitNow = (what, where) => (_req, res) =>
-  res.status(410).json({
-    error: `${what} is managed in Orbit now, not here.`,
-    orbit: `${(process.env.ORBIT_WEB_URL || '').replace(/\/$/, '')}${where}`,
-  });
-
-router.get('/users', requireUser, inOrbitNow('Who can sign in', '/settings/people'));
-router.post('/users', requireUser, inOrbitNow('Adding someone', '/settings/people/new'));
-router.patch('/users/:id', requireUser, inOrbitNow('Changing an account', '/settings/people'));
-
-const listUsers = () => store.data.users.map(publicUser);
+// Who can sign in and with which role is set on getmeds-system's Users screen
+// (the same table). These answer rather than disappear, in case anything still
+// calls them.
+const managedElsewhere = (_req, res) => res.status(410).json({
+  error: "Accounts are managed on getmeds-system's Users screen for now.",
+});
+router.get('/users', requireUser, managedElsewhere);
+router.post('/users', requireUser, managedElsewhere);
+router.patch('/users/:id', requireUser, managedElsewhere);
 
 module.exports = {
   router,
@@ -452,13 +334,12 @@ module.exports = {
   requireRole,
   requirePermission,
   jsonOnly,
-  createAccount,
   findUser,
   listUsers,
   publicUser,
   onAccountChange,
+  fromDbRole,
+  toDbRole,
   ROLES,
   ROLE_LABELS,
-  loadFromDiscord,
-  _store: userStore,
 };

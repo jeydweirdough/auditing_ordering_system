@@ -1,0 +1,523 @@
+/**
+ * ZohoAdapter — the ONLY contract the rest of the app is allowed to talk to.
+ *
+ * Why this exists:
+ *   Controllers should never import a Zoho HTTP client, an OAuth token helper,
+ *   or a mock directly. They call `require('./integrations/zoho')` (the
+ *   factory in index.js) and get back an object shaped like this class.
+ *   That means swapping mock <-> sandbox <-> live is a one-line env change,
+ *   never a code change, and it means every implementation is forced to
+ *   expose the exact same, deliberately small, surface.
+ *
+ * Safety-by-design (Aug 27, 2026 — tightened to "create-only, read-only
+ * inventory/customers" per explicit policy before live-data testing):
+ *   There is NO delete, void, bulk-delete, or write-off method on this
+ *   contract — on purpose. There is also no longer any method that can
+ *   confirm/pack/ship a Sales Order, record a payment, add a comment, or
+ *   create/edit/activate a Zoho Item or a Zoho Contact. The ONLY write this
+ *   app is allowed to make to Zoho at all is `createSalesOrder` — and that
+ *   creates the SO as a plain Draft (Zoho's own default when you don't also
+ *   call a separate confirm/submit action), never auto-confirmed. Every
+ *   other Zoho-side step (confirming the SO, invoicing, recording payment,
+ *   packing, shipping, adjusting stock, creating/editing items or contacts)
+ *   is expected to happen directly in Zoho, by a human, not through this
+ *   app. Because the interface itself doesn't declare those methods, no
+ *   implementation (mock, sandbox, or live) can be called to do them
+ *   through this adapter, and no future controller code can accidentally
+ *   reach for `zoho.confirmSalesOrder(...)` or `zoho.adjustStock(...)` — it
+ *   simply doesn't exist. If a real need for one of those ever comes up,
+ *   that should be a deliberate, reviewed addition to this file, not an
+ *   ad-hoc call from a controller.
+ *
+ *   `createSalesOrder` also never looks up or creates a Zoho contact or a
+ *   Zoho item on the fly — it requires the caller to already know the
+ *   Zoho contact id (`orderData.zoho_customer_id`) and, per line item, the
+ *   Zoho item id if one exists (`item.zoho_item_id`). Those ids only ever
+ *   come from a read (`listContacts`/`listItems`), never from a write this
+ *   adapter performs — see src/controllers/customers.controller.js and
+ *   inventory.controller.js's syncPullStock.
+ *
+ *   Sep 2, 2026: `listSalespersons` follows the same rule. It exists so the
+ *   app can CHECK that a MedRep's Salesperson name is already present in
+ *   Zoho before sending an order that names it. There is still no method
+ *   that creates one — a missing Salesperson is added by a human, in Zoho.
+ *
+ *   Sep 8, 2026: `updateContactTin` is a second, deliberate exception to
+ *   "createSalesOrder is the ONLY write" above — reviewed and signed off
+ *   the same day. Zoho refuses to create a Sales Order for a "business"
+ *   sub-type contact with no value in its `cf_tin` (Tax Identification
+ *   Number — a Philippines BIR requirement) custom field, and there is no
+ *   Sales-Order-level alternative for this org: TIN can only be set on the
+ *   contact itself. This method exists to unblock exactly that, and
+ *   nothing more — it sends exactly one custom field and can never be used
+ *   to touch a contact's name, address, or anything else. It is still not
+ *   a general updateContact(): that continues not to exist here, on
+ *   purpose. If a real need for a broader contact write ever comes up,
+ *   that too should be a deliberate, reviewed addition, not a widening of
+ *   this one.
+ *
+ *   Sep 11, 2026: `createContact` is a FOURTH deliberate, reviewed
+ *   exception, and the largest one — it creates a permanent record in the
+ *   company's Zoho org.
+ *
+ *   It exists because the alternative was worse. A MedRep taking an order
+ *   from a customer Zoho has never seen had no way forward at all: the
+ *   order form can only pick an existing contact, `createSalesOrder`
+ *   requires a `zoho_customer_id`, and adding one meant asking somebody
+ *   with Zoho access and waiting. The order did not get placed.
+ *
+ *   It is CREATE-ONLY, like `createSalesOrder`. There is still no
+ *   `updateContact`, no delete, and no way to reach an existing contact
+ *   through it — a contact that already exists is found by
+ *   `listContacts` and picked, never overwritten. The narrow
+ *   `updateContactTin` above remains the only edit this app can make to a
+ *   contact, and it still only touches that one field.
+ *
+ *   Sep 19, 2026: `updateSalesOrder` is a FIFTH deliberate, reviewed
+ *   exception, and the one closest to the create-only line this file has
+ *   drawn since Aug 27 — it changes a Sales Order that already exists.
+ *
+ *   It exists because Management asked for it directly: an order can sit
+ *   as a draft for days before it finally reaches Zoho, and by the time a
+ *   correction is needed the order already has a real Sales Order there —
+ *   until now, that meant the correction could only ever be made by hand,
+ *   in Zoho, with nothing in this app's own trail to show it happened.
+ *
+ *   Deliberately NOT available to a MedRep — orders.controller.js's
+ *   updateDetails/updateItems still refuse them the moment zoho_so_id is
+ *   set, exactly as before this existed. Management/admin only, and every
+ *   use logs an ORDER_DETAILS_EDITED/ORDER_ITEMS_EDITED event either way —
+ *   whether the push to Zoho succeeded or not.
+ *
+ *   Resends the Sales Order's full current state (customer, every line
+ *   item, every field createSalesOrder itself would send) rather than a
+ *   partial patch — the same "replace wholesale" shape
+ *   orders.controller.js's own updateItems already uses locally
+ *   (DELETE + re-INSERT order_items), so there is one mental model for
+ *   what an edit means, not two. No local pre-check on the Sales Order's
+ *   own Zoho status (invoiced, shipped, paid...) gates this — Zoho's own
+ *   API is the judge of whether a given edit is still possible on a Sales
+ *   Order in that state, and its refusal is surfaced as the error rather
+ *   than guessed at here.
+ *
+ *   Sep 8, 2026 (2): `addSalesOrderAttachment` is a THIRD deliberate,
+ *   reviewed exception, same day, same reasoning. This app already lets
+ *   MedRep/Management/Finance attach files to an order locally (Proof of
+ *   Payment / Purchase Order / Other — see paymentProof.controller.js);
+ *   this pushes a copy of each newly-attached file onto the matching Zoho
+ *   Sales Order's own "Attach File(s)" section, so staff working directly
+ *   in Zoho see the same files without anyone re-uploading them there by
+ *   hand. It is strictly additive: there is no method here that replaces
+ *   or deletes an existing Zoho attachment — only adds a new one.
+ *   Soft-gated at the call site (paymentProof.controller.js): a failed push
+ *   never undoes or blocks the local attachment.
+ *
+ *   Sep 22, 2026: `getSalesOrderAttachment` is a FOURTH exception, and the
+ *   first READ among these four — see its own doc comment for why. It does
+ *   not weaken the "additive" rule above: reading a file back changes
+ *   nothing in Zoho. Still no replace, still no delete, anywhere here.
+ *
+ * Every method here mirrors the real Zoho Books/Inventory REST API's
+ * request/response shape (see MockZohoAdapter.js and mock-server/ for the
+ * exact field names), so code written against the mock needs zero changes
+ * to run against the live API later.
+ */
+class ZohoAdapter {
+  /** @returns {string} 'mock' | 'http-mock' | 'live' — for logging/audit only, never branch app logic on this. */
+  get mode() {
+    throw new Error('ZohoAdapter.mode must be implemented by subclass');
+  }
+
+  /**
+   * Create a Sales Order. This is the ONLY write this adapter can make to
+   * Zoho. It is created as a plain Draft — nothing in this adapter ever
+   * confirms it, invoices it, or records payment against it; that happens
+   * directly in Zoho by Finance/Dispatch, never through this app.
+   *
+   * Never creates or looks up a Zoho contact or item — both must already
+   * be known and passed in, or the call fails loudly.
+   *
+   * @param {object} orderData - {getmeds_order_id, customer_name, customer_type,
+   *   customer_master_type, total_amount, delivery_address,
+   *   zoho_customer_id: string (REQUIRED — an existing Zoho contact id),
+   *   items: [{sku, name, quantity, unit_price, subtotal, zoho_item_id?}]}
+   * @returns {Promise<{code:number, message:string, salesorder:object}>}
+   */
+  async createSalesOrder(orderData) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Sep 19, 2026: update an EXISTING Sales Order — see this class's header
+   * comment for why this is the fifth deliberate exception to create-only.
+   * Management/admin only, gated at orders.controller.js, never called for
+   * an order still owned by the MedRep who raised it. Resends the order's
+   * full current state, same shape as createSalesOrder's `orderData` — see
+   * services/zohoPayloadBuilder.js, which builds exactly that shape fresh
+   * from the database for this call.
+   *
+   * @param {string} salesorderId - an existing Zoho Sales Order id
+   * @param {object} orderData - same shape as createSalesOrder's
+   * @returns {Promise<{code:number, message:string, salesorder:object}>}
+   */
+  async updateSalesOrder(salesorderId, orderData) {
+    throw new Error('Not implemented');
+  }
+
+  /** @returns {Promise<{code:number, message:string, salesorder:object}>} */
+  async getSalesOrder(salesorderId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: EVERY Sales Order in the org, walking Zoho's pages until it
+   * says there are no more.
+   *
+   * Sep 9, 2026: `opts` added, identical in shape and meaning to
+   * listContacts/listItems below — `opts.onPage(progress)` for live progress
+   * reporting, and `opts.sinceWatermark` (+ optional `opts.watermarkField`,
+   * default `last_modified_time`) for an incremental "Quick Sync" walk that
+   * stops as soon as it reaches a Sales Order it has already seen. Both are
+   * additive and default to the previous behaviour (full walk, no callback),
+   * so the one existing caller needed no change.
+   *
+   * @returns {Promise<{code:number, message:string, salesorders:object[], truncated?:boolean, newWatermark?:string, stoppedEarly?:boolean}>}
+   */
+  async listSalesOrders(params = {}, opts = {}) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: ONE page of Sales Orders, newest first.
+   *
+   * Sep 1, 2026 (6). listSalesOrders above walks every page until Zoho says
+   * there are no more — right for a full mirror, badly wrong for "show me the
+   * five most recent", which would otherwise pull the org's entire Sales Order
+   * history to then discard all but five. This is the bounded read.
+   *
+   * @returns {Promise<{code:number, message:string, salesorders:object[]}>}
+   */
+  async listRecentSalesOrders(limit = 5) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: ONE Sales Order's "Comments & History" — the log Zoho itself
+   * keeps of everything that happened to it, each entry carrying who did it
+   * (`commented_by`), when (`date`/`time`/`operation_type`) and what
+   * (`description`: "Sales Order created", "Status changed from Draft to
+   * Confirmed", "Invoice created", ...).
+   *
+   * Sep 9, 2026. Added for the "retrieve everything from Zoho" import (see
+   * services/zohoOrderImportService.js). Everything else in this app's audit
+   * trail is INFERRED — reconcileService compares Zoho's current state
+   * against the local row and writes a checkpoint for each difference it can
+   * see. That reconstructs the milestones, but never the actual history: it
+   * cannot say WHEN the Sales Order was confirmed, or by WHOM, only that it
+   * is confirmed now. This endpoint is that missing half, straight from
+   * Zoho's own record.
+   *
+   * A plain GET, like every other read here. `addComment` was deliberately
+   * removed from this contract on Aug 27, 2026 and this does NOT bring it
+   * back — there is still no method anywhere that writes a comment to Zoho.
+   *
+   * @param {string} salesorderId
+   * @returns {Promise<{code:number, message:string, comments:object[]}>}
+   */
+  async listSalesOrderComments(salesorderId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: list contacts already in Zoho. Used to mirror customers
+   * into the local `customers` table (see customers.controller.js) so an
+   * order can carry an existing `zoho_customer_id` — this adapter never
+   * creates a contact itself.
+   *
+   * Aug 28, 2026: `opts` is optional and purely additive (default `{}`) —
+   * `opts.onPage(progress)` for live progress reporting, and
+   * `opts.sinceWatermark` (+ optional `opts.watermarkField`) to request an
+   * incremental "Quick Sync" pull (only records modified after that
+   * watermark) instead of the full walk. See LiveZohoAdapter._paginatedList
+   * for the concrete behavior; MockZohoAdapter accepts and mostly ignores
+   * these given its tiny, static fixture set.
+   * @returns {Promise<{code:number, message:string, contacts:object[], truncated?:boolean, newWatermark?:string, stoppedEarly?:boolean}>}
+   */
+  async listContacts(params = {}, opts = {}) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: list items already in Zoho Inventory. Used to compare/pull
+   * stock into the local `products` table (see inventory.controller.js's
+   * syncPullStock) — this adapter never creates, edits, or adjusts a Zoho
+   * item or its stock.
+   *
+   * Aug 28, 2026: see listContacts above — same optional, additive `opts`
+   * (onPage / sinceWatermark / watermarkField) for Quick Sync + progress.
+   * @returns {Promise<{code:number, message:string, items:object[], truncated?:boolean, newWatermark?:string, stoppedEarly?:boolean}>}
+   */
+  async listItems(params = {}, opts = {}) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: fetch ONE contact's full detail, including its
+   * billing_address — a field Zoho's List Contacts response never carries
+   * (see LiveZohoAdapter's implementation comment). Used to auto-fill a
+   * customer's delivery address the moment a MedRep selects them on the
+   * order form (customers.controller.js's getZohoAddress), rather than
+   * fetching every contact's full detail during the bulk sync-from-zoho
+   * pull (which would multiply that pull's API calls by however many
+   * customers exist, for data most of them will never need in a given
+   * session).
+   * @returns {Promise<{code:number, message:string, contact:object}>}
+   */
+  async getContact(contactId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Read-only: list the Salespersons configured in the Zoho org.
+   *
+   * Sep 2, 2026. "Salesperson" is a MANDATORY field on every Sales Order in
+   * this org, and `createSalesOrder` sends it by NAME
+   * ("<division> | <display name>", from users.salesperson — see the sign-up
+   * form). Zoho matches that name against its own list; a name it does not
+   * recognise means the Sales Order is rejected. This exists so the app can
+   * check the name first and say so on the order form, rather than letting a
+   * MedRep fill in a whole order and discover the problem at submit.
+   *
+   * Read-only, like every other list method here. It is deliberately NOT a
+   * create: if a MedRep's Salesperson is missing from Zoho, a human adds it
+   * in Zoho. Nothing in this app creates one — same rule as contacts and
+   * items.
+   * @returns {Promise<{code:number, message:string, salespersons:object[]}>}
+   */
+  async listSalespersons() {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Write EXACTLY ONE thing to an existing Zoho contact: its TIN (`cf_tin`
+   * custom field). See the Sep 8, 2026 note above for why this narrow
+   * exception exists. Never creates a contact — `contactId` must already
+   * exist (from a prior `listContacts`/`getContact` read) — and never sends
+   * any field other than `cf_tin`, so it cannot be used to rename a
+   * customer, change its address, or touch anything else about it.
+   * @param {string} contactId - an existing Zoho contact id
+   * @param {string} tin - the TIN value to write
+   * @returns {Promise<{code:number, message:string, contact:object}>}
+   */
+  async updateContactTin(contactId, tin) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Update an EXISTING contact's details.
+   *
+   * Sep 14, 2026. A customer waiting here to be pushed turned out to be one
+   * Zoho already had (1ST SPECIALITY PHARMA / 1ST SPECIALTY PHARMA), and the
+   * business asked for "Update customer": correct the Zoho customer from what
+   * the rep typed instead of creating a second one. Called only from
+   * services/customerZohoUpdateService.js, after a person has reviewed every
+   * field in a form.
+   *
+   * Narrow on purpose:
+   *   - never creates a contact; `contactId` must already exist
+   *   - sends only fields that have a value — an empty one is omitted, never
+   *     sent as "" (that would clear it, and Zoho treats "" as a value for the
+   *     UNIQUE cf_lto_license_number)
+   *   - never touches contact persons, and never deletes anything
+   *
+   * @param {string} contactId - an existing Zoho contact id
+   * @param {{contact_name?, company_name?, email?, phone?, billing_address?, shipping_address?,
+   *          custom?: {contact_number?, tin?, lto_license_number?, lto_type?, license_owner?,
+   *                    license_issuance_date?, license_expiry_date?}}} fields
+   * @returns {Promise<{code:number, message:string, contact:object|null}>}
+   */
+  async updateContact(contactId, fields) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Create a NEW Zoho contact (customer). See the Sep 11, 2026 note above
+   * for why this create-only exception exists.
+   *
+   * Creates only. There is no counterpart that edits or deletes a contact,
+   * and this cannot be pointed at an existing one: Zoho allocates the id,
+   * and a caller that already has an id has no use for this method.
+   *
+   * The caller is expected to have SEARCHED first (`listContacts`) and
+   * found nothing — see services/customerCreateService.js, which also
+   * refuses a create when a likely duplicate exists rather than letting
+   * Zoho decide.
+   *
+   * @param {object} customer - see customerCreateService for the shape
+   * @returns {Promise<{code:number, message:string, contact:object}>}
+   */
+  async createContact(customer) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Add ONE file attachment to an existing Zoho Sales Order. See the Sep 8,
+   * 2026 (2) note above for why this narrow, add-only exception exists.
+   * Never replaces or deletes an attachment — every call here can only add
+   * a new one.
+   * @param {string} salesorderId - an existing Zoho Sales Order id
+   * @param {{buffer: Buffer, filename: string, contentType?: string}} file
+   * @returns {Promise<{code:number, message:string, document:object, documents:object[]}>}
+   *   `document` is the entry for the file just added (matched by filename
+   *   out of Zoho's own response — see the Sep 22, 2026 note on
+   *   LiveZohoAdapter's implementation for why: the real API returns a
+   *   `documents` ARRAY, not a singular `document`, which the original Sep 8
+   *   version of this method got wrong and never noticed because nothing
+   *   read `.document_id` until getSalesOrderAttachment below needed it).
+   *   `documents` is every attachment currently on the Sales Order.
+   */
+  async addSalesOrderAttachment(salesorderId, file) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Sep 22, 2026: read ONE existing attachment's bytes back off a Sales
+   * Order — the first read this narrow exception has ever had. Still no
+   * list-all (a Sales Order's own `documents[]`, returned by getSalesOrder,
+   * already covers that — see orderTimelineService's sibling reasoning
+   * elsewhere in this app), still no replace, still no delete.
+   *
+   * Added for Phase 1 of moving attachment storage toward "Zoho is the
+   * real, permanent copy" — this is what lets the app SHOW a file straight
+   * from Zoho instead of (or alongside) the local one, without which that
+   * plan has no way to view what it pushed. Verified live against the real
+   * org before this was written: GET /salesorders/{id}/attachment?
+   * document_id=... returns the exact original bytes, correct
+   * Content-Type, and a Content-Disposition carrying the original filename.
+   *
+   * @param {string} salesorderId
+   * @param {string} documentId - from addSalesOrderAttachment's own
+   *   response, or from a Sales Order's `documents[].document_id`.
+   * @returns {Promise<{buffer: Buffer, contentType: string, fileName: string}>}
+   */
+  async getSalesOrderAttachment(salesorderId, documentId) {
+    throw new Error('Not implemented');
+  }
+
+  /*
+   * Sep 12, 2026: the Dispatch writes — the FIFTH deliberate, reviewed
+   * exception to "createSalesOrder is the ONLY write" in the header above,
+   * after confirmSalesOrder below (the fourth). With them this adapter
+   * invoices, packs and ships after all, which the Aug 27 rule said it never
+   * would; tests/zohoAdapter.test.js pins the exact set so nothing joins them
+   * unnoticed.
+   *
+   * Under GETMEDS_WORKFLOW_V2 (services/workflowFlags.js) Dispatch creates the
+   * invoice, the package, the shipment and the delivery from this app (field
+   * guide, chapter 12, "Build plan"), starting where Finance's Verify leaves
+   * an order. Each method below makes exactly one of those changes and is
+   * called from ONE place, services/workflowV2Service.js, which claims the
+   * order first, re-reads the Sales Order before writing, and passes every call
+   * through services/zohoWriteGuard.js so ZOHO_DRY_RUN and
+   * ZOHO_TEST_CUSTOMER_IDS cover these writes too.
+   *
+   * Still absent, on purpose: void, delete, editing a Sales Order's lines,
+   * recording a payment (Finance keeps doing that in Zoho Books), and any item
+   * or stock write.
+   */
+
+  /**
+   * Create the invoice for a confirmed Sales Order (`POST /invoices`), linked
+   * line by line through `salesorder_item_id` so Zoho counts the order as
+   * invoiced. Only the quantity not yet invoiced is billed.
+   * @param {object} salesorder - as returned by getSalesOrder
+   * @param {{date?: string}} opts
+   * @returns {Promise<{code:number, message:string, invoice:object}>}
+   */
+  async createInvoiceFromSalesOrder(salesorder, opts = {}) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Mark a draft invoice sent — issued to the customer (`POST /invoices/{id}/status/sent`).
+   * @returns {Promise<{code:number, message:string}>}
+   */
+  async markInvoiceSent(invoiceId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Create one package for every line still to pack (`POST /packages?salesorder_id=`).
+   * Zoho only packs a confirmed Sales Order.
+   * @param {object} salesorder - as returned by getSalesOrder
+   * @param {{date?: string}} opts
+   * @returns {Promise<{code:number, message:string, package:object}>}
+   */
+  async createPackageForSalesOrder(salesorder, opts = {}) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Ship a package (`POST /shipmentorders?package_ids=&salesorder_id=`). Zoho
+   * requires the shipment number, date, delivery method and tracking number.
+   * @returns {Promise<{code:number, message:string, shipmentorder:object}>}
+   */
+  async createShipmentForPackage({ salesorderId, packageId, shipmentNumber, date, deliveryMethod, trackingNumber }) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Mark a shipment delivered (`POST /shipmentorders/{id}/status/delivered`).
+   * @returns {Promise<{code:number, message:string}>}
+   */
+  async markShipmentDelivered(shipmentId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Move a Sales Order from Draft to Confirmed in Zoho.
+   *
+   * Sep 12, 2026. The FOURTH deliberate exception to this adapter's
+   * create-only rule, and the first that changes the state of a document
+   * rather than adding to one.
+   *
+   * Why it earns the exception: this app creates every Sales Order as a
+   * Draft, and a Draft is invisible to the rest of Zoho's pipeline -- it
+   * cannot be invoiced or packed. Until now somebody confirmed each one by
+   * hand in Zoho Books, and the app waited to be told. That made Finance's
+   * verification a record-keeping act that changed nothing, while the step
+   * that actually released the order happened somewhere else entirely, with
+   * no connection between the two.
+   *
+   * Confirming is safe in a way the deletes this adapter refuses are not: it
+   * moves a document forward through the same transition a person would make
+   * in the UI, it is the documented next state for a Draft, and nothing is
+   * destroyed. A confirmed order that should not have been can be voided in
+   * Zoho by a human; a deleted one cannot be recovered by anyone.
+   *
+   * @param {string} salesorderId - an existing Zoho Sales Order id
+   * @returns {Promise<{code:number, message:string}>}
+   */
+  async confirmSalesOrder(salesorderId) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Toggle a simulated outage, for demoing "Zoho is down" on demand
+   * (Test Mode only calls this). Meaningful only for MockZohoAdapter — the
+   * base implementation is a no-op so calling this against LiveZohoAdapter
+   * (which already fails naturally if the real API is unreachable) never
+   * throws or does anything surprising.
+   * @param {boolean} enabled
+   */
+  setSimulatedOutage(enabled) {
+    // no-op by default
+  }
+
+  /** @returns {boolean} */
+  isSimulatedOutage() {
+    return false;
+  }
+}
+
+module.exports = ZohoAdapter;

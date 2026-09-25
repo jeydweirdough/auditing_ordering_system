@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zoho sync · GetMeds Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <div class="bar">
+    <div class="bar-left">
+      <h1 class="title" style="font-size:22px;">Zoho sync</h1>
+      <p class="role-line" id="role-line"></p>
+    </div>
+  </div>
+  <div id="main">
+    <div class="loading-state"><div class="spinner"></div><p class="loading-text">Loading…</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/zoho-sync.js"></script>
+</body>
+</html>

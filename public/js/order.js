@@ -1,14 +1,5 @@
 'use strict';
 
-const DISCORD_STATE = {
-  sent: (d) => ['sent', `Stored in ${d.inThread ? "the order's thread" : '#order-audit'}, data ${d.asReply ? 'in a reply' : 'in the next message'}`],
-  queued: () => ['wait', 'Waiting to be stored in Discord'],
-  sending: () => ['wait', 'Storing in Discord'],
-  failed: (d) => ['bad', `Not stored in Discord yet: ${d.error}`],
-  mocked: () => ['off', 'Mock mode: in memory only'],
-  off: () => ['off', 'In memory only'],
-};
-
 const S = {
   orderId: null,
   order: null,
@@ -24,7 +15,7 @@ const dl = (rows) => `<dl class="facts">${rows.map(([k, v, raw]) => `<dt>${esc(k
 
 function route(o) {
   let base = o.status;
-  for (let i = o.events.length - 1; (base === 'cancelled' || base === 'deleted') && i >= 0; i--) base = o.events[i].from ?? 'pending_approval';
+  for (let i = o.events.length - 1; (base === 'cancelled' || base === 'deleted') && i >= 0; i--) base = o.events[i].from ?? 'pending_management_approval';
   const reached = REACHED[base] ?? 0;
   const halt = { cancelled: 'Cancelled', rejected: 'Rejected', deleted: 'Deleted' }[o.status];
   const flag = { returned: 'Sent back', on_hold: 'On hold' }[o.status];
@@ -59,7 +50,7 @@ function filesList(o) {
   const kinds = currentMeta?.files?.kinds || {};
   return `<ul class="file-rows">${(o.attachments || []).map((f) => {
     const isImg = isImageFile(f.name);
-    const url = `/api/orders/${encodeURIComponent(o.id)}/files/${f.n}`;
+    const url = fileUrl(f);
     const ext = (f.name.split('.').pop() || 'FILE').toUpperCase();
     const kindLabel = kinds[f.kind] ?? f.kind;
     const thumb = isImg
@@ -149,8 +140,9 @@ function stepBox(o) {
     } else if (!a.danger) {
       cls = 'btn';
     }
-    return `<button type="button" class="${cls}" data-action="${esc(a.name)}">${icon}${esc(a.label)}</button>`;
+    return `<button type="button" class="${cls}" data-action="${esc(a.name)}"${a.blocked ? ` disabled title="${esc(a.blocked)}"` : ''}>${icon}${esc(a.label)}</button>`;
   }).join(' ');
+  const blocked = workflowActions.find((a) => a.blocked);
 
   return `
     <section class="step-workflow" aria-label="Review and decision">
@@ -160,6 +152,7 @@ function stepBox(o) {
       </div>
       <p class="hint" style="margin:4px 0 12px; font-size:13px;">Review customer details, items, attachments, and payment below before deciding.</p>
       <div class="workflow-actions">${buttons}</div>
+      ${blocked ? `<p class="warn" style="margin-top:8px;">${esc(blocked.blocked)}</p>` : ''}
     </section>`;
 }
 
@@ -330,7 +323,7 @@ function actionForm(o, a) {
   return `<form id="action-form" data-action="${esc(a.name)}" novalidate>
     <div style="margin-bottom:12px;">
       <h3 style="margin:0 0 4px; font-size:16px;">${title}</h3>
-      <p class="hint" style="margin:0;">${intro}</p>
+      <p class="hint" style="margin:0;">${intro}${a.zoho ? ` <strong>${esc(a.zoho)}</strong>` : ''}</p>
     </div>
     ${contextCard}
     ${chipPresets}
@@ -344,51 +337,8 @@ function actionForm(o, a) {
   </form>`;
 }
 
-function detailsText(details) {
-  return Object.entries(details).map(([k, v]) => {
-    if (k === 'changed') return `Changed: ${v.join(', ')}`;
-    if (k === 'before') return `Before: ${Object.entries(v).map(([field, old]) => `${field}: ${old}`).join(' · ')}`;
-    const value = k === 'amount' || k === 'total' ? peso(v) : k === 'paidOn' ? day(v) : v;
-    return `${currentMeta.fieldLabels?.[k] ?? k}: ${value}`;
-  }).join(' · ');
-}
-
 function auditView(o) {
-  const d = currentMeta.discord;
-  const store = currentMeta.storage;
-  const where = store?.kind === 'discord'
-    ? "Each step is posted to this order's thread in #order-audit, followed by a reply holding the order's data as JSON. Those replies are where the order is stored: the server reads them back when it starts."
-    : store?.kind === 'discord-write-only'
-      ? "Each step and its data are posted in #order-audit, but without the bot's token they can't be read back, so orders are lost when the server stops."
-      : d?.mode === 'mock' ? 'Mock mode: orders are kept in memory only and are lost when the server stops.'
-      : 'Sending to Discord is off: orders are kept in memory only and are lost when the server stops.';
-  const privacy = store?.kind === 'memory' ? ''
-    : store?.encrypts ? ' Customer details, notes and reasons in the data are encrypted.'
-    : ' RECORD_SECRET is not set, so customer details in the data are readable by everyone in the channel.';
-  const failed = o.events.some((e) => e.discord?.state === 'failed');
-  const canRetry = failed && Boolean(currentUser.canManageSettings);
-  const steps = o.events.map((e) => {
-    const [tone, text] = (DISCORD_STATE[e.discord?.state] ?? DISCORD_STATE.off)(e.discord ?? {});
-    const change = e.from && e.from !== e.to ? `${currentMeta.statuses[e.from]} → ${currentMeta.statuses[e.to]}` : currentMeta.statuses[e.to];
-    return `<li>
-      <span class="tick${tone === 'bad' ? ' bad' : ''}" aria-hidden="true"></span>
-      <div>
-        <p class="what">${esc(e.label)} <span class="change">${esc(change)}</span></p>
-        <p class="by">${esc(e.actor.name)} · ${esc(currentMeta.roles[e.actor.role] ?? e.actor.role)} · <time datetime="${esc(e.at)}">${esc(stamp(e.at))}</time></p>
-        ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
-        ${e.details ? `<p class="details">${esc(detailsText(e.details))}</p>` : ''}
-        <span class="dc ${tone}">${esc(text)}</span>
-      </div>
-    </li>`;
-  }).join('');
-  return `
-    <div class="audit-head">
-      <h3 class="label">Audit trail</h3>
-      ${canRetry ? '<button type="button" class="btn quiet small" data-retry>Send again</button>' : ''}
-    </div>
-    <p class="hint">${esc(where + privacy)}</p>
-    ${o.discord?.threadError && d.threads ? `<p class="warn">No thread yet: ${esc(o.discord.threadError)}. Steps go into the channel until it works.</p>` : ''}
-    <ol class="trail">${steps}</ol>`;
+  return trailHtml(o);
 }
 
 function orderView(o) {
@@ -460,15 +410,7 @@ function orderView(o) {
       </div>
       <p class="sub">Raised by ${esc(o.createdBy.name)}${o.owner && o.owner.id !== o.createdBy.id ? ` for ${esc(o.owner.name)}` : ''}, ${esc(stamp(o.createdAt))}${o.waitingOn ? ` · Next: <strong>${esc(o.waitingOn)}</strong>` : ''}</p>
     </div>
-    ${o.status === 'deleted' ? (() => {
-      const diff = new Date(o.purgeAt || (new Date(o.deletedAt || o.updatedAt).getTime() + 30 * 86400000)).getTime() - Date.now();
-      const days = Math.max(0, Math.ceil(diff / 86400000));
-      const purgeDate = new Date(o.purgeAt || (new Date(o.deletedAt || o.updatedAt).getTime() + 30 * 86400000)).toLocaleDateString();
-      return `<div class="banner warn-banner" style="margin:12px 0;padding:10px 14px;border-radius:6px;background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.3);color:var(--ink);">
-        <strong>🗑️ In Recycle Bin</strong>: Retained in Discord for 30 days before automatic deletion.
-        <br><small><strong>${days} days remaining</strong> (Will automatically vanish from Discord on ${purgeDate})</small>
-      </div>`;
-    })() : ''}
+    ${o.status === 'deleted' ? recycleNote(o) : ''}
     ${o.status === 'returned' ? (() => {
       const sentBack = o.events.findLast((e) => e.type === 'send_back' || e.type === 'tl_send_back');
       const senderRole = sentBack?.actor?.role === 'team_leader' ? 'Team Leader' : 'Management';
@@ -481,6 +423,7 @@ function orderView(o) {
     <div class="route-wrap">${route(o)}</div>
     <div class="order-view-layout">
       <div class="order-main-col">
+        ${orderExtrasHtml(o)}
         ${stepBox(o)}
         <section class="block"><h3 class="label">Order</h3>${dl(facts)}</section>
         ${customFacts.length ? `<section class="block"><h3 class="label">Additional Information</h3>${dl(customFacts)}</section>` : ''}
@@ -725,15 +668,8 @@ async function shrink(file) {
   }
 }
 
-const base64 = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-  reader.onerror = () => reject(new Error(`${file.name} couldn't be read. Attach it again.`));
-  reader.readAsDataURL(file);
-});
-
 async function addFiles(fileList) {
-  const { max, maxBytes } = currentMeta?.files || { max: 10, maxBytes: 3_000_000 };
+  const { max, maxBytes } = currentMeta?.files || { max: 20, maxBytes: 15 * 1024 * 1024 };
   S.staged = S.staged || [];
   for (const raw of fileList) {
     if (S.staged.length >= max) {
@@ -741,9 +677,8 @@ async function addFiles(fileList) {
       break;
     }
     const file = await shrink(raw);
-    const used = S.staged.reduce((n, f) => n + f.size, 0);
-    if (used + file.size > maxBytes) {
-      toast(`${file.name} is too large. All files together must be under ${maxBytes / 1e6} MB.`, 'bad');
+    if (file.size > maxBytes) {
+      toast(`${file.name} is too large. Each file can be up to ${Math.round(maxBytes / 1048576)} MB.`, 'bad');
       continue;
     }
     let kind = 'other';
@@ -772,8 +707,7 @@ function refreshFiles() {
 }
 
 function filesBlock(o, mode) {
-  const { max, maxBytes, kinds } = currentMeta?.files || { max: 10, maxBytes: 3_000_000, kinds: {} };
-  const used = (S.staged || []).reduce((n, f) => n + f.size, 0);
+  const { max, maxBytes, kinds } = currentMeta?.files || { max: 20, maxBytes: 15 * 1024 * 1024, kinds: {} };
   const form = document.querySelector('#order-form');
   const div = form?.querySelector('[name=division]')?.value || o?.division || 'B2C';
   const terms = form?.querySelector('[name=paymentTerms]')?.value || o?.paymentTerms || '';
@@ -786,7 +720,7 @@ function filesBlock(o, mode) {
     if (!f.previewUrl && f.file && isImg) {
       try { f.previewUrl = URL.createObjectURL(f.file); } catch {}
     }
-    const url = f.previewUrl || (f.existing && o?.id ? `/api/orders/${encodeURIComponent(o.id)}/files/${f.n}` : '');
+    const url = f.previewUrl || (f.existing ? fileUrl(f) : '');
     const ext = (f.name.split('.').pop() || 'FILE').toUpperCase();
 
     const thumb = isImg && url
@@ -815,10 +749,10 @@ function filesBlock(o, mode) {
         </div>
       </div>
       <div class="file-actions">
-        <select class="file-kind-select" data-file-kind="${i}">
+        ${f.existing ? `<span class="file-kind-badge">${esc(kinds[f.kind] ?? f.kind)}</span>` : `<select class="file-kind-select" data-file-kind="${i}">
           ${Object.entries(kinds).map(([k, label]) => `<option value="${esc(k)}"${f.kind === k ? ' selected' : ''}>${esc(label)}</option>`).join('')}
         </select>
-        <button type="button" class="remove" data-remove-file="${i}" aria-label="Remove ${esc(f.name)}">×</button>
+        <button type="button" class="remove" data-remove-file="${i}" aria-label="Remove ${esc(f.name)}">×</button>`}
       </div>
     </li>`;
   }).join('');
@@ -841,12 +775,11 @@ function filesBlock(o, mode) {
           <div class="upload-text-content">
             <p class="upload-title">Drop your files here, or <span class="upload-browse-link">browse</span></p>
             <p class="upload-hint">Proof of payment, purchase order, prescription, guarantee letter: photos, PDF, Word or Excel</p>
-            <p class="upload-limits">Up to ${max} files, ${maxBytes / 1e6} MB total. Images shrink automatically. Click thumbnail to preview.</p>
+            <p class="upload-limits">Up to ${max} files, ${Math.round(maxBytes / 1048576)} MB each. Big photos are made smaller automatically. Files already on the order stay; to remove one, ask Management.</p>
           </div>
           <button type="button" class="btn quiet small upload-btn" data-pick-files>Choose files</button>
         </div>
         <div class="upload-status-bar">
-          <span class="upload-limit-info">${esc(bytes(used))} of ${maxBytes / 1e6} MB used</span>
           <span class="upload-count-info">${(S.staged || []).length} of ${max} files attached</span>
         </div>
       </div>
@@ -936,6 +869,7 @@ function render() {
   if (!side || !S.order) return;
   if (S.side === 'order') {
     side.innerHTML = orderView(S.order);
+    loadPipeline(S.order.id);
   } else if (S.side === 'resubmit' || S.side === 'edit') {
     side.innerHTML = orderForm(S.order, S.side);
     recalc();
@@ -954,6 +888,7 @@ async function loadOrder() {
   }
   try {
     const { order } = await api('GET', `/api/orders/${encodeURIComponent(S.orderId)}`);
+    await loadFileLinks(order.id);
     S.order = order;
     document.title = `${order.id} · Order Details`;
     render();
@@ -986,6 +921,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const side = $('#side');
   if (!side) return;
+  bindOrderExtras(side, () => S.order, async (o) => {
+    await loadFileLinks(o.id);
+    S.order = o;
+    render();
+  });
 
   let radioWasChecked = false;
   side.addEventListener('pointerdown', (e) => {
@@ -1058,11 +998,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         S.side = name;
         S.staged = (S.order?.attachments || []).map((f) => ({
           existing: true,
-          n: f.n,
+          id: f.id,
           name: f.name,
           size: f.size,
           kind: f.kind,
-          previewUrl: `/api/orders/${encodeURIComponent(S.order.id)}/files/${f.n}`,
+          previewUrl: fileUrl(f),
         }));
         render();
         return;
@@ -1078,9 +1018,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isPurge = name === 'purge_order';
         const label = isPurge ? 'Permanently delete' : (act?.label || (name === 'reject' ? 'Reject' : name));
         const ok = await confirmModal({
-          title: isPurge ? 'Delete permanently from Discord' : `${label} order`,
+          title: isPurge ? 'Delete permanently' : `${label} order`,
           message: isPurge
-            ? `Are you sure you want to permanently delete order ${S.order.id}?\n\nThis will immediately delete its thread and records from the Discord database and cannot be recovered.`
+            ? `Permanently delete order ${S.order.id}? It can't be recovered afterwards.`
             : `Are you sure you want to ${label.toLowerCase()} order ${S.order.id}? This will be recorded in the audit trail.`,
           confirmText: label,
           cancelText: 'Cancel',
@@ -1116,22 +1056,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       S.formFor = null;
       S.actionStaged = [];
       render();
-      return;
-    }
-
-    const retryBtn = e.target.closest('[data-retry]');
-    if (retryBtn) {
-      setButtonLoading(retryBtn, true, 'Retrying…');
-      try {
-        const { order } = await api('POST', `/api/orders/${encodeURIComponent(S.order.id)}/audit/retry`, {});
-        S.order = order;
-        toast('Audit trail sent to Discord again.');
-        render();
-      } catch (err) {
-        toast(err.message, 'bad');
-      } finally {
-        setButtonLoading(retryBtn, false);
-      }
       return;
     }
 
@@ -1303,9 +1227,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const act = S.order?.actions?.find((a) => a.name === name);
         const label = isPurge ? 'Permanently delete' : (act?.label || (name === 'reject' ? 'Reject' : name));
         const ok = await confirmModal({
-          title: isPurge ? 'Delete permanently from Discord' : `${label} order`,
+          title: isPurge ? 'Delete permanently' : `${label} order`,
           message: isPurge
-            ? `Are you sure you want to permanently delete order ${S.order.id}?\n\nThis will immediately delete its thread and records from the Discord database and cannot be recovered.`
+            ? `Permanently delete order ${S.order.id}? It can't be recovered afterwards.`
             : `Are you sure you want to ${label.toLowerCase()} order ${S.order.id}? This will update the order status and notify stakeholders.`,
           confirmText: `Yes, ${label.toLowerCase()}`,
           cancelText: 'Cancel',
@@ -1314,22 +1238,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!ok) return;
       }
       const body = Object.fromEntries(new FormData(form));
-      if (S.actionStaged && S.actionStaged.length > 0) {
-        body.attachments = await Promise.all(
-          S.actionStaged.map(async (f) => ({
-            name: f.name,
-            kind: f.kind,
-            data: await base64(f.file),
-          }))
-        );
-      }
       const errorEl = $('#action-error');
       if (errorEl) errorEl.hidden = true;
       setButtonLoading(submitBtn, true, 'Submitting…');
       try {
+        // Photos for the step go up first, straight to storage; then the step itself.
+        if (S.actionStaged?.length) await uploadOrderFiles(S.order.id, S.actionStaged);
         const res = await api('POST', `/api/orders/${encodeURIComponent(S.order.id)}/actions/${name}`, body);
         if (name === 'purge_order') {
-          toast(`Order ${S.order.id} permanently deleted and vanished from Discord database.`);
+          toast(`Order ${S.order.id} permanently deleted.`);
           window.location.href = '/orders?tab=deleted';
           return;
         }
@@ -1366,25 +1283,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (mode === 'edit') {
         body.reason = data.get('reason');
       }
-      if (S.staged && S.staged.length > 0) {
-        const newStaged = S.staged.filter((f) => !f.existing);
-        if (newStaged.length > 0) {
-          body.attachments = await Promise.all(
-            newStaged.map(async (f) => ({
-              name: f.name,
-              kind: f.kind,
-              data: await base64(f.file),
-            }))
-          );
-        }
-        body.keepExistingAttachmentIndices = S.staged
-          .filter((f) => f.existing)
-          .map((f) => f.n);
-      }
       const errorEl = $('#order-error');
       if (errorEl) errorEl.hidden = true;
       setButtonLoading(submitBtn, true, mode === 'edit' ? 'Saving…' : 'Submitting…');
       try {
+        // New files go up first, so the resubmission is checked against them.
+        const fresh = (S.staged || []).filter((f) => !f.existing);
+        if (fresh.length) {
+          await uploadOrderFiles(S.order.id, fresh);
+          S.staged = S.staged.map((f) => ({ ...f, existing: true }));
+        }
         const { order } = mode === 'edit'
           ? await api('PATCH', `/api/orders/${encodeURIComponent(S.order.id)}`, body)
           : await api('POST', `/api/orders/${encodeURIComponent(S.order.id)}/actions/resubmit`, body);
@@ -1410,7 +1318,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.visibilityState === 'visible' && S.side === 'order' && S.orderId) {
       try {
         const { order } = await api('GET', `/api/orders/${encodeURIComponent(S.orderId)}`);
-        if (order && order.updatedAt !== S.order?.updatedAt) {
+        if (order && (order.updatedAt !== S.order?.updatedAt || order.events.length !== S.order?.events.length)) {
+          if (order.attachments.length !== S.order?.attachments.length) await loadFileLinks(order.id);
           S.order = order;
           render();
         }

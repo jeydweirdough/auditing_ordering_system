@@ -195,11 +195,10 @@ function adminDash(d) {
     </table></div>` : '<p class="quiet-box">No managers yet.</p>';
   const people = (d.roles || []).filter(Boolean).map((r) => `<li><span>${esc(r.label || r.role)}</span><strong>${r.active || 0}</strong>${r.inactive ? `<small>+${r.inactive} inactive</small>` : ''}</li>`).join('');
   const active = (d.roles || []).filter(Boolean).reduce((s, r) => s + (r.active || 0), 0);
-  const dc = d.discord;
-  const [dcValue, dcHint] = dc.kind !== 'discord' ? ['Memory only', "Orders aren't stored in #order-audit, so they're lost when the server stops."]
-    : dc.failed ? [plural(dc.failed, 'step'), 'not stored in #order-audit yet.']
-    : dc.waiting ? ['On the way', `${plural(dc.waiting, 'step')} being stored in #order-audit.`]
-    : ['All stored', 'Every step is in #order-audit.'];
+  const z = d.zoho || {};
+  const mode = z.dryRun ? 'dry run: nothing is sent to Zoho' : z.mode === 'live' ? 'live' : `${z.mode || 'mock'}: not the real Zoho`;
+  const [zValue, zHint] = z.failed ? [plural(z.failed, 'order'), `didn't reach Zoho. ${z.queued ? `${plural(z.queued, 'retry')} waiting.` : ''} Zoho mode: ${mode}.`]
+    : ['All in Zoho', `Every approved order has its Sales Order. Zoho mode: ${mode}.`];
   return `
     ${dashHero({
       label: `Overall performance · ${d.period.label}`,
@@ -210,8 +209,8 @@ function adminDash(d) {
     <div class="dash-cards">
       ${dashCard({ label: 'Orders raised', value: whole(n.raised), sub: `${delta(n.raised, p?.raised, whole)}${spark(running(d.trend.map((b) => b.count)))}` })}
       ${dashCard({ label: 'Delivered', value: php(n.deliveredValue), sub: `<p class="hint">${plural(n.delivered, 'order')} delivered</p>${delta(n.deliveredValue, p?.deliveredValue, php)}` })}
-      ${dashCard({ label: 'People', tag: 'Now', value: whole(active), sub: `<ul class="people-mini">${people}</ul>`, foot: '<a href="/people" class="link">Manage people</a>' })}
-      ${dashCard({ label: 'Discord storage', tag: 'Now', value: dcValue, sub: `<p class="hint">${esc(dcHint)}</p>`, foot: dc.failed ? '<a href="/orders?tab=discord" class="link">See which</a>' : '' })}
+      ${dashCard({ label: 'People', tag: 'Now', value: whole(active), sub: `<ul class="people-mini">${people}</ul>`, foot: '<p class="hint">Accounts are set on getmeds-system’s Users screen.</p>' })}
+      ${dashCard({ label: 'Zoho', tag: 'Now', value: zValue, sub: `<p class="hint">${esc(zHint)}</p>`, foot: z.failed || z.queued ? '<a href="/zoho-sync" class="link">See which</a>' : '' })}
     </div>`;
 }
 

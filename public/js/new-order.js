@@ -153,6 +153,13 @@ function updateItemRowPrice(row) {
     badges.push(`<span class="badge info-badge">Fixed Catalog Price</span>`);
   }
   if (hintEl) hintEl.innerHTML = badges.join(' ');
+  // Dispatch's word on this product, if it has an open stock notice.
+  if (p?.productId && hintEl) {
+    stockNoticeFor(p.productId).then((n) => {
+      if (!n || prodInput.value !== p.fullName && findCatalogProduct(prodInput.value) !== p) return;
+      hintEl.insertAdjacentHTML('beforeend', ` <span class="badge warn-badge">⚠️ ${esc(STOCK_KIND[n.kind])}${n.message ? `: ${esc(n.message)}` : ''}</span>`);
+    });
+  }
 }
 
 function refreshFormDivision(form) {
@@ -346,7 +353,7 @@ async function handleCustomerSearch(query) {
           <ul class="cust-list">
             ${customers.map((c, i) => `
               <li data-select-customer-idx="${i}">
-                <b>${esc(c.name)}</b>
+                <b>${esc(c.name)}</b>${c.inZoho === false ? ' <span class="tag warn">not in Zoho yet</span>' : ''}
                 ${c.contactNumber ? ` · <small>${esc(c.contactNumber)}</small>` : ''}
                 ${c.division ? ` · <span class="badge">${esc(c.division)}</span>` : ''}
                 ${c.address ? `<div style="font-size:12px;color:var(--ink-2);">${esc(c.address)}</div>` : ''}
@@ -439,8 +446,8 @@ function openCustomerDialog(initialName = '') {
         <input id="c-receiver-contact" name="receiverContact" type="tel" maxlength="30" value="${esc(curRecvContact)}" placeholder="Receiver's contact number">
       </label>
 
-      <!-- Special Price Eligibility Option -->
-      <div style="background:var(--sunk); padding:12px 14px; border-radius:8px; border:1px solid var(--line-soft); margin-top:6px;">
+      <!-- Special Price Eligibility Option: Management clears a customer for it -->
+      <div ${['management', 'admin'].includes(currentUser?.role) ? '' : 'hidden '}style="background:var(--sunk); padding:12px 14px; border-radius:8px; border:1px solid var(--line-soft); margin-top:6px;">
         <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin:0;">
           <input type="checkbox" id="c-special-price" name="hasSpecialPrice" style="width:18px; height:18px; margin-top:2px; accent-color:var(--navy);"${curSpecial ? ' checked' : ''}>
           <div>
@@ -452,6 +459,7 @@ function openCustomerDialog(initialName = '') {
         </label>
       </div>
 
+      <div id="cust-dup-box" hidden></div>
       <p class="error" id="cust-dialog-error" role="alert" hidden></p>
 
       <div class="actions" style="margin-top:12px;">
@@ -533,7 +541,6 @@ function isImageFile(name, type) {
 
 function filesBlock() {
   const { max, maxBytes, kinds } = S.meta.files;
-  const used = S.staged.reduce((n, f) => n + f.size, 0);
   const div = document.querySelector('#order-form [name=division]')?.value;
   const terms = document.querySelector('#order-form [name=paymentTerms]')?.value || '';
   const isDswdPcso = div !== 'B2B' && (terms.toUpperCase().includes('DSWD') || terms.toUpperCase().includes('PCSO'));
@@ -593,12 +600,11 @@ function filesBlock() {
           <div class="upload-text-content">
             <p class="upload-title">Drop your files here, or <span class="upload-browse-link">browse</span></p>
             <p class="upload-hint">Proof of payment, purchase order, prescription, guarantee letter: JPG, PNG, PDF, Word or Excel</p>
-            <p class="upload-limits">Up to ${max} files, ${maxBytes / 1e6} MB total. Big photos are optimized automatically.</p>
+            <p class="upload-limits">Up to ${max} files, ${Math.round(maxBytes / 1048576)} MB each. Big photos are made smaller automatically.</p>
           </div>
           <button type="button" class="btn quiet small upload-btn" data-pick-files>Choose files</button>
         </div>
         <div class="upload-status-bar">
-          <span class="upload-limit-info">${esc(bytes(used))} of ${maxBytes / 1e6} MB used</span>
           ${S.staged.length > 0 ? `<span class="upload-count-info">${S.staged.length} file${S.staged.length > 1 ? 's' : ''} attached</span>` : ''}
         </div>
       </div>
@@ -634,13 +640,6 @@ async function shrink(file) {
   }
 }
 
-const base64 = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
-  reader.onerror = () => reject(new Error(`${file.name} couldn't be read. Attach it again.`));
-  reader.readAsDataURL(file);
-});
-
 async function addFiles(fileList) {
   const { max, maxBytes } = S.meta.files;
   for (const raw of fileList) {
@@ -649,9 +648,8 @@ async function addFiles(fileList) {
       break;
     }
     const file = await shrink(raw);
-    const used = S.staged.reduce((n, f) => n + f.size, 0);
-    if (used + file.size > maxBytes) {
-      toast(`${file.name} is too large. All files together must be under ${maxBytes / 1e6} MB.`, 'bad');
+    if (file.size > maxBytes) {
+      toast(`${file.name} is too large. Each file can be up to ${Math.round(maxBytes / 1048576)} MB.`, 'bad');
       continue;
     }
     let kind = 'other';
@@ -677,7 +675,7 @@ function orderForm(o, mode) {
   const notes = fields.find((f) => f.name === 'notes');
   const items = o?.items?.length ? o.items : [undefined];
   const back = '<button type="button" class="link" data-close-new-order>← Back to orders</button>';
-  const [title, intro, submit] = ['New order', 'Management approves it next, then Finance verifies payment and Dispatch ships it.', 'Submit for approval'];
+  const [title, intro, submit] = ['New order', 'Your Team Leader and Management review it; approving it creates the Sales Order in Zoho. Then Finance verifies payment and Dispatch ships it.', 'Submit for approval'];
   const catalogDatalist = `<datalist id="products-catalog-list">${(S.meta?.products ?? []).map((p) => `<option value="${esc(p.fullName)}" label="${esc(p.brandName || p.genericName)} · ${esc(p.classification)}">`).join('')}</datalist>`;
 
   const activeFields = fields.filter((f) => f !== notes && f.active !== false);
@@ -807,13 +805,41 @@ async function submitOrder(form) {
   }
 
   if (S.orderFor) body.ownerId = S.orderFor.id;
-  if (S.staged.length) {
-    body.attachments = await Promise.all(S.staged.map(async (f) => ({ name: f.name, kind: f.kind, data: await base64(f.file) })));
+  // The customer picked from the list, if the name still matches it.
+  if (S.currentCustomer?.id && S.currentCustomer.name.trim().toLowerCase() === String(body.customerName).trim().toLowerCase()) {
+    body.customerId = S.currentCustomer.id;
   }
+  // The server checks the Guarantee Letter and prescription rules against these now, and against
+  // the uploaded files when the order is submitted.
+  body.fileKinds = S.staged.map((f) => f.kind);
 
-  const { order } = await api('POST', '/api/orders', body);
-  toast(`${order.id} submitted for approval.`);
-  window.location.href = `/orders?open=${encodeURIComponent(order.id)}`;
+  const btn = form.querySelector('button[type=submit]');
+  const say = (text) => { if (btn?.lastChild) btn.lastChild.textContent = text; };
+
+  // 1. Saved as a draft. If a file fails to upload below, pressing Submit again carries on with
+  //    this same draft rather than making a second order.
+  if (!S.draft) {
+    say('Saving…');
+    S.draft = (await api('POST', '/api/orders', body)).order;
+  }
+  const id = S.draft.id;
+  // 2. Each file straight to storage.
+  try {
+    const pending = S.staged.filter((f) => !f.uploaded);
+    for (const [i, f] of pending.entries()) {
+      say(`Uploading file ${i + 1} of ${pending.length}…`);
+      await uploadOrderFile(id, f.file, f.kind);
+      f.uploaded = true;
+    }
+  } catch (err) {
+    throw new Error(`${err.message} The order is saved as draft ${id}: press Submit to try the upload again.`);
+  }
+  // 3. Submitted, once its files are there.
+  say('Submitting…');
+  const { order } = await api('POST', `/api/orders/${encodeURIComponent(id)}/actions/submit`, {});
+  S.draft = null;
+  toast(`${order.id} submitted: ${order.statusLabel}.`);
+  window.location.href = `/order?id=${encodeURIComponent(order.id)}`;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1136,6 +1162,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     custDialog.addEventListener('click', (e) => {
       if (e.target === custDialog || e.target.closest('[data-close-customer-dialog]')) {
         custDialog.close();
+        return;
+      }
+      const use = e.target.closest('[data-use-dup]');
+      if (use) {
+        const m = S.dupMatches[Number(use.dataset.useDup)];
+        autofillCustomer({ id: m.id, name: m.name, contactNumber: m.contactNumber, address: m.address, inZoho: true });
+        custDialog.close();
+        toast(`Using ${m.name}, already in Zoho.`, 'ok');
+        return;
+      }
+      if (e.target.closest('[data-add-anyway]')) {
+        const form = $('#customer-form');
+        form.dataset.dupChecked = '1';
+        form.requestSubmit();
       }
     });
 
@@ -1177,10 +1217,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
 
       const btn = form.querySelector('button[type=submit]');
-      setButtonLoading(btn, true, 'Saving customer…');
-
+      setButtonLoading(btn, true, 'Checking…');
       try {
+        // Customers already in Zoho that look like this one: pick one of them instead of adding a
+        // duplicate. Asked once; "Add as new anyway" skips it.
+        if (!form.dataset.dupChecked) {
+          const { matches } = await api('POST', '/api/orders/customers/check-duplicates', payload);
+          if (matches.length) {
+            S.dupMatches = matches;
+            const box = $('#cust-dup-box');
+            const blocking = matches.some((m) => m.sameCustomer);
+            const why = { same_name: 'same name', similar_name: 'similar name', phone: 'same phone', tin: 'same TIN', lto: 'same LTO licence', email: 'same email' };
+            box.innerHTML = `<div class="flag-box warn"><b>${matches.length === 1 ? 'This customer may already be in Zoho' : `${matches.length} customers in Zoho look like this one`}</b>
+              <ul class="dup-list">${matches.map((m, i) => `<li><b>${esc(m.name)}</b> · ${esc(m.matched.map((k) => why[k] || k).join(', '))}${m.orders ? ` · ${plural(m.orders, 'order')}` : ''}
+                <br><small>${esc([m.contactNumber, m.address].filter(Boolean).join(' · '))}</small>
+                <div><button type="button" class="btn small" data-use-dup="${i}">Use this customer</button></div></li>`).join('')}</ul>
+              ${blocking ? '<p class="hint">One of these is the same customer, so a new one can’t be added.</p>' : '<button type="button" class="btn quiet small" data-add-anyway>Add as a new customer anyway</button>'}</div>`;
+            box.hidden = false;
+            return;
+          }
+        }
+        setButtonLoading(btn, true, 'Saving customer…');
         const { customer } = await api('POST', '/api/orders/customers', payload);
+        if (payload.hasSpecialPrice && ['management', 'admin'].includes(currentUser?.role)) {
+          Object.assign(customer, (await api('PATCH', `/api/orders/customers/${customer.id}/special-price`, { hasSpecialPrice: true })).customer);
+        }
+        delete form.dataset.dupChecked;
         custDialog.close();
         autofillCustomer(customer);
         const fb = $('#customer-search-feedback');

@@ -1,31 +1,25 @@
 'use strict';
 
-// Config store backed strictly by Discord Database Tables.
-// Table "settings"   -> rows: divisions, headquarters, invoicing_from, payment_methods, sources, payment_terms, delivery_methods, customers, recycle_bin
-// Table "rbac"       -> rows: admin, management, finance, salesperson, dispatch, (and custom roles)
+// The app's settings, kept in the database (app_config, see src/dbTable.js).
+// Table "settings"   -> rows: divisions, headquarters, invoicing_from, payment_methods, sources, payment_terms, delivery_methods, recycle_bin, order_fields
+// Table "rbac"       -> rows: admin, management, finance, salesperson, team_leader, dispatch, (and custom roles)
 // Table "promotions" -> rows: bundles, promos, discounts
+//
+// They were Discord threads until Sep 25, 2026. scripts/import-from-discord.js
+// copies the old ones across once; a fresh database starts from
+// config/defaults.json.
 
-const { createDiscordTable } = require('./discordTable');
+const { createDbTable } = require('./dbTable');
+const DEFAULTS = require('../config/defaults.json');
 
-const env = process.env;
-const botToken = env.DISCORD_BOT_TOKEN || null;
+const settingsTable = createDbTable({ tableName: 'settings' });
+const rbacTable = createDbTable({ tableName: 'rbac' });
+const promotionsTable = createDbTable({ tableName: 'promotions' });
 
-const settingsTable = createDiscordTable({
-  webhookUrl: env.DISCORD_SETTING_WEBHOOK_TOKEN,
-  botToken,
-  tableName: 'settings',
-});
-
-const rbacTable = createDiscordTable({
-  webhookUrl: env.DISCORD_RBAC_WEBHOOK_ID,
-  botToken,
-  tableName: 'rbac',
-});
-
-const promotionsTable = createDiscordTable({
-  webhookUrl: env.DISCORD_PROMOTION_WEBHOOK_TOKEN,
-  botToken,
-  tableName: 'promotions',
+// Saves happen in the background of the call that changed a setting (the copy
+// in memory is already updated), so a failure is logged rather than lost.
+const persist = (table, rowId, data) => table.saveRow(rowId, data).catch((err) => {
+  console.error(`[configStore] could not save ${rowId}: ${err.message}`);
 });
 
 const PERMISSION_DEFINITIONS = [
@@ -44,13 +38,29 @@ const PERMISSION_DEFINITIONS = [
   { key: 'manage_settings', label: 'Manage Reference Configs & RBAC', group: 'Admin' },
 ];
 
-// Hydrate from Discord on server startup
-async function loadFromDiscord() {
-  await Promise.all([
-    settingsTable.loadRows(),
-    rbacTable.loadRows(),
-    promotionsTable.loadRows(),
-  ]);
+// How long a server instance trusts its copy before reading the settings again.
+const CONFIG_TTL_MS = 30_000;
+
+// Read from the database when the server starts, and again whenever the copy is
+// older than CONFIG_TTL_MS (src/server.js asks on each request).
+async function refresh({ force = false } = {}) {
+  if (!force && Date.now() - rbacTable.loadedAt() < CONFIG_TTL_MS) return;
+  await Promise.all([settingsTable.loadRows(), rbacTable.loadRows(), promotionsTable.loadRows()]);
+}
+
+// A database that has never held settings gets config/defaults.json.
+async function seedIfEmpty() {
+  if (rbacTable.getAllRowValues().length || Object.keys(settingsTable.getAllRows()).length) return false;
+  for (const [rowId, data] of Object.entries(DEFAULTS.settings)) await persist(settingsTable, rowId, data);
+  for (const role of DEFAULTS.rbac) await persist(rbacTable, role.id, role);
+  for (const [rowId, data] of Object.entries(DEFAULTS.promotions)) await persist(promotionsTable, rowId, data);
+  console.log('[configStore] Empty database: started from config/defaults.json.');
+  return true;
+}
+
+async function load() {
+  await refresh({ force: true });
+  await seedIfEmpty();
 
   // Support legacy bundle migration if a single "Settings" / "Promotions" / "RBAC Roles" row exists
   const legacySettings = settingsTable.getRow('Settings');
@@ -86,12 +96,12 @@ async function loadFromDiscord() {
   const mgmt = rbacTable.getRow('management');
   if (mgmt && mgmt.permissions && mgmt.permissions.edit_orders !== true) {
     mgmt.permissions.edit_orders = true;
-    rbacTable.saveRow('management', mgmt).catch(() => {});
+    await persist(rbacTable, 'management', mgmt);
   }
   const fin = rbacTable.getRow('finance');
   if (fin && fin.permissions && fin.permissions.edit_orders !== true) {
     fin.permissions.edit_orders = true;
-    rbacTable.saveRow('finance', fin).catch(() => {});
+    await persist(rbacTable, 'finance', fin);
   }
 
   // Ensure team_leader role exists with supervisory permissions
@@ -118,7 +128,7 @@ async function loadFromDiscord() {
       },
     };
     rbacTable.setRowData('team_leader', tlRole);
-    rbacTable.saveRow('team_leader', tlRole).catch(() => {});
+    await persist(rbacTable, 'team_leader', tlRole);
   }
 
   // 'admin' is a role in the table now, not a way past it. The one thing that
@@ -130,10 +140,10 @@ async function loadFromDiscord() {
   if (!admin.permissions?.manage_users || !admin.permissions?.manage_settings) {
     admin.permissions = { ...(admin.permissions || {}), manage_users: true, manage_settings: true };
     rbacTable.setRowData('admin', admin);
-    rbacTable.saveRow('admin', admin).catch(() => {});
+    await persist(rbacTable, 'admin', admin);
   }
 
-  console.log('[configStore] Loaded from Discord tables (settings, rbac, promotions).');
+  console.log('[configStore] Loaded settings, roles and promotions from the database.');
 }
 
 // ---------------- Settings Table Getters & Setters ----------------
@@ -142,49 +152,49 @@ function getDivisions() {
   return settingsTable.getRow('divisions') || [];
 }
 function setDivisions(list) {
-  settingsTable.saveRow('divisions', list);
+  persist(settingsTable, 'divisions', list);
 }
 
 function getHeadquarters() {
   return settingsTable.getRow('headquarters') || [];
 }
 function setHeadquarters(list) {
-  settingsTable.saveRow('headquarters', list);
+  persist(settingsTable, 'headquarters', list);
 }
 
 function getInvoicingFrom() {
   return settingsTable.getRow('invoicing_from') || [];
 }
 function setInvoicingFrom(list) {
-  settingsTable.saveRow('invoicing_from', list);
+  persist(settingsTable, 'invoicing_from', list);
 }
 
 function getPaymentMethods() {
   return settingsTable.getRow('payment_methods') || [];
 }
 function setPaymentMethods(list) {
-  settingsTable.saveRow('payment_methods', list);
+  persist(settingsTable, 'payment_methods', list);
 }
 
 function getSources() {
   return settingsTable.getRow('sources') || [];
 }
 function setSources(list) {
-  settingsTable.saveRow('sources', list);
+  persist(settingsTable, 'sources', list);
 }
 
 function getPaymentTerms() {
   return settingsTable.getRow('payment_terms') || [];
 }
 function setPaymentTerms(list) {
-  settingsTable.saveRow('payment_terms', list);
+  persist(settingsTable, 'payment_terms', list);
 }
 
 function getDeliveryMethods() {
   return settingsTable.getRow('delivery_methods') || [];
 }
 function setDeliveryMethods(list) {
-  settingsTable.saveRow('delivery_methods', list);
+  persist(settingsTable, 'delivery_methods', list);
 }
 
 function getCustomers() {
@@ -194,7 +204,7 @@ function getCustomers() {
   return [];
 }
 function setCustomers(list) {
-  settingsTable.saveRow('customers', list);
+  persist(settingsTable, 'customers', list);
 }
 
 function getSettings() {
@@ -221,7 +231,7 @@ function saveSettings(settings = null) {
   if (settings.paymentTerms) setPaymentTerms(settings.paymentTerms);
   if (settings.deliveryMethods) setDeliveryMethods(settings.deliveryMethods);
   if (settings.customers) setCustomers(settings.customers);
-  if (settings.recycleBin) settingsTable.saveRow('recycle_bin', settings.recycleBin);
+  if (settings.recycleBin) persist(settingsTable, 'recycle_bin', settings.recycleBin);
 }
 
 // ---------------- RBAC Table Getters & Setters ----------------
@@ -235,7 +245,7 @@ function getRbac() {
 function setRbac(list) {
   for (const role of list) {
     if (role.id) {
-      rbacTable.saveRow(role.id, role);
+      persist(rbacTable, role.id, role);
     }
   }
 }
@@ -261,9 +271,9 @@ function getPromotions() {
 }
 
 function setPromotions(promos) {
-  if (promos.bundles) promotionsTable.saveRow('bundles', promos.bundles);
-  if (promos.promos) promotionsTable.saveRow('promos', promos.promos);
-  if (promos.discounts) promotionsTable.saveRow('discounts', promos.discounts);
+  if (promos.bundles) persist(promotionsTable, 'bundles', promos.bundles);
+  if (promos.promos) persist(promotionsTable, 'promos', promos.promos);
+  if (promos.discounts) persist(promotionsTable, 'discounts', promos.discounts);
 }
 
 // ---------------- Order Fields (Custom Fields) ----------------
@@ -276,7 +286,7 @@ function getOrderFields() {
 }
 
 function setOrderFields(fields) {
-  settingsTable.saveRow('order_fields', Array.isArray(fields) ? fields : []);
+  persist(settingsTable, 'order_fields', Array.isArray(fields) ? fields : []);
 }
 
 function getAllConfigs() {
@@ -305,7 +315,8 @@ function getAllConfigs() {
 }
 
 module.exports = {
-  loadFromDiscord,
+  load,
+  refresh,
   getDivisions,
   setDivisions,
   getHeadquarters,

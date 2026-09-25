@@ -3,14 +3,21 @@
   "regions": ["sin1"],
   "cleanUrls": true,
   "redirects": [
-    { "source": "/", "destination": "/app", "permanent": false }
+    { "source": "/", "destination": "/dashboard", "permanent": false }
   ],
   "headers": [
     {
-      "source": "/app",
+      "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" }
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/cron/auto-sync", "schedule": "0 1 * * *" },
+    { "path": "/api/cron/zoho-retry", "schedule": "30 1 * * *" },
+    { "path": "/api/cron/purge-deleted", "schedule": "0 19 * * *" }
   ]
 }

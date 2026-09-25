@@ -1,0 +1,248 @@
+{
+  "_note": "Starting settings for a fresh database (npm run seed). Production takes its own from the old Discord tables once (scripts/import-from-discord.js), then edits them in the app.",
+  "settings": {
+    "divisions": [
+      {
+        "name": "B2C",
+        "subDivisions": [
+          "MD Telesales"
+        ]
+      },
+      {
+        "name": "STC",
+        "subDivisions": [
+          "MD Telesales"
+        ]
+      },
+      {
+        "name": "URO",
+        "subDivisions": [
+          "MD Telesales"
+        ]
+      },
+      {
+        "name": "B&B",
+        "subDivisions": [
+          "MD Telesales"
+        ]
+      },
+      {
+        "name": "B2B",
+        "subDivisions": [
+          "NBD",
+          "CRR"
+        ]
+      },
+      {
+        "name": "HOS",
+        "subDivisions": [
+          "Hospital",
+          "Telesales"
+        ]
+      },
+      {
+        "name": "BID",
+        "subDivisions": [
+          "Bidding"
+        ]
+      }
+    ],
+    "headquarters": [
+      "QC Central HQ",
+      "Makati Regional HQ",
+      "Cebu Branch",
+      "Davao Branch"
+    ],
+    "invoicing_from": [
+      "2mg Incorporated",
+      "Getmeds Philippines Inc."
+    ],
+    "payment_methods": [
+      "Cash on delivery",
+      "Bank transfer",
+      "GCash",
+      "Credit terms",
+      "Check",
+      "Credit Card",
+      "PDC"
+    ],
+    "sources": [
+      "Doctor order",
+      "Patient order referred by doctor",
+      "Patient order referred by patient",
+      "Emergency purchase",
+      "Hospital PO",
+      "Distributor order"
+    ],
+    "payment_terms": [
+      "Due end of next month",
+      "Due end of the month",
+      "Paid",
+      "Advanced Payment",
+      "Advanced Payment - Partial",
+      "Donation/Charity",
+      "Samples",
+      "Due on Receipt",
+      "60% DP 40% UPON DEL",
+      "CASH",
+      "COD",
+      "Net",
+      "Net 15",
+      "30 days",
+      "45 Day",
+      "BPO WALLET",
+      "60 Day",
+      "DSWD/PCSO",
+      "OP",
+      "90 Day",
+      "INITIAL STOCKING",
+      "120 Day",
+      "180 Day"
+    ],
+    "delivery_methods": [
+      "Own Rider / Company Vehicle",
+      "LBC Express",
+      "Grab Express",
+      "J&T Express",
+      "Lalamove",
+      "Customer Pick-up",
+      "Distributor Delivery"
+    ],
+    "customers": [],
+    "recycle_bin": [],
+    "order_fields": []
+  },
+  "rbac": [
+    {
+      "id": "admin",
+      "label": "Administrator",
+      "description": "Full access to create, edit, delete orders, manage users and configure system settings.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": true,
+        "edit_orders": true,
+        "delete_orders": true,
+        "restore_orders": true,
+        "approve_orders": true,
+        "send_back_orders": true,
+        "reject_orders": true,
+        "verify_payment": true,
+        "hold_payment": true,
+        "pick_pack_dispatch": true,
+        "deliver_orders": true,
+        "manage_users": true,
+        "manage_settings": true
+      }
+    },
+    {
+      "id": "management",
+      "label": "Management",
+      "description": "Approve new orders, send them back for changes, reject them, or raise orders.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": true,
+        "edit_orders": true,
+        "delete_orders": false,
+        "restore_orders": false,
+        "approve_orders": true,
+        "send_back_orders": true,
+        "reject_orders": true,
+        "verify_payment": false,
+        "hold_payment": false,
+        "pick_pack_dispatch": false,
+        "deliver_orders": false,
+        "manage_users": false,
+        "manage_settings": false
+      }
+    },
+    {
+      "id": "salesperson",
+      "label": "Salesperson",
+      "description": "Raise orders and fix the ones Management sends back.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": true,
+        "edit_orders": false,
+        "delete_orders": false,
+        "restore_orders": false,
+        "approve_orders": false,
+        "send_back_orders": false,
+        "reject_orders": false,
+        "verify_payment": false,
+        "hold_payment": false,
+        "pick_pack_dispatch": false,
+        "deliver_orders": false,
+        "manage_users": false,
+        "manage_settings": false
+      }
+    },
+    {
+      "id": "finance",
+      "label": "Finance",
+      "description": "Verify payment on approved orders or put them on hold.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": false,
+        "edit_orders": true,
+        "delete_orders": false,
+        "restore_orders": false,
+        "approve_orders": false,
+        "send_back_orders": false,
+        "reject_orders": false,
+        "verify_payment": true,
+        "hold_payment": true,
+        "pick_pack_dispatch": false,
+        "deliver_orders": false,
+        "manage_users": false,
+        "manage_settings": false
+      }
+    },
+    {
+      "id": "dispatch",
+      "label": "Dispatch",
+      "description": "Pick, pack and dispatch paid orders, then mark them delivered.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": false,
+        "edit_orders": false,
+        "delete_orders": false,
+        "restore_orders": false,
+        "approve_orders": false,
+        "send_back_orders": false,
+        "reject_orders": false,
+        "verify_payment": false,
+        "hold_payment": false,
+        "pick_pack_dispatch": true,
+        "deliver_orders": true,
+        "manage_users": false,
+        "manage_settings": false
+      }
+    },
+    {
+      "id": "team_leader",
+      "label": "Team Leader",
+      "description": "Supervise salespeople, review and endorse orders before management approval.",
+      "isSystem": true,
+      "permissions": {
+        "raise_orders": true,
+        "edit_orders": true,
+        "delete_orders": false,
+        "restore_orders": false,
+        "approve_orders": true,
+        "send_back_orders": true,
+        "reject_orders": true,
+        "verify_payment": false,
+        "hold_payment": false,
+        "pick_pack_dispatch": false,
+        "deliver_orders": false,
+        "manage_users": false,
+        "manage_settings": false
+      }
+    }
+  ],
+  "promotions": {
+    "bundles": [],
+    "promos": [],
+    "discounts": []
+  }
+}
