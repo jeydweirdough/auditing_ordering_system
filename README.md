@@ -1,6 +1,8 @@
 # Getmeds orders app
 
-A sign-in with a dashboard per role (Salesperson, Management, Finance, Dispatch, Admin), and an audit trail per order in the `#order-audit` Discord channel. Until there's a database, Discord is also where orders are stored: each order lives in its own thread, and the server rebuilds every order from Discord when it starts.
+A sign-in with a dashboard per role (Salesperson, Team Leader, Management, Finance, Dispatch, Admin). Orders are kept in the shared Getmeds database (Supabase Postgres, the same tables getmeds-system uses) and reach Zoho through getmeds-system's own integration: approving an order creates its Sales Order, verifying payment confirms it.
+
+> The sections below "Run it locally" still describe the Discord-storage version and are being rewritten.
 
 ---
 
@@ -8,14 +10,40 @@ A sign-in with a dashboard per role (Salesperson, Management, Finance, Dispatch,
 
 ```bash
 npm install
-cp .env.example .env
-npm run accounts      # once: admin, salesperson, management, finance, dispatch (.test@getmeds.ph) and SESSION_SECRET
 npm run dev
 ```
 
-Open http://localhost:4000, which goes to the sign-in at `/app`. With `.env` as copied, `DISCORD_MODE=mock` and `DISCORD_ENABLED=false`: orders are kept in memory and nothing is sent to Discord.
+Open http://localhost:4000 (or the `PORT` in `.env`) and sign in with one of the sample accounts below.
+
+With no `DATABASE_URL` in `.env`, `npm run dev` starts its own Postgres on this machine (kept in `data/pgdata`), sets it up the first time, and adds the sample accounts, a few customers and the price list. It never touches the shared Supabase database; to use one, set `DATABASE_URL` yourself (never the live one for testing).
+
+With a local database, Zoho is always in **mock** mode, even if `.env` says `ZOHO_MODE=live`, so a test approval can't create a real Sales Order. Uploaded files go to `data/storage` instead of Supabase.
+
+The local database needs about 1 GB of free memory to start. If `npm run dev` stops with "out of memory", close some programs and run it again.
 
 Needs Node 24 (`engines` in `package.json`).
+
+### Sample accounts
+
+For local testing only: they exist in the local database, never in the live one. Every one has the same password:
+
+**Password: `orders-dev-1`**
+
+| Role | Email | Name | Notes |
+|---|---|---|---|
+| Salesperson | `sales@dev.local` | Sam Sales | Division B2C. Leo Leader is their Team Leader, so their orders go to him first |
+| Salesperson | `sales2@dev.local` | Sol Sales | Division HOS. No Team Leader, so any Team Leader may endorse their orders |
+| Team Leader | `leader@dev.local` | Leo Leader | Endorses, sends back or rejects salespeople's orders before Management |
+| Management | `manager@dev.local` | Mara Manager | Approves (creates the Zoho Sales Order), sends back, rejects |
+| Finance | `finance@dev.local` | Fe Finance | Verifies payment (confirms the Sales Order), puts orders on hold |
+| Dispatch | `dispatch@dev.local` | Dino Dispatch | Checks prescriptions, picks, packs, dispatches, delivers; stock notices and holds |
+| Admin | `admin@dev.local` | Ada Admin | Edits, deletes and restores any order; the Zoho sync page |
+
+Sample customers already in (mock) Zoho: **Juan Dela Cruz**, **St. Luke Pharmacy** and **Maria Santos**.
+
+To try the whole journey: sign in as `sales@dev.local` and raise an order for Juan Dela Cruz, then as `leader@dev.local` (endorse), `manager@dev.local` (approve), `finance@dev.local` (verify payment) and `dispatch@dev.local` (start picking → packed → dispatch → delivered).
+
+To start over with a fresh local database, stop the server and delete the `data/pgdata` folder. To use a different password for the sample accounts, set `DEV_PASSWORD` in `.env` before the first run.
 
 ---
 
